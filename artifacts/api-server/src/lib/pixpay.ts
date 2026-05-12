@@ -39,7 +39,7 @@ export async function initiatePixpayPayment(params: {
   paymentMethod: string;
   orderId: number;
 }): Promise<PixpayResponse> {
-  const apiKey = process.env.PIXPAY_API_KEY;
+  const apiKey = (process.env.PIXPAY_API_KEY ?? "").trim();
   if (!apiKey) throw new Error("PIXPAY_API_KEY non configurée");
 
   const serviceId = SERVICE_IDS[params.paymentMethod];
