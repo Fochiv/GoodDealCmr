@@ -41,6 +41,27 @@ async function isAdmin(userId: number | null): Promise<boolean> {
   return user?.role === "admin";
 }
 
+// Public: track orders by phone number — MUST be before /:id
+router.get("/orders/track", async (req, res) => {
+  const phone = String(req.query.phone ?? "").trim();
+  if (!phone) return res.status(400).json({ error: "Numéro de téléphone requis" });
+
+  const rows = await db
+    .select()
+    .from(ordersTable)
+    .where(eq(ordersTable.phoneNumber, phone))
+    .orderBy(desc(ordersTable.createdAt));
+
+  const enriched = await Promise.all(
+    rows.map(async (order) => {
+      const bundle = await getBundleWithOperator(order.bundleId);
+      return { ...order, bundle };
+    })
+  );
+
+  return res.json(enriched);
+});
+
 router.get("/orders", async (req, res) => {
   const userId = getCurrentUserId(req);
   const admin = await isAdmin(userId);
@@ -72,11 +93,11 @@ router.post("/orders", async (req, res) => {
   });
 
   const parsed = schema.safeParse(req.body);
-  if (!parsed.success) return res.status(400).json({ error: "Invalid input" });
+  if (!parsed.success) return res.status(400).json({ error: "Données invalides" });
 
   const bundle = await getBundleWithOperator(parsed.data.bundleId);
-  if (!bundle) return res.status(404).json({ error: "Bundle not found" });
-  if (!bundle.active) return res.status(400).json({ error: "Bundle is not active" });
+  if (!bundle) return res.status(404).json({ error: "Forfait introuvable" });
+  if (!bundle.active) return res.status(400).json({ error: "Ce forfait n'est pas disponible" });
 
   const userId = getCurrentUserId(req);
 
@@ -97,10 +118,10 @@ router.post("/orders", async (req, res) => {
 
 router.get("/orders/:id", async (req, res) => {
   const id = parseInt(req.params.id);
-  if (isNaN(id)) return res.status(400).json({ error: "Invalid ID" });
+  if (isNaN(id)) return res.status(400).json({ error: "ID invalide" });
 
   const [order] = await db.select().from(ordersTable).where(eq(ordersTable.id, id)).limit(1);
-  if (!order) return res.status(404).json({ error: "Order not found" });
+  if (!order) return res.status(404).json({ error: "Commande introuvable" });
 
   const bundle = await getBundleWithOperator(order.bundleId);
   return res.json({ ...order, bundle });
@@ -108,20 +129,19 @@ router.get("/orders/:id", async (req, res) => {
 
 router.post("/orders/:id/pay", async (req, res) => {
   const id = parseInt(req.params.id);
-  if (isNaN(id)) return res.status(400).json({ error: "Invalid ID" });
+  if (isNaN(id)) return res.status(400).json({ error: "ID invalide" });
 
   const schema = z.object({
     paymentMethod: z.enum(["mtn_momo", "orange_money"]),
   });
 
   const parsed = schema.safeParse(req.body);
-  if (!parsed.success) return res.status(400).json({ error: "Invalid input" });
+  if (!parsed.success) return res.status(400).json({ error: "Données invalides" });
 
   const [order] = await db.select().from(ordersTable).where(eq(ordersTable.id, id)).limit(1);
-  if (!order) return res.status(404).json({ error: "Order not found" });
-  if (order.status === "paid") return res.status(400).json({ error: "Order already paid" });
+  if (!order) return res.status(404).json({ error: "Commande introuvable" });
+  if (order.status === "paid") return res.status(400).json({ error: "Commande déjà payée" });
 
-  // Demo mode: always succeed
   const transactionId = "TXN" + createHash("sha256").update(`${id}:${Date.now()}`).digest("hex").slice(0, 12).toUpperCase();
 
   const [updated] = await db
@@ -132,7 +152,7 @@ router.post("/orders/:id/pay", async (req, res) => {
 
   const bundle = await getBundleWithOperator(updated.bundleId);
 
-  return res.json({ success: true, transactionId, message: "Payment successful", order: { ...updated, bundle } });
+  return res.json({ success: true, transactionId, message: "Paiement réussi", order: { ...updated, bundle } });
 });
 
 export default router;
