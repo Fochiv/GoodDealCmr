@@ -1,15 +1,28 @@
 openapi: 3.1.0
 info:
-  # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: Good Deal - Telecom Bundle Marketplace API
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: auth
+    description: Authentication
+  - name: operators
+    description: Telecom operators
+  - name: bundles
+    description: Internet bundles
+  - name: orders
+    description: Orders
+  - name: payments
+    description: Payments
+  - name: users
+    description: User management
+  - name: stats
+    description: Admin statistics
 paths:
   /healthz:
     get:
@@ -24,6 +37,364 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  /auth/register:
+    post:
+      operationId: register
+      tags: [auth]
+      summary: Register a new user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterInput"
+      responses:
+        "201":
+          description: User registered
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+        "400":
+          description: Bad request
+
+  /auth/login:
+    post:
+      operationId: login
+      tags: [auth]
+      summary: Login user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginInput"
+      responses:
+        "200":
+          description: Logged in
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+        "401":
+          description: Invalid credentials
+
+  /auth/me:
+    get:
+      operationId: getMe
+      tags: [auth]
+      summary: Get current authenticated user
+      responses:
+        "200":
+          description: Current user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "401":
+          description: Unauthorized
+
+  /auth/logout:
+    post:
+      operationId: logout
+      tags: [auth]
+      summary: Logout current user
+      responses:
+        "200":
+          description: Logged out
+
+  /operators:
+    get:
+      operationId: listOperators
+      tags: [operators]
+      summary: List all telecom operators
+      responses:
+        "200":
+          description: List of operators
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Operator"
+
+  /operators/{id}:
+    get:
+      operationId: getOperator
+      tags: [operators]
+      summary: Get operator by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Operator
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Operator"
+        "404":
+          description: Not found
+
+  /bundles:
+    get:
+      operationId: listBundles
+      tags: [bundles]
+      summary: List bundles, optionally filtered by operator
+      parameters:
+        - name: operatorId
+          in: query
+          required: false
+          schema:
+            type: integer
+        - name: active
+          in: query
+          required: false
+          schema:
+            type: boolean
+      responses:
+        "200":
+          description: List of bundles
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Bundle"
+    post:
+      operationId: createBundle
+      tags: [bundles]
+      summary: Create a bundle (admin only)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BundleInput"
+      responses:
+        "201":
+          description: Created bundle
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Bundle"
+
+  /bundles/{id}:
+    get:
+      operationId: getBundle
+      tags: [bundles]
+      summary: Get bundle by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Bundle
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Bundle"
+        "404":
+          description: Not found
+    put:
+      operationId: updateBundle
+      tags: [bundles]
+      summary: Update a bundle (admin only)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BundleUpdate"
+      responses:
+        "200":
+          description: Updated bundle
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Bundle"
+    delete:
+      operationId: deleteBundle
+      tags: [bundles]
+      summary: Delete a bundle (admin only)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  /orders:
+    get:
+      operationId: listOrders
+      tags: [orders]
+      summary: List orders (own for users, all for admins)
+      responses:
+        "200":
+          description: List of orders
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Order"
+    post:
+      operationId: createOrder
+      tags: [orders]
+      summary: Create a new order
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OrderInput"
+      responses:
+        "201":
+          description: Created order
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Order"
+
+  /orders/{id}:
+    get:
+      operationId: getOrder
+      tags: [orders]
+      summary: Get order by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Order
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Order"
+        "404":
+          description: Not found
+
+  /orders/{id}/pay:
+    post:
+      operationId: payOrder
+      tags: [orders]
+      summary: Process payment for an order (demo mode)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PaymentInput"
+      responses:
+        "200":
+          description: Payment result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaymentResult"
+
+  /users:
+    get:
+      operationId: listUsers
+      tags: [users]
+      summary: List all users (admin only)
+      responses:
+        "200":
+          description: List of users
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/User"
+
+  /users/{id}:
+    get:
+      operationId: getUser
+      tags: [users]
+      summary: Get user by ID (admin only)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: User
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "404":
+          description: Not found
+
+  /stats/revenue:
+    get:
+      operationId: getRevenueStats
+      tags: [stats]
+      summary: Get revenue statistics (admin only)
+      responses:
+        "200":
+          description: Revenue stats
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RevenueStats"
+
+  /stats/orders:
+    get:
+      operationId: getOrderStats
+      tags: [stats]
+      summary: Get order statistics (admin only)
+      responses:
+        "200":
+          description: Order stats
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OrderStats"
+
+  /stats/popular-bundles:
+    get:
+      operationId: getPopularBundles
+      tags: [stats]
+      summary: Get most popular bundles (admin only)
+      responses:
+        "200":
+          description: Popular bundles
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/PopularBundle"
+
 components:
   schemas:
     HealthStatus:
@@ -34,3 +405,244 @@ components:
       required:
         - status
 
+    RegisterInput:
+      type: object
+      required: [email, password, name, phone]
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          minLength: 6
+        name:
+          type: string
+        phone:
+          type: string
+
+    LoginInput:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+        password:
+          type: string
+
+    AuthResponse:
+      type: object
+      required: [user, token]
+      properties:
+        user:
+          $ref: "#/components/schemas/User"
+        token:
+          type: string
+
+    User:
+      type: object
+      required: [id, email, name, phone, role, createdAt]
+      properties:
+        id:
+          type: integer
+        email:
+          type: string
+        name:
+          type: string
+        phone:
+          type: string
+        role:
+          type: string
+          enum: [user, admin]
+        createdAt:
+          type: string
+          format: date-time
+
+    Operator:
+      type: object
+      required: [id, name, slug, color, logoUrl, active]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        slug:
+          type: string
+        color:
+          type: string
+        logoUrl:
+          type: ["string", "null"]
+        active:
+          type: boolean
+
+    Bundle:
+      type: object
+      required: [id, name, dataSize, validity, price, operatorId, active, createdAt]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        dataSize:
+          type: string
+        validity:
+          type: integer
+        price:
+          type: integer
+        operatorId:
+          type: integer
+        operatorName:
+          type: ["string", "null"]
+        operatorSlug:
+          type: ["string", "null"]
+        operatorColor:
+          type: ["string", "null"]
+        active:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+
+    BundleInput:
+      type: object
+      required: [name, dataSize, validity, price, operatorId]
+      properties:
+        name:
+          type: string
+        dataSize:
+          type: string
+        validity:
+          type: integer
+        price:
+          type: integer
+        operatorId:
+          type: integer
+        active:
+          type: boolean
+
+    BundleUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+        dataSize:
+          type: string
+        validity:
+          type: integer
+        price:
+          type: integer
+        active:
+          type: boolean
+
+    Order:
+      type: object
+      required: [id, phoneNumber, paymentMethod, status, totalAmount, createdAt]
+      properties:
+        id:
+          type: integer
+        userId:
+          type: ["integer", "null"]
+        bundleId:
+          type: integer
+        phoneNumber:
+          type: string
+        paymentMethod:
+          type: string
+          enum: [mtn_momo, orange_money]
+        status:
+          type: string
+          enum: [pending, paid, failed, cancelled]
+        totalAmount:
+          type: integer
+        transactionId:
+          type: ["string", "null"]
+        bundle:
+          $ref: "#/components/schemas/Bundle"
+        createdAt:
+          type: string
+          format: date-time
+
+    OrderInput:
+      type: object
+      required: [bundleId, phoneNumber, paymentMethod]
+      properties:
+        bundleId:
+          type: integer
+        phoneNumber:
+          type: string
+        paymentMethod:
+          type: string
+          enum: [mtn_momo, orange_money]
+
+    PaymentInput:
+      type: object
+      required: [paymentMethod]
+      properties:
+        paymentMethod:
+          type: string
+          enum: [mtn_momo, orange_money]
+
+    PaymentResult:
+      type: object
+      required: [success, transactionId, order]
+      properties:
+        success:
+          type: boolean
+        transactionId:
+          type: string
+        message:
+          type: ["string", "null"]
+        order:
+          $ref: "#/components/schemas/Order"
+
+    RevenueStats:
+      type: object
+      required: [totalRevenue, totalOrders, paidOrders, revenueByOperator]
+      properties:
+        totalRevenue:
+          type: integer
+        totalOrders:
+          type: integer
+        paidOrders:
+          type: integer
+        revenueByOperator:
+          type: array
+          items:
+            type: object
+            required: [operatorName, revenue, orders]
+            properties:
+              operatorName:
+                type: string
+              revenue:
+                type: integer
+              orders:
+                type: integer
+
+    OrderStats:
+      type: object
+      required: [total, pending, paid, failed, cancelled, recentOrders]
+      properties:
+        total:
+          type: integer
+        pending:
+          type: integer
+        paid:
+          type: integer
+        failed:
+          type: integer
+        cancelled:
+          type: integer
+        recentOrders:
+          type: array
+          items:
+            $ref: "#/components/schemas/Order"
+
+    PopularBundle:
+      type: object
+      required: [bundle, totalOrders, totalRevenue]
+      properties:
+        bundle:
+          $ref: "#/components/schemas/Bundle"
+        totalOrders:
+          type: integer
+        totalRevenue:
+          type: integer

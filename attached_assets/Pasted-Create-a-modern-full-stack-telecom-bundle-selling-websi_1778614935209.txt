@@ -1,0 +1,131 @@
+Create a modern full-stack telecom bundle selling website for Cameroon called “Good Deal”.
+
+STACK:
+- Frontend: Next.js 15 + React + Tailwind CSS
+- Backend: Node.js API routes
+- Database: Supabase PostgreSQL
+- Authentication: Supabase Auth
+- Payments: Mobile Money integration ready (MTN MoMo + Orange Money)
+- Fully responsive mobile-first design
+- Dark and light mode
+- Clean African fintech UI design
+
+MAIN IDEA:
+Users can buy internet bundles for:
+- MTN Cameroon
+- Orange Cameroun
+
+The homepage must display 2 big telecom cards:
+1. MTN Cameroon
+2. Orange Cameroun
+
+When user clicks a telecom operator:
+Show available bundles with:
+- bundle name
+- data size
+- validity
+- price
+- buy button
+
+EXAMPLE BUNDLES:
+MTN:
+- 500 FCFA → 2GB / 7 days
+- 1000 FCFA → 6GB / 30 days
+- 2000 FCFA → 15GB / 30 days
+
+Orange:
+- 500 FCFA → 1.5GB / 7 days
+- 1000 FCFA → 5GB / 30 days
+- 2000 FCFA → 12GB / 30 days
+
+BUY FLOW:
+1. User selects bundle
+2. User enters phone number
+3. User selects payment method:
+   - MTN Mobile Money
+   - Orange Money
+4. User clicks Pay
+5. Create order
+6. Redirect to payment page
+7. After payment success:
+   - mark order as paid
+   - show success page
+   - generate transaction ID
+   - save purchase history
+
+FEATURES:
+- Beautiful telecom style UI
+- Fast animations
+- Dashboard admin
+- Order management
+- User account system
+- Purchase history
+- Transaction receipts
+- Search bundles
+- Filter by operator
+- Admin can add/edit/delete bundles
+- Statistics dashboard
+- Revenue dashboard
+- Mobile optimized
+- PWA support
+- Installable Android/iPhone app
+
+ADMIN PANEL:
+Admin can:
+- Manage bundles
+- Manage orders
+- View payments
+- View users
+- Edit prices
+- Enable/disable offers
+- Export transactions
+
+DATABASE TABLES:
+- users
+- bundles
+- operators
+- orders
+- payments
+- transactions
+
+DESIGN:
+- Premium fintech style
+- Gradient backgrounds
+- Telecom colors
+- MTN yellow inspired section
+- Orange orange inspired section
+- Rounded cards
+- Modern buttons
+- Smooth transitions
+- Floating navbar
+- Bottom mobile navigation
+
+PAGES:
+- Home
+- Operators
+- Bundle details
+- Checkout
+- Payment success
+- User dashboard
+- Admin dashboard
+- Login/Register
+- Contact page
+
+EXTRA:
+- Add fake/demo payment mode
+- Add API structure for future automation
+- Add webhook support
+- Add notification system
+- Add SMS/email confirmation structure
+- Add referral system structure
+
+IMPORTANT:
+- Code must be clean and production-ready
+- Use environment variables
+- Use reusable components
+- Create professional folder structure
+- Include installation instructions
+- Include Supabase setup instructions
+- Include deployment guide for Vercel/Replit
+- Generate complete project files
+- Generate beautiful UI automatically
