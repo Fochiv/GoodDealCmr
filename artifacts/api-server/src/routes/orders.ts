@@ -187,6 +187,66 @@ router.post("/orders/:id/pay", async (req, res) => {
   });
 });
 
+// Admin: clients list — grouped by phone number from orders
+router.get("/admin/clients", async (req, res) => {
+  const adminKey = req.headers["x-admin-key"];
+  if (adminKey !== (process.env.ADMIN_PASSWORD ?? "Apashash28@")) {
+    return res.status(403).json({ error: "Accès refusé" });
+  }
+
+  const allOrders = await db.select().from(ordersTable).orderBy(desc(ordersTable.createdAt));
+
+  // Group by phoneNumber
+  const map = new Map<string, {
+    phone: string;
+    totalOrders: number;
+    paidOrders: number;
+    totalSpent: number;
+    firstOrder: string;
+    lastOrder: string;
+    operators: Set<string>;
+  }>();
+
+  const bundles = await db
+    .select({ id: bundlesTable.id, operatorId: bundlesTable.operatorId })
+    .from(bundlesTable);
+  const operators = await db.select().from(operatorsTable);
+  const opMap = new Map(operators.map(o => [o.id, o.name]));
+  const bundleOpMap = new Map(bundles.map(b => [b.id, b.operatorId]));
+
+  for (const order of allOrders) {
+    const phone = order.phoneNumber;
+    if (!map.has(phone)) {
+      map.set(phone, {
+        phone,
+        totalOrders: 0,
+        paidOrders: 0,
+        totalSpent: 0,
+        firstOrder: order.createdAt as unknown as string,
+        lastOrder: order.createdAt as unknown as string,
+        operators: new Set(),
+      });
+    }
+    const entry = map.get(phone)!;
+    entry.totalOrders++;
+    if (order.status === "paid") {
+      entry.paidOrders++;
+      entry.totalSpent += order.totalAmount;
+    }
+    const ts = new Date(order.createdAt).getTime();
+    if (ts < new Date(entry.firstOrder).getTime()) entry.firstOrder = new Date(order.createdAt).toISOString();
+    if (ts > new Date(entry.lastOrder).getTime()) entry.lastOrder = new Date(order.createdAt).toISOString();
+    const opId = bundleOpMap.get(order.bundleId);
+    if (opId) entry.operators.add(opMap.get(opId) ?? "");
+  }
+
+  const clients = Array.from(map.values())
+    .map(c => ({ ...c, operators: Array.from(c.operators).filter(Boolean) }))
+    .sort((a, b) => new Date(b.lastOrder).getTime() - new Date(a.lastOrder).getTime());
+
+  return res.json(clients);
+});
+
 // Admin: manually set order status to paid or failed
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD ?? "Apashash28@";
 
