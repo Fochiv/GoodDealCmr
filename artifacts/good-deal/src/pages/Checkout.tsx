@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useLocation } from "wouter";
 import {
   ArrowLeft, Phone, CreditCard, Loader2, Calendar, Check,
-  Wifi, User, ChevronRight, Signal,
+  Wifi, User, ChevronRight, Signal, Clock, Copy, CheckCircle2,
 } from "lucide-react";
 import { useGetBundle, getGetBundleQueryKey } from "@workspace/api-client-react";
 import { formatFCFA } from "@/lib/api";
@@ -29,8 +29,10 @@ export default function Checkout() {
   const [payerPhone, setPayerPhone] = useState("");
   const [payerName, setPayerName] = useState("");
 
-  const [step, setStep] = useState<1 | 2>(1);
+  const [step, setStep] = useState<1 | 2 | 3>(1);
   const [processing, setProcessing] = useState(false);
+  const [orderId, setOrderId] = useState<number | null>(null);
+  const [copied, setCopied] = useState(false);
 
   const { token } = useAuth();
   const { toast } = useToast();
@@ -56,6 +58,13 @@ export default function Checkout() {
     // Pre-select payment method based on operator
     setPaymentMethod(isMtn ? "mtn_momo" : "orange_money");
     setStep(2);
+  };
+
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
   };
 
   const handlePay = async () => {
@@ -89,23 +98,12 @@ export default function Checkout() {
       if (!orderRes.ok) throw new Error("Échec de création de commande");
       const order = await orderRes.json();
 
-      await new Promise(r => setTimeout(r, 1500));
-
-      const payRes = await fetch(`/api/orders/${order.id}/pay`, {
-        method: "POST",
-        headers,
-        body: JSON.stringify({ paymentMethod, payerPhone: payerPhone.trim(), payerName: payerName.trim() }),
-      });
-
-      if (!payRes.ok) throw new Error("Échec du paiement");
-      const result = await payRes.json();
-
-      setLocation(
-        `/payment/success?txn=${result.transactionId}&orderId=${order.id}&amount=${bundle?.price ?? 0}&phone=${encodeURIComponent(recipientPhone)}&payerName=${encodeURIComponent(payerName)}`
-      );
+      setOrderId(order.id);
+      setStep(3);
     } catch {
-      setProcessing(false);
       toast({ title: "Erreur", description: "Une erreur est survenue. Veuillez réessayer.", variant: "destructive" });
+    } finally {
+      setProcessing(false);
     }
   };
 
@@ -133,33 +131,35 @@ export default function Checkout() {
           {step === 2 ? "Modifier le numéro" : "Retour"}
         </button>
 
-        {/* Step indicator */}
-        <div className="flex items-center gap-2 mb-6">
-          <div className="flex items-center gap-2">
-            <div
-              className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-black"
-              style={{ background: step >= 1 ? operatorColor : "#e5e7eb", color: step >= 1 ? operatorTextColor : "#9ca3af" }}
-            >1</div>
-            <span className={`text-sm font-semibold ${step === 1 ? "text-foreground" : "text-muted-foreground"}`}>
-              Numéro bénéficiaire
-            </span>
+        {/* Step indicator — hidden on step 3 */}
+        {step < 3 && (
+          <div className="flex items-center gap-2 mb-6">
+            <div className="flex items-center gap-2">
+              <div
+                className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-black"
+                style={{ background: step >= 1 ? operatorColor : "#e5e7eb", color: step >= 1 ? operatorTextColor : "#9ca3af" }}
+              >1</div>
+              <span className={`text-sm font-semibold ${step === 1 ? "text-foreground" : "text-muted-foreground"}`}>
+                Numéro bénéficiaire
+              </span>
+            </div>
+            <ChevronRight className="w-4 h-4 text-gray-300 flex-shrink-0" />
+            <div className="flex items-center gap-2">
+              <div
+                className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-black"
+                style={{ background: step >= 2 ? operatorColor : "#e5e7eb", color: step >= 2 ? operatorTextColor : "#9ca3af" }}
+              >2</div>
+              <span className={`text-sm font-semibold ${step === 2 ? "text-foreground" : "text-muted-foreground"}`}>
+                Paiement
+              </span>
+            </div>
           </div>
-          <ChevronRight className="w-4 h-4 text-gray-300 flex-shrink-0" />
-          <div className="flex items-center gap-2">
-            <div
-              className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-black"
-              style={{ background: step >= 2 ? operatorColor : "#e5e7eb", color: step >= 2 ? operatorTextColor : "#9ca3af" }}
-            >2</div>
-            <span className={`text-sm font-semibold ${step === 2 ? "text-foreground" : "text-muted-foreground"}`}>
-              Paiement
-            </span>
-          </div>
-        </div>
+        )}
 
-        {/* Bundle card */}
-        {bundleLoading ? (
+        {/* Bundle card — hidden on step 3 */}
+        {step < 3 && bundleLoading ? (
           <div className="h-28 rounded-2xl bg-gray-200 animate-pulse mb-5" />
-        ) : bundle ? (
+        ) : step < 3 && bundle ? (
           <div className="rounded-2xl p-5 mb-5 shadow-lg" style={{ background: gradient }}>
             <div className="flex items-center justify-between" style={{ color: operatorTextColor }}>
               <div>
@@ -251,6 +251,106 @@ export default function Checkout() {
               Valider et choisir le paiement
               <ChevronRight className="w-5 h-5" />
             </button>
+          </div>
+        )}
+
+        {/* ===================== STEP 3 — CONFIRMATION ===================== */}
+        {step === 3 && (
+          <div className="space-y-4">
+            {/* Success header */}
+            <div className="bg-white border border-gray-100 rounded-2xl p-6 text-center shadow-sm">
+              <div
+                className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4"
+                style={{ background: `${operatorColor}20` }}
+              >
+                <CheckCircle2 className="w-9 h-9" style={{ color: operatorColor }} />
+              </div>
+              <h2 className="text-xl font-black text-foreground mb-1">Commande enregistrée !</h2>
+              <p className="text-sm text-muted-foreground">
+                Référence <span className="font-mono font-bold text-foreground">#{orderId}</span>
+              </p>
+            </div>
+
+            {/* Instructions card */}
+            <div className="bg-white border-2 rounded-2xl p-5 shadow-sm space-y-4" style={{ borderColor: operatorColor }}>
+              <div className="flex items-center gap-2 mb-1">
+                <Clock className="w-5 h-5" style={{ color: operatorColor }} />
+                <h3 className="font-black text-foreground">Effectuez votre paiement maintenant</h3>
+              </div>
+              <p className="text-sm text-muted-foreground">
+                Envoyez <strong className="text-foreground">{bundle ? formatFCFA(bundle.price) : ""}</strong> via{" "}
+                <strong>{paymentMethod === "mtn_momo" ? "MTN Mobile Money" : "Orange Money"}</strong> au numéro Good Deal ci-dessous :
+              </p>
+
+              {/* Number to pay */}
+              <div
+                className="rounded-xl p-4 flex items-center justify-between"
+                style={{ background: `${operatorColor}15` }}
+              >
+                <div>
+                  <div className="text-xs font-semibold text-muted-foreground mb-0.5">Numéro Good Deal {isMtn ? "MTN" : "Orange"}</div>
+                  <div className="text-2xl font-black tracking-wide" style={{ color: operatorColor === "#FFD700" ? "#b45309" : operatorColor }}>
+                    {goodDealNumber}
+                  </div>
+                </div>
+                <button
+                  onClick={() => copyToClipboard(goodDealNumber.replace(/\s/g, ""))}
+                  className="flex items-center gap-1 px-3 py-2 rounded-lg text-xs font-bold border transition-all"
+                  style={{ borderColor: operatorColor, color: operatorColor === "#FFD700" ? "#b45309" : operatorColor }}
+                >
+                  {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                  {copied ? "Copié !" : "Copier"}
+                </button>
+              </div>
+
+              {/* Steps */}
+              <div className="space-y-2.5">
+                {[
+                  `Ouvrez votre appli ${paymentMethod === "mtn_momo" ? "MTN MoMo" : "Orange Money"}`,
+                  `Envoyez ${bundle ? formatFCFA(bundle.price) : ""} au ${goodDealNumber}`,
+                  "Mentionnez votre nom dans la note de transfert",
+                  "Votre forfait sera activé dès confirmation du paiement",
+                ].map((step, i) => (
+                  <div key={i} className="flex items-start gap-3">
+                    <div
+                      className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-black flex-shrink-0 mt-0.5"
+                      style={{ background: operatorColor, color: operatorTextColor }}
+                    >{i + 1}</div>
+                    <p className="text-sm text-foreground">{step}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Order summary */}
+            <div className="bg-white border border-gray-100 rounded-2xl p-4 shadow-sm text-sm space-y-2">
+              <div className="font-bold text-foreground mb-2">Récapitulatif</div>
+              <div className="flex justify-between"><span className="text-muted-foreground">Forfait</span><span className="font-semibold">{bundle?.dataSize} — {bundle?.operatorName}</span></div>
+              <div className="flex justify-between"><span className="text-muted-foreground">Bénéficiaire</span><span className="font-semibold">{recipientPhone}</span></div>
+              <div className="flex justify-between"><span className="text-muted-foreground">Payeur</span><span className="font-semibold">{payerName} · {payerPhone}</span></div>
+              <div className="flex justify-between pt-2 border-t border-gray-100">
+                <span className="text-muted-foreground">Montant</span>
+                <span className="font-black text-lg" style={{ color: operatorColor === "#FFD700" ? "#b45309" : operatorColor }}>{bundle ? formatFCFA(bundle.price) : ""}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-muted-foreground">Statut</span>
+                <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-yellow-100 text-yellow-700">⏳ En attente de paiement</span>
+              </div>
+            </div>
+
+            {/* Track button */}
+            <button
+              onClick={() => setLocation("/commandes")}
+              className="w-full py-4 rounded-2xl font-black text-base border-2 transition-all hover:scale-[1.02] active:scale-95 flex items-center justify-center gap-2"
+              style={{ borderColor: operatorColor, color: operatorColor === "#FFD700" ? "#b45309" : operatorColor }}
+            >
+              Suivre ma commande
+              <ChevronRight className="w-5 h-5" />
+            </button>
+
+            <p className="text-xs text-center text-muted-foreground pb-4">
+              Une fois le paiement reçu, votre forfait sera activé dans les plus brefs délais.
+            </p>
           </div>
         )}
 
