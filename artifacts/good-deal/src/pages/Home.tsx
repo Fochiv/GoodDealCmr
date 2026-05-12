@@ -91,10 +91,20 @@ function AvisModal({ onClose }: { onClose: () => void }) {
   const [stars, setStars] = useState(5);
   const [msg, setMsg] = useState("");
   const [sent, setSent] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    setSubmitting(true);
+    try {
+      await fetch("/api/reviews", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, phone, stars, message: msg }),
+      });
+    } catch {}
     setSent(true);
+    setSubmitting(false);
   }
 
   return (
@@ -181,11 +191,12 @@ function AvisModal({ onClose }: { onClose: () => void }) {
               </div>
               <button
                 type="submit"
-                className="w-full py-3 rounded-xl font-bold text-white transition-all hover:scale-[1.02] flex items-center justify-center gap-2"
+                disabled={submitting}
+                className="w-full py-3 rounded-xl font-bold text-white transition-all hover:scale-[1.02] flex items-center justify-center gap-2 disabled:opacity-60"
                 style={{ background: "linear-gradient(135deg, #FF6B00, #FFD700)" }}
               >
                 <Send className="w-4 h-4" />
-                Envoyer mon avis
+                {submitting ? "Envoi..." : "Envoyer mon avis"}
               </button>
             </form>
           </>

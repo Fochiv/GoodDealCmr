@@ -54,6 +54,7 @@ export default function Admin() {
             <Button variant="outline" size="sm" onClick={() => setLocation("/ashtech/bundles")}>Forfaits</Button>
             <Button variant="outline" size="sm" onClick={() => setLocation("/ashtech/orders")}>Commandes</Button>
             <Button variant="outline" size="sm" onClick={() => setLocation("/ashtech/users")}>Utilisateurs</Button>
+            <Button variant="outline" size="sm" onClick={() => setLocation("/ashtech/reviews")} className="gap-1">⭐ Avis</Button>
             <Button variant="outline" size="sm" onClick={handleLogout} className="gap-1 text-red-600 border-red-200 hover:bg-red-50">
               <LogOut className="w-4 h-4" />
             </Button>

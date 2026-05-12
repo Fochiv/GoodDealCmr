@@ -38,6 +38,7 @@ export default function Ashtech() {
     await new Promise(r => setTimeout(r, 600));
     if (password === ADMIN_PASSWORD) {
       setAdminAuth(true);
+      localStorage.setItem("gd_admin_pass", password);
       toast({ title: "Accès administrateur accordé" });
       setLocation("/ashtech/dashboard");
     } else {
