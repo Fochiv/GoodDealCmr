@@ -63,12 +63,15 @@ router.get("/orders/track", async (req, res) => {
 });
 
 router.get("/orders", async (req, res) => {
+  const adminKey = req.headers["x-admin-key"];
+  const isAdminKey = adminKey === (process.env.ADMIN_PASSWORD ?? "Apashash28@");
+
   const userId = getCurrentUserId(req);
-  const admin = await isAdmin(userId);
+  const adminJwt = await isAdmin(userId);
 
   let rows;
-  if (admin) {
-    rows = await db.select().from(ordersTable).orderBy(desc(ordersTable.createdAt)).limit(100);
+  if (isAdminKey || adminJwt) {
+    rows = await db.select().from(ordersTable).orderBy(desc(ordersTable.createdAt));
   } else if (userId) {
     rows = await db
       .select()
