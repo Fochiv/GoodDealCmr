@@ -7,6 +7,8 @@ export const ordersTable = pgTable("orders", {
   userId: integer("user_id"),
   bundleId: integer("bundle_id").notNull(),
   phoneNumber: text("phone_number").notNull(),
+  payerPhone: text("payer_phone"),
+  payerName: text("payer_name"),
   paymentMethod: text("payment_method").notNull(),
   status: text("status").notNull().default("pending"),
   totalAmount: integer("total_amount").notNull(),

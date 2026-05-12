@@ -101,7 +101,7 @@ export default function Checkout() {
       const result = await payRes.json();
 
       setLocation(
-        `/payment/success?txn=${result.transactionId}&orderId=${order.id}&amount=${bundle?.price ?? 0}&phone=${encodeURIComponent(recipientPhone)}`
+        `/payment/success?txn=${result.transactionId}&orderId=${order.id}&amount=${bundle?.price ?? 0}&phone=${encodeURIComponent(recipientPhone)}&payerName=${encodeURIComponent(payerName)}`
       );
     } catch {
       setProcessing(false);

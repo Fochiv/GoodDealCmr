@@ -70,7 +70,11 @@ router.get("/orders", async (req, res) => {
   if (admin) {
     rows = await db.select().from(ordersTable).orderBy(desc(ordersTable.createdAt)).limit(100);
   } else if (userId) {
-    rows = await db.select().from(ordersTable).where(eq(ordersTable.userId, userId)).orderBy(desc(ordersTable.createdAt));
+    rows = await db
+      .select()
+      .from(ordersTable)
+      .where(eq(ordersTable.userId, userId))
+      .orderBy(desc(ordersTable.createdAt));
   } else {
     return res.status(401).json({ error: "Unauthorized" });
   }
@@ -90,6 +94,8 @@ router.post("/orders", async (req, res) => {
     bundleId: z.number().int().positive(),
     phoneNumber: z.string().min(1),
     paymentMethod: z.enum(["mtn_momo", "orange_money"]),
+    payerPhone: z.string().optional(),
+    payerName: z.string().optional(),
   });
 
   const parsed = schema.safeParse(req.body);
@@ -107,6 +113,8 @@ router.post("/orders", async (req, res) => {
       userId: userId ?? null,
       bundleId: parsed.data.bundleId,
       phoneNumber: parsed.data.phoneNumber,
+      payerPhone: parsed.data.payerPhone ?? null,
+      payerName: parsed.data.payerName ?? null,
       paymentMethod: parsed.data.paymentMethod,
       status: "pending",
       totalAmount: bundle.price,
@@ -133,6 +141,8 @@ router.post("/orders/:id/pay", async (req, res) => {
 
   const schema = z.object({
     paymentMethod: z.enum(["mtn_momo", "orange_money"]),
+    payerPhone: z.string().optional(),
+    payerName: z.string().optional(),
   });
 
   const parsed = schema.safeParse(req.body);
@@ -142,17 +152,36 @@ router.post("/orders/:id/pay", async (req, res) => {
   if (!order) return res.status(404).json({ error: "Commande introuvable" });
   if (order.status === "paid") return res.status(400).json({ error: "Commande déjà payée" });
 
-  const transactionId = "TXN" + createHash("sha256").update(`${id}:${Date.now()}`).digest("hex").slice(0, 12).toUpperCase();
+  const transactionId =
+    "TXN" +
+    createHash("sha256")
+      .update(`${id}:${Date.now()}`)
+      .digest("hex")
+      .slice(0, 12)
+      .toUpperCase();
+
+  const updateData: Record<string, any> = {
+    status: "paid",
+    transactionId,
+    paymentMethod: parsed.data.paymentMethod,
+  };
+  if (parsed.data.payerPhone) updateData.payerPhone = parsed.data.payerPhone;
+  if (parsed.data.payerName) updateData.payerName = parsed.data.payerName;
 
   const [updated] = await db
     .update(ordersTable)
-    .set({ status: "paid", transactionId, paymentMethod: parsed.data.paymentMethod })
+    .set(updateData)
     .where(eq(ordersTable.id, id))
     .returning();
 
   const bundle = await getBundleWithOperator(updated.bundleId);
 
-  return res.json({ success: true, transactionId, message: "Paiement réussi", order: { ...updated, bundle } });
+  return res.json({
+    success: true,
+    transactionId,
+    message: "Paiement réussi",
+    order: { ...updated, bundle },
+  });
 });
 
 export default router;
