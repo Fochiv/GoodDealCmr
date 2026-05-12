@@ -204,17 +204,17 @@ export default function Checkout() {
               </p>
             </div>
 
-            {/* Good Deal network info */}
+            {/* Récapitulatif commande */}
             <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
               <h2 className="text-base font-black text-foreground mb-4 flex items-center gap-2">
                 <Signal className="w-4 h-4" style={{ color: operatorColor }} />
-                Informations Good Deal
+                Récapitulatif de la commande
               </h2>
               <div className="space-y-3">
                 <div className="flex items-center justify-between py-2.5 border-b border-gray-50">
                   <div className="flex items-center gap-2">
                     <Wifi className="w-4 h-4 text-muted-foreground" />
-                    <span className="text-sm text-muted-foreground">Réseau Good Deal</span>
+                    <span className="text-sm text-muted-foreground">Opérateur</span>
                   </div>
                   <span
                     className="text-sm font-black px-3 py-0.5 rounded-full"
@@ -226,16 +226,27 @@ export default function Checkout() {
                 <div className="flex items-center justify-between py-2.5 border-b border-gray-50">
                   <div className="flex items-center gap-2">
                     <Phone className="w-4 h-4 text-muted-foreground" />
-                    <span className="text-sm text-muted-foreground">Numéro {operatorLabel} Good Deal</span>
+                    <span className="text-sm text-muted-foreground">Numéro bénéficiaire</span>
                   </div>
-                  <span className="text-sm font-black text-foreground">{goodDealNumber}</span>
+                  <span className="text-sm font-black text-foreground font-mono">
+                    {recipientPhone.trim() || <span className="text-muted-foreground font-normal italic">à saisir</span>}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between py-2.5 border-b border-gray-50">
+                  <div className="flex items-center gap-2">
+                    <Wifi className="w-4 h-4 text-muted-foreground" />
+                    <span className="text-sm text-muted-foreground">Forfait</span>
+                  </div>
+                  <span className="text-sm font-black text-foreground">
+                    {bundle ? `${bundle.dataSize} — ${bundle.validity}j` : "—"}
+                  </span>
                 </div>
                 <div className="flex items-center justify-between py-2.5">
                   <div className="flex items-center gap-2">
                     <CreditCard className="w-4 h-4 text-muted-foreground" />
-                    <span className="text-sm text-muted-foreground">Montant forfait</span>
+                    <span className="text-sm text-muted-foreground">Montant à payer</span>
                   </div>
-                  <span className="text-sm font-black" style={{ color: operatorColor }}>
+                  <span className="text-sm font-black" style={{ color: isMtn ? "#B8860B" : "#D45800" }}>
                     {bundle ? formatFCFA(bundle.price) : "—"}
                   </span>
                 </div>
