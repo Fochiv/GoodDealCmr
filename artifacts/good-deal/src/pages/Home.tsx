@@ -303,22 +303,41 @@ export default function Home() {
           </p>
 
           {/* Operator quick buttons */}
-          <div className="flex flex-col sm:flex-row gap-3 justify-center mb-4">
+          <div className="flex flex-col sm:flex-row gap-4 justify-center mb-4">
             <button
               onClick={() => mtnOp ? setLocation(`/operator/${mtnOp.id}`) : setLocation("/forfaits")}
-              className="flex items-center justify-center gap-2 px-8 py-4 rounded-xl font-black text-base transition-all hover:scale-105 shadow-lg text-gray-900"
-              style={{ background: "linear-gradient(135deg, #FFD700, #FFC200)" }}
+              className="group relative flex items-center gap-4 px-6 py-4 rounded-2xl font-black text-base transition-all hover:scale-105 active:scale-95 text-gray-900 overflow-hidden"
+              style={{ background: "linear-gradient(135deg, #FFD700, #FFA500)", boxShadow: "0 8px 24px rgba(255,193,0,0.5)" }}
             >
-              <span className="text-lg">📶</span>
-              Forfaits MTN
+              <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity" style={{ background: "linear-gradient(135deg, #FFE44D, #FFB800)" }} />
+              <div className="relative flex items-center gap-3 flex-1">
+                <div className="w-10 h-10 rounded-xl bg-black/10 flex items-center justify-center flex-shrink-0">
+                  <span className="text-xl">🟡</span>
+                </div>
+                <div className="text-left">
+                  <div className="text-xs font-bold uppercase tracking-widest text-yellow-900/60 leading-none mb-0.5">Découvrir</div>
+                  <div className="text-lg font-black leading-tight">Good Deals MTN</div>
+                </div>
+              </div>
+              <ChevronRight className="relative w-5 h-5 text-yellow-900/50 group-hover:translate-x-1 transition-transform flex-shrink-0" />
             </button>
+
             <button
               onClick={() => orangeOp ? setLocation(`/operator/${orangeOp.id}`) : setLocation("/forfaits")}
-              className="flex items-center justify-center gap-2 px-8 py-4 rounded-xl font-black text-base transition-all hover:scale-105 shadow-lg text-white"
-              style={{ background: "linear-gradient(135deg, #FF6B00, #FF4500)" }}
+              className="group relative flex items-center gap-4 px-6 py-4 rounded-2xl font-black text-base transition-all hover:scale-105 active:scale-95 text-white overflow-hidden"
+              style={{ background: "linear-gradient(135deg, #FF6B00, #FF3D00)", boxShadow: "0 8px 24px rgba(255,80,0,0.45)" }}
             >
-              <span className="text-lg">📶</span>
-              Forfaits Orange
+              <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity" style={{ background: "linear-gradient(135deg, #FF8500, #FF4500)" }} />
+              <div className="relative flex items-center gap-3 flex-1">
+                <div className="w-10 h-10 rounded-xl bg-white/15 flex items-center justify-center flex-shrink-0">
+                  <span className="text-xl">🟠</span>
+                </div>
+                <div className="text-left">
+                  <div className="text-xs font-bold uppercase tracking-widest text-orange-100/70 leading-none mb-0.5">Découvrir</div>
+                  <div className="text-lg font-black leading-tight">Good Deals Orange</div>
+                </div>
+              </div>
+              <ChevronRight className="relative w-5 h-5 text-white/60 group-hover:translate-x-1 transition-transform flex-shrink-0" />
             </button>
           </div>
 
