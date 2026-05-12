@@ -59,28 +59,66 @@ export default function Checkout() {
     : "linear-gradient(135deg, #FF6B00, #FF8C00)";
 
   const startPolling = (id: number) => {
-    if (pollRef.current) clearInterval(pollRef.current);
-    // SSE: server pushes status instantly when IPN fires — no polling needed
-    const es = new EventSource(`${API_BASE}/orders/${id}/events`);
-    (pollRef as any).current = es;
-    es.onmessage = (e) => {
+    const ref = (pollRef as any).current;
+    if (ref instanceof EventSource) ref.close();
+    else if (ref) clearInterval(ref);
+
+    let es: EventSource | null = null;
+    let retryTimer: ReturnType<typeof setTimeout> | null = null;
+    let stopped = false;
+
+    function handleStatus(status: OrderStatus) {
+      if (stopped) return;
+      setOrderStatus(status);
+      if (status === "paid" || status === "failed" || status === "cancelled") {
+        clearPendingPayment();
+        stop();
+      }
+    }
+
+    function stop() {
+      stopped = true;
+      es?.close();
+      if (retryTimer) clearTimeout(retryTimer);
+    }
+
+    function openSSE() {
+      if (stopped) return;
+      es = new EventSource(`${API_BASE}/orders/${id}/events`);
+      es.onmessage = (e) => {
+        try {
+          const data = JSON.parse(e.data) as { status: string };
+          handleStatus(data.status as OrderStatus);
+        } catch {}
+      };
+      es.onerror = () => {
+        es?.close();
+        if (!stopped) retryTimer = setTimeout(() => checkNow(), 3000);
+      };
+    }
+
+    async function checkNow() {
+      if (stopped) return;
       try {
-        const data = JSON.parse(e.data) as { status: string };
-        const status = data.status as OrderStatus;
-        setOrderStatus(status);
-        if (status === "paid" || status === "failed" || status === "cancelled") {
-          clearPendingPayment();
-          es.close();
-        }
-      } catch {}
-    };
-    es.onerror = () => es.close();
+        const r = await fetch(`${API_BASE}/orders/${id}`);
+        if (!r.ok) { retryTimer = setTimeout(() => checkNow(), 3000); return; }
+        const data = await r.json() as { status: string };
+        handleStatus(data.status as OrderStatus);
+        if (!stopped) openSSE();
+      } catch {
+        retryTimer = setTimeout(() => checkNow(), 3000);
+      }
+    }
+
+    // First: immediate GET to detect already-resolved status, then SSE for live updates
+    checkNow();
+    (pollRef as any).current = { close: stop };
   };
 
   useEffect(() => {
     return () => {
       const ref = (pollRef as any).current;
-      if (ref instanceof EventSource) ref.close();
+      if (ref?.close) ref.close();
       else if (ref) clearInterval(ref);
     };
   }, []);

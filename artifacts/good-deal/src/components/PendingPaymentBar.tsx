@@ -73,32 +73,68 @@ export function PendingPaymentBar() {
     return () => { if (pulseRef.current) clearInterval(pulseRef.current); };
   }, []);
 
-  // SSE: listen for real-time order status push (no polling)
+  // Check status + subscribe to SSE for real-time updates
   useEffect(() => {
     if (!payment || finalStatus) return;
 
-    const es = new EventSource(`/api/orders/${payment.orderId}/events`);
+    let es: EventSource | null = null;
+    let cancelled = false;
 
-    es.onmessage = (e) => {
+    function handleFinal(status: "paid" | "failed") {
+      if (cancelled) return;
+      setFinalStatus(status);
+      clearPendingPayment();
+      es?.close();
+      const delay = status === "paid" ? 4000 : 5000;
+      setTimeout(() => {
+        if (!cancelled) { setDismissed(true); setPayment(null); }
+      }, delay);
+    }
+
+    function openSSE() {
+      es = new EventSource(`/api/orders/${payment!.orderId}/events`);
+      es.onmessage = (e) => {
+        try {
+          const data = JSON.parse(e.data) as { status: string };
+          if (data.status === "paid") handleFinal("paid");
+          else if (data.status === "failed" || data.status === "cancelled") handleFinal("failed");
+        } catch {}
+      };
+      // On SSE error, fall back to polling every 3s
+      es.onerror = () => {
+        es?.close();
+        if (!cancelled) scheduleRetry();
+      };
+    }
+
+    let retryTimer: ReturnType<typeof setTimeout> | null = null;
+    function scheduleRetry() {
+      retryTimer = setTimeout(() => checkCurrent(), 3000);
+    }
+
+    async function checkCurrent() {
+      if (cancelled) return;
       try {
-        const data = JSON.parse(e.data) as { status: string; transactionId?: string };
-        if (data.status === "paid") {
-          setFinalStatus("paid");
-          clearPendingPayment();
-          es.close();
-          setTimeout(() => { setDismissed(true); setPayment(null); }, 4000);
-        } else if (data.status === "failed" || data.status === "cancelled") {
-          setFinalStatus("failed");
-          clearPendingPayment();
-          es.close();
-          setTimeout(() => { setDismissed(true); setPayment(null); }, 5000);
-        }
-      } catch {}
+        const r = await fetch(`/api/orders/${payment!.orderId}`);
+        if (!r.ok) { scheduleRetry(); return; }
+        const data = await r.json() as { status: string };
+        if (data.status === "paid") { handleFinal("paid"); return; }
+        if (data.status === "failed" || data.status === "cancelled") { handleFinal("failed"); return; }
+        // Still processing — open SSE to wait for push
+        openSSE();
+      } catch {
+        scheduleRetry();
+      }
+    }
+
+    // Always start with a direct GET first to catch already-resolved orders
+    checkCurrent();
+
+    return () => {
+      cancelled = true;
+      es?.close();
+      if (retryTimer) clearTimeout(retryTimer);
     };
-
-    es.onerror = () => es.close();
-
-    return () => es.close();
   }, [payment?.orderId, finalStatus]);
 
   if (!payment || dismissed) return null;

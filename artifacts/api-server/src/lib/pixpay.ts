@@ -33,6 +33,37 @@ export interface PixpayResponse {
   statut_code: number;
 }
 
+export interface PixpayStatusResponse {
+  data: {
+    transaction_id: string;
+    state: string;
+    amount: number;
+    destination: string;
+    custom_data: string;
+  };
+  message: string;
+  statut_code: number;
+}
+
+export async function checkPixpayStatus(transactionId: string): Promise<PixpayStatusResponse> {
+  const apiKey = (process.env.PIXPAY_API_KEY ?? "").trim();
+  if (!apiKey) throw new Error("PIXPAY_API_KEY non configurée");
+
+  const response = await fetch(
+    `${PIXPAY_BASE_URL}/transaction/${transactionId}?api_key=${encodeURIComponent(apiKey)}`,
+    { method: "GET", headers: { "Content-Type": "application/json" } }
+  );
+
+  let data: PixpayStatusResponse;
+  try {
+    data = (await response.json()) as PixpayStatusResponse;
+  } catch {
+    throw new Error("Réponse invalide de Pixpay");
+  }
+
+  return data;
+}
+
 export async function initiatePixpayPayment(params: {
   amount: number;
   destination: string;
