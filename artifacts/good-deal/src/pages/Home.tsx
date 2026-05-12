@@ -195,7 +195,7 @@ function AvisModal({ onClose }: { onClose: () => void }) {
   );
 }
 
-function FloatingActions() {
+function FloatingActions({ onAvis }: { onAvis: () => void }) {
   const [open, setOpen] = useState(false);
 
   const whatsappUrl = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent("Bonjour Good Deal, j'ai besoin d'aide 👋")}`;
@@ -204,6 +204,18 @@ function FloatingActions() {
     <div className="fixed bottom-24 right-4 md:bottom-8 z-40 flex flex-col items-end gap-3">
       {open && (
         <div className="flex flex-col items-end gap-2 animate-in slide-in-from-bottom-2 fade-in duration-200">
+          <button
+            onClick={() => { setOpen(false); onAvis(); }}
+            className="flex items-center gap-3 bg-white rounded-2xl shadow-xl border border-gray-100 px-4 py-3 transition-all hover:scale-105"
+          >
+            <div className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: "linear-gradient(135deg, #FF6B00, #FFD700)" }}>
+              <Star className="w-5 h-5 text-white fill-white" />
+            </div>
+            <div>
+              <div className="text-sm font-bold text-foreground">Poster un avis</div>
+              <div className="text-xs text-muted-foreground">Partagez votre expérience</div>
+            </div>
+          </button>
           <a
             href={whatsappUrl}
             target="_blank"
@@ -380,14 +392,6 @@ export default function Home() {
           </div>
           <h2 className="text-2xl font-black text-foreground mb-2">Ce que disent nos clients</h2>
           <p className="text-muted-foreground text-sm mb-6">Plus de <strong>10 000 forfaits</strong> vendus — ils témoignent</p>
-          <button
-            onClick={() => setShowAvisModal(true)}
-            className="inline-flex items-center gap-2 px-6 py-3 rounded-xl font-bold text-sm text-white transition-all hover:scale-105 shadow-md"
-            style={{ background: "linear-gradient(135deg, #FF6B00, #FFD700)" }}
-          >
-            <Star className="w-4 h-4 fill-white" />
-            Poster un avis
-          </button>
         </div>
 
         <div className="space-y-3">
@@ -446,7 +450,7 @@ export default function Home() {
       <div className="h-16 md:hidden" />
 
       {/* Floating Actions */}
-      <FloatingActions />
+      <FloatingActions onAvis={() => setShowAvisModal(true)} />
 
       {/* Avis Modal */}
       {showAvisModal && <AvisModal onClose={() => setShowAvisModal(false)} />}
