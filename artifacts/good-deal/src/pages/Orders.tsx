@@ -1,7 +1,8 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   Phone, Search, Wifi, CheckCircle, XCircle, Clock,
   Loader2, RefreshCw, User, HeadphonesIcon, X,
+  CircleDot, AlertCircle,
 } from "lucide-react";
 import { formatFCFA, formatDate } from "@/lib/api";
 import { Button } from "@/components/ui/button";
@@ -9,7 +10,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
 const WHATSAPP_NUMBER = "237650000000";
-const DELIVERY_SECONDS = 180;
 
 interface OrderBundle {
   dataSize: string;
@@ -32,169 +32,280 @@ interface Order {
   bundle: OrderBundle | null;
 }
 
-function statusInfo(status: string) {
-  switch (status) {
-    case "paid":
-      return { icon: CheckCircle, label: "Livré", color: "text-green-600", bg: "bg-green-50 border-green-200" };
-    case "pending":
-      return { icon: Clock, label: "En cours", color: "text-yellow-600", bg: "bg-yellow-50 border-yellow-200" };
-    case "failed":
-      return { icon: XCircle, label: "Échoué", color: "text-red-600", bg: "bg-red-50 border-red-200" };
-    default:
-      return { icon: Clock, label: status, color: "text-gray-600", bg: "bg-gray-50 border-gray-200" };
-  }
+// ─── Pending Banner ──────────────────────────────────────────────────────────
+function PendingGlobalBanner({ count, onRefresh }: { count: number; onRefresh: () => void }) {
+  return (
+    <div className="relative overflow-hidden rounded-2xl mb-4 p-4"
+      style={{ background: "linear-gradient(135deg, #fef9c3, #fef08a)" }}>
+      {/* Animated pulse line at top */}
+      <div className="absolute top-0 left-0 right-0 h-1 rounded-t-2xl overflow-hidden bg-yellow-200">
+        <div className="h-full bg-yellow-500 animate-[pulse-bar_2s_ease-in-out_infinite]"
+          style={{ animation: "slideRight 2s ease-in-out infinite" }} />
+      </div>
+      <style>{`
+        @keyframes slideRight {
+          0% { width: 0%; margin-left: 0%; }
+          50% { width: 60%; margin-left: 20%; }
+          100% { width: 0%; margin-left: 100%; }
+        }
+      `}</style>
+
+      <div className="flex items-start gap-3 pt-1">
+        <div className="w-9 h-9 rounded-full bg-yellow-400 flex items-center justify-center flex-shrink-0">
+          <Clock className="w-5 h-5 text-yellow-900" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="font-black text-yellow-900 text-sm">
+            {count === 1
+              ? "1 paiement en attente de confirmation"
+              : `${count} paiements en attente de confirmation`}
+          </div>
+          <div className="text-xs text-yellow-800 mt-0.5">
+            Votre paiement Mobile Money est en cours de vérification par notre équipe. Le forfait sera activé dès confirmation.
+          </div>
+        </div>
+        <button onClick={onRefresh}
+          className="flex-shrink-0 text-yellow-700 hover:text-yellow-900 transition-colors">
+          <RefreshCw className="w-4 h-4" />
+        </button>
+      </div>
+    </div>
+  );
 }
 
-function PendingCountdown({ createdAt }: { createdAt: string }) {
-  const startMs = new Date(createdAt).getTime();
-  const totalMs = DELIVERY_SECONDS * 1000;
+// ─── Delivery Progress (paid) ─────────────────────────────────────────────────
+function DeliveryProgress({ validatedAt }: { validatedAt: string }) {
+  const STAGES = [
+    { label: "Paiement reçu",   detail: "Confirmé par l'équipe" },
+    { label: "Activation réseau", detail: "En cours chez l'opérateur" },
+    { label: "Forfait livré",    detail: "Connexion active" },
+  ];
 
-  const calcElapsed = () => Math.floor((Date.now() - startMs) / 1000);
-  const [elapsed, setElapsed] = useState(calcElapsed);
-  const done = elapsed >= DELIVERY_SECONDS;
-
+  // Animate steps sequentially on mount
+  const [active, setActive] = useState(0);
   useEffect(() => {
-    if (done) return;
-    const t = setInterval(() => setElapsed(calcElapsed()), 1000);
-    return () => clearInterval(t);
-  }, [done]);
-
-  const progress = Math.min((elapsed / DELIVERY_SECONDS) * 100, 100);
-  const remaining = Math.max(DELIVERY_SECONDS - elapsed, 0);
-  const mins = Math.floor(remaining / 60);
-  const secs = remaining % 60;
-
-  if (done) {
-    return (
-      <div className="mt-3">
-        <div className="flex items-center justify-between mb-1">
-          <span className="text-xs font-bold text-yellow-700">Finalisation en cours...</span>
-        </div>
-        <div className="w-full bg-yellow-200 rounded-full h-2.5 overflow-hidden">
-          <div className="h-2.5 rounded-full bg-yellow-500 animate-pulse" style={{ width: "90%" }} />
-        </div>
-        <div className="text-xs text-yellow-700 mt-1">Activation réseau en cours, patientez svp</div>
-      </div>
-    );
-  }
+    const t1 = setTimeout(() => setActive(1), 400);
+    const t2 = setTimeout(() => setActive(2), 900);
+    const t3 = setTimeout(() => setActive(3), 1500);
+    return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); };
+  }, []);
 
   return (
     <div className="mt-3">
-      <div className="flex items-center justify-between mb-1">
-        <span className="text-xs font-bold text-yellow-700">Activation en cours...</span>
-        <span className="text-sm font-black text-yellow-700">
-          {String(mins).padStart(2, "0")}:{String(secs).padStart(2, "0")}
-        </span>
-      </div>
-      <div className="w-full bg-yellow-200 rounded-full h-2.5 overflow-hidden">
+      {/* Progress bar */}
+      <div className="relative flex items-center mb-3">
+        <div className="absolute left-3 right-3 h-1 bg-green-200 rounded-full" />
         <div
-          className="h-2.5 rounded-full bg-gradient-to-r from-yellow-400 to-orange-400 transition-all duration-1000"
-          style={{ width: `${progress}%` }}
+          className="absolute left-3 h-1 bg-green-500 rounded-full transition-all duration-700"
+          style={{ width: active >= 3 ? "calc(100% - 24px)" : active === 2 ? "calc(50% - 12px)" : active === 1 ? "calc(0%)" : "0%" }}
         />
+        <div className="relative flex justify-between w-full">
+          {STAGES.map((s, i) => (
+            <div key={i} className="flex flex-col items-center gap-1" style={{ width: "33.33%" }}>
+              <div
+                className={`w-6 h-6 rounded-full flex items-center justify-center transition-all duration-500 ${
+                  i < active
+                    ? "bg-green-500 scale-110 shadow-md shadow-green-200"
+                    : "bg-green-200"
+                }`}
+              >
+                {i < active
+                  ? <CheckCircle className="w-4 h-4 text-white" />
+                  : <CircleDot className="w-3 h-3 text-green-400" />}
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
-      <div className="flex justify-between text-xs text-yellow-600 mt-1">
-        <span>Paiement reçu</span>
-        <span>Activation réseau</span>
-        <span>Connexion active</span>
+
+      {/* Step labels */}
+      <div className="flex justify-between">
+        {STAGES.map((s, i) => (
+          <div key={i} className="text-center flex-1 px-0.5">
+            <div className={`text-xs font-bold leading-tight ${i < active ? "text-green-700" : "text-green-400"}`}>
+              {s.label}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div className="mt-2 text-center text-xs font-semibold text-green-700 bg-green-100 rounded-lg py-1.5">
+        ✅ Forfait activé avec succès
       </div>
     </div>
   );
 }
 
+// ─── Pending Progress (waiting) ───────────────────────────────────────────────
+function PendingProgress() {
+  const [pulse, setPulse] = useState(0);
+  const ref = useRef<ReturnType<typeof setInterval>>();
+
+  useEffect(() => {
+    ref.current = setInterval(() => setPulse(p => (p + 1) % 100), 30);
+    return () => clearInterval(ref.current);
+  }, []);
+
+  const barWidth = 30 + 40 * Math.abs(Math.sin((pulse / 100) * Math.PI));
+
+  return (
+    <div className="mt-3">
+      <div className="flex items-center justify-between mb-1.5">
+        <span className="text-xs font-bold text-yellow-700 flex items-center gap-1.5">
+          <Clock className="w-3 h-3 animate-pulse" />
+          En attente de confirmation
+        </span>
+        <div className="flex gap-0.5">
+          {[0, 1, 2].map(i => (
+            <div key={i}
+              className="w-1.5 h-1.5 rounded-full bg-yellow-400 animate-bounce"
+              style={{ animationDelay: `${i * 0.2}s` }}
+            />
+          ))}
+        </div>
+      </div>
+      <div className="w-full bg-yellow-100 rounded-full h-2 overflow-hidden">
+        <div
+          className="h-2 rounded-full bg-gradient-to-r from-yellow-400 to-orange-400 transition-none"
+          style={{
+            width: `${barWidth}%`,
+            marginLeft: `${Math.max(0, pulse - 30)}%`,
+            transition: "width 0.1s, margin-left 0.1s",
+          }}
+        />
+      </div>
+      <div className="text-xs text-yellow-700 mt-1.5 text-center">
+        Notre équipe vérifie votre paiement Mobile Money
+      </div>
+    </div>
+  );
+}
+
+// ─── Order Card ────────────────────────────────────────────────────────────────
 function OrderCard({ order }: { order: Order }) {
-  const info = statusInfo(order.status);
   const isMtn = order.bundle?.operatorName?.toLowerCase().includes("mtn");
+  const opColor = order.bundle?.operatorColor ?? (isMtn ? "#FFD700" : "#FF6B00");
   const gradient = isMtn
     ? "linear-gradient(135deg, #FFD700, #FFA500)"
     : "linear-gradient(135deg, #FF6B00, #FF8C00)";
+  const opText = isMtn ? "#1a1a1a" : "white";
+
+  const isPaid = order.status === "paid";
+  const isPending = order.status === "pending";
+  const isFailed = order.status === "failed";
+
+  const borderColor = isPaid ? "#bbf7d0" : isPending ? "#fde68a" : isFailed ? "#fecaca" : "#e5e7eb";
+  const bgColor = isPaid ? "#f0fdf4" : isPending ? "#fefce8" : isFailed ? "#fff1f2" : "#ffffff";
 
   return (
-    <div className={`rounded-2xl border-2 p-4 ${info.bg}`}>
-      <div className="flex items-start gap-3">
-        {/* Operator badge */}
-        <div
-          className="w-12 h-12 rounded-xl flex-shrink-0 flex items-center justify-center text-sm font-black"
-          style={{ background: gradient, color: isMtn ? "#1a1a1a" : "white" }}
-        >
-          {isMtn ? "MTN" : "🟠"}
-        </div>
-
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 flex-wrap mb-1">
-            <span className="font-black text-foreground text-base">{order.bundle?.dataSize ?? "—"}</span>
-            <span className="text-xs text-muted-foreground">{order.bundle?.operatorName}</span>
-          </div>
-
-          {/* Payer name */}
-          {order.payerName && (
-            <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1">
-              <User className="w-3 h-3 flex-shrink-0" />
-              <span className="font-semibold text-foreground">{order.payerName}</span>
-            </div>
-          )}
-
-          <div className="flex items-center gap-2 flex-wrap text-xs text-muted-foreground mb-2">
-            <span>Valide {order.bundle?.validity ?? "?"} jours</span>
-            <span>·</span>
-            <span>{order.paymentMethod === "mtn_momo" ? "MTN MoMo" : "Orange Money"}</span>
-            {order.payerPhone && (
-              <>
-                <span>·</span>
-                <span>{order.payerPhone}</span>
-              </>
-            )}
-          </div>
-
-          {/* Status */}
-          <div className={`flex items-center gap-2 ${info.color}`}>
-            <info.icon className="w-4 h-4 flex-shrink-0" />
-            <span className="font-bold text-sm">{info.label}</span>
-          </div>
-
-          {/* Paid: full green bar */}
-          {order.status === "paid" && (
-            <div className="mt-2">
-              <div className="w-full bg-green-200 rounded-full h-2.5">
-                <div className="h-2.5 rounded-full bg-green-500" style={{ width: "100%" }} />
-              </div>
-              <div className="text-xs text-green-700 mt-1 font-medium">Forfait activé ✓</div>
-            </div>
-          )}
-
-          {/* Pending: live countdown */}
-          {order.status === "pending" && (
-            <PendingCountdown createdAt={order.createdAt} />
-          )}
-
-          {/* Failed */}
-          {order.status === "failed" && (
-            <div className="mt-2">
-              <div className="w-full bg-red-200 rounded-full h-2.5">
-                <div className="h-2.5 rounded-full bg-red-400" style={{ width: "30%" }} />
-              </div>
-              <div className="text-xs text-red-700 mt-1 font-medium">Échec — aucun montant débité</div>
-            </div>
-          )}
-        </div>
-
-        {/* Amount + date */}
-        <div className="text-right flex-shrink-0">
-          <div className="font-black text-foreground">{formatFCFA(order.totalAmount)}</div>
-          <div className="text-xs text-muted-foreground">{formatDate(order.createdAt)}</div>
-        </div>
-      </div>
-
-      {order.transactionId && (
-        <div className="mt-3 pt-3 border-t border-current/10">
-          <div className="text-xs text-muted-foreground">
-            Ref : <span className="font-mono">{order.transactionId}</span>
-          </div>
+    <div
+      className="rounded-2xl border-2 overflow-hidden shadow-sm"
+      style={{ borderColor, background: bgColor }}
+    >
+      {/* Status stripe at top */}
+      {isPending && (
+        <div className="h-1.5 w-full overflow-hidden bg-yellow-200">
+          <div className="h-full animate-[moveStripe_1.5s_ease-in-out_infinite]"
+            style={{
+              background: "linear-gradient(90deg, transparent, #f59e0b, transparent)",
+              animation: "moveStripe 1.5s ease-in-out infinite",
+              width: "50%",
+            }}
+          />
+          <style>{`@keyframes moveStripe { 0%{margin-left:-50%} 100%{margin-left:150%} }`}</style>
         </div>
       )}
+      {isPaid && <div className="h-1.5 w-full bg-green-500" />}
+      {isFailed && <div className="h-1.5 w-full bg-red-400" />}
+
+      <div className="p-4">
+        <div className="flex items-start gap-3">
+          {/* Operator badge */}
+          <div
+            className="w-12 h-12 rounded-xl flex-shrink-0 flex items-center justify-center text-xs font-black shadow-sm"
+            style={{ background: gradient, color: opText }}
+          >
+            {isMtn ? "MTN" : "🟠"}
+          </div>
+
+          <div className="flex-1 min-w-0">
+            {/* Bundle name + operator */}
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="font-black text-foreground text-lg leading-tight">
+                {order.bundle?.dataSize ?? "—"}
+              </span>
+              <span
+                className="text-xs font-bold px-2 py-0.5 rounded-full"
+                style={{ background: `${opColor}25`, color: isMtn ? "#92400e" : "#9a3412" }}
+              >
+                {isMtn ? "MTN" : "Orange"}
+              </span>
+            </div>
+
+            {/* Payer */}
+            {order.payerName && (
+              <div className="flex items-center gap-1 text-xs text-muted-foreground mt-0.5">
+                <User className="w-3 h-3" />
+                <span className="font-semibold text-foreground">{order.payerName}</span>
+              </div>
+            )}
+
+            {/* Meta */}
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-muted-foreground mt-1">
+              <span>Valide {order.bundle?.validity ?? "?"} j</span>
+              <span>·</span>
+              <span>{order.paymentMethod === "mtn_momo" ? "MTN MoMo" : "Orange Money"}</span>
+              {order.payerPhone && <><span>·</span><span>{order.payerPhone}</span></>}
+            </div>
+          </div>
+
+          {/* Right — amount + status badge */}
+          <div className="text-right flex-shrink-0">
+            <div className="font-black text-foreground">{formatFCFA(order.totalAmount)}</div>
+            <div className="text-xs text-muted-foreground">{formatDate(order.createdAt)}</div>
+            <div className={`inline-flex items-center gap-1 mt-1 px-2 py-0.5 rounded-full text-xs font-bold ${
+              isPaid    ? "bg-green-100 text-green-700"  :
+              isPending ? "bg-yellow-100 text-yellow-700" :
+              isFailed  ? "bg-red-100 text-red-600"      :
+              "bg-gray-100 text-gray-600"
+            }`}>
+              {isPaid    && <CheckCircle className="w-3 h-3" />}
+              {isPending && <Clock className="w-3 h-3" />}
+              {isFailed  && <XCircle className="w-3 h-3" />}
+              {isPaid ? "Livré" : isPending ? "En attente" : isFailed ? "Échoué" : order.status}
+            </div>
+          </div>
+        </div>
+
+        {/* Progress section */}
+        {isPending && <PendingProgress />}
+        {isPaid    && <DeliveryProgress validatedAt={order.createdAt} />}
+        {isFailed  && (
+          <div className="mt-3">
+            <div className="w-full bg-red-200 rounded-full h-2">
+              <div className="h-2 rounded-full bg-red-400" style={{ width: "20%" }} />
+            </div>
+            <div className="flex items-center gap-1.5 mt-2 text-xs text-red-600">
+              <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" />
+              Paiement non reçu — aucun montant débité. Contactez-nous.
+            </div>
+          </div>
+        )}
+
+        {/* Transaction ID */}
+        {order.transactionId && (
+          <div className="mt-3 pt-3 border-t border-black/5">
+            <div className="text-xs text-muted-foreground font-mono">
+              Réf : {order.transactionId}
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
 
+// ─── WhatsApp FAB ─────────────────────────────────────────────────────────────
 function WhatsAppFab() {
   const [open, setOpen] = useState(false);
   const url = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent("Bonjour Good Deal, j'ai besoin d'aide avec ma commande 👋")}`;
@@ -203,12 +314,8 @@ function WhatsAppFab() {
     <div className="fixed bottom-24 right-4 md:bottom-8 z-40 flex flex-col items-end gap-3">
       {open && (
         <div className="flex flex-col items-end gap-2 animate-in slide-in-from-bottom-2 fade-in duration-200">
-          <a
-            href={url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center gap-3 bg-white rounded-2xl shadow-xl border border-gray-100 px-4 py-3 transition-all hover:scale-105"
-          >
+          <a href={url} target="_blank" rel="noopener noreferrer"
+            className="flex items-center gap-3 bg-white rounded-2xl shadow-xl border border-gray-100 px-4 py-3 transition-all hover:scale-105">
             <div className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: "#25D366" }}>
               <svg className="w-5 h-5 fill-white" viewBox="0 0 24 24">
                 <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/>
@@ -234,6 +341,7 @@ function WhatsAppFab() {
   );
 }
 
+// ─── Main Page ─────────────────────────────────────────────────────────────────
 export default function Orders() {
   const [phone, setPhone] = useState("");
   const [searched, setSearched] = useState("");
@@ -244,10 +352,7 @@ export default function Orders() {
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
     const p = urlParams.get("phone");
-    if (p) {
-      setPhone(p);
-      search(p);
-    }
+    if (p) { setPhone(p); search(p); }
   }, []);
 
   const search = async (phoneVal?: string) => {
@@ -259,8 +364,7 @@ export default function Orders() {
     try {
       const res = await fetch(`/api/orders/track?phone=${encodeURIComponent(q)}`);
       if (!res.ok) throw new Error("Erreur serveur");
-      const data = await res.json();
-      setOrders(data);
+      setOrders(await res.json());
     } catch {
       setError("Impossible de récupérer les commandes. Réessayez.");
       setOrders([]);
@@ -269,15 +373,20 @@ export default function Orders() {
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    search();
-  };
+  const handleSubmit = (e: React.FormEvent) => { e.preventDefault(); search(); };
+
+  const pendingCount = orders.filter(o => o.status === "pending").length;
+  const paidOrders   = orders.filter(o => o.status === "paid");
+  const pendingOrders = orders.filter(o => o.status === "pending");
+  const otherOrders  = orders.filter(o => o.status !== "paid" && o.status !== "pending");
+
+  // Sorted: pending first, then paid, then others
+  const sorted = [...pendingOrders, ...paidOrders, ...otherOrders];
 
   return (
     <div className="min-h-screen pt-20 pb-24 md:pb-8 bg-gray-50">
       <div className="max-w-lg mx-auto px-4 pt-6">
-        <div className="mb-8">
+        <div className="mb-6">
           <h1 className="text-2xl font-black text-foreground mb-1">Mes commandes</h1>
           <p className="text-muted-foreground text-sm">Suivez l'état de vos forfaits internet</p>
         </div>
@@ -297,18 +406,12 @@ export default function Orders() {
                 value={phone}
                 onChange={e => setPhone(e.target.value)}
                 className="text-base"
-                data-testid="input-search-phone"
               />
               <p className="text-xs text-muted-foreground">
                 Le numéro qui a reçu ou doit recevoir le forfait
               </p>
             </div>
-            <Button
-              type="submit"
-              className="w-full gap-2"
-              disabled={!phone.trim() || loading}
-              data-testid="button-search"
-            >
+            <Button type="submit" className="w-full gap-2" disabled={!phone.trim() || loading}>
               {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
               {loading ? "Recherche..." : "Voir mes commandes"}
             </Button>
@@ -317,7 +420,8 @@ export default function Orders() {
 
         {/* Error */}
         {error && (
-          <div className="bg-red-50 border border-red-200 rounded-xl p-4 text-sm text-red-700 mb-4">
+          <div className="bg-red-50 border border-red-200 rounded-xl p-4 text-sm text-red-700 mb-4 flex items-center gap-2">
+            <AlertCircle className="w-4 h-4 flex-shrink-0" />
             {error}
           </div>
         )}
@@ -329,28 +433,32 @@ export default function Orders() {
               <div className="text-sm font-semibold text-foreground">
                 {orders.length === 0
                   ? "Aucune commande trouvée"
-                  : `${orders.length} commande${orders.length > 1 ? "s" : ""} pour ${searched}`}
+                  : `${orders.length} commande${orders.length > 1 ? "s" : ""} pour `}
+                {orders.length > 0 && <span className="font-black text-foreground underline underline-offset-2">{searched}</span>}
               </div>
-              <button
-                onClick={() => search()}
-                className="text-xs text-primary flex items-center gap-1 hover:underline"
-              >
+              <button onClick={() => search()}
+                className="text-xs text-primary flex items-center gap-1 hover:underline">
                 <RefreshCw className="w-3 h-3" />
                 Actualiser
               </button>
             </div>
+
+            {/* Pending global banner */}
+            {pendingCount > 0 && (
+              <PendingGlobalBanner count={pendingCount} onRefresh={() => search()} />
+            )}
 
             {orders.length === 0 ? (
               <div className="bg-white rounded-2xl border border-gray-100 p-10 text-center shadow-sm">
                 <Wifi className="w-10 h-10 mx-auto mb-3 text-gray-300" />
                 <p className="text-muted-foreground font-medium mb-1">Aucune commande</p>
                 <p className="text-xs text-muted-foreground">
-                  Aucun forfait trouvé pour le numéro <strong>{searched}</strong>
+                  Aucun forfait trouvé pour <strong>{searched}</strong>
                 </p>
               </div>
             ) : (
               <div className="space-y-3">
-                {orders.map(order => (
+                {sorted.map(order => (
                   <OrderCard key={order.id} order={order} />
                 ))}
               </div>
