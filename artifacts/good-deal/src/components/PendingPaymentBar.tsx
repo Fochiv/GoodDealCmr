@@ -73,36 +73,33 @@ export function PendingPaymentBar() {
     return () => { if (pulseRef.current) clearInterval(pulseRef.current); };
   }, []);
 
-  // Poll order status
+  // SSE: listen for real-time order status push (no polling)
   useEffect(() => {
     if (!payment || finalStatus) return;
-    if (pollRef.current) clearInterval(pollRef.current);
 
-    const check = async () => {
+    const es = new EventSource(`/api/orders/${payment.orderId}/events`);
+
+    es.onmessage = (e) => {
       try {
-        const r = await fetch(`/api/orders/${payment.orderId}`);
-        if (!r.ok) return;
-        const data = await r.json();
+        const data = JSON.parse(e.data) as { status: string; transactionId?: string };
         if (data.status === "paid") {
           setFinalStatus("paid");
           clearPendingPayment();
-          clearInterval(pollRef.current!);
-          // Auto-dismiss after 4s
+          es.close();
           setTimeout(() => { setDismissed(true); setPayment(null); }, 4000);
         } else if (data.status === "failed" || data.status === "cancelled") {
           setFinalStatus("failed");
           clearPendingPayment();
-          clearInterval(pollRef.current!);
-          // Auto-dismiss after 5s
+          es.close();
           setTimeout(() => { setDismissed(true); setPayment(null); }, 5000);
         }
       } catch {}
     };
 
-    check();
-    pollRef.current = setInterval(check, 4000);
-    return () => { if (pollRef.current) clearInterval(pollRef.current); };
-  }, [payment, finalStatus]);
+    es.onerror = () => es.close();
+
+    return () => es.close();
+  }, [payment?.orderId, finalStatus]);
 
   if (!payment || dismissed) return null;
 

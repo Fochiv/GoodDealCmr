@@ -4,6 +4,7 @@ import { eq, desc } from "drizzle-orm";
 import { z } from "zod";
 import { getUserIdFromToken } from "./auth";
 import { initiatePixpayPayment } from "../lib/pixpay";
+import { subscribeToOrder, unsubscribeFromOrder, emitOrderStatus } from "../lib/order-events";
 
 const router = Router();
 
@@ -136,6 +137,42 @@ router.get("/orders/:id", async (req, res) => {
 
   const bundle = await getBundleWithOperator(order.bundleId);
   return res.json({ ...order, bundle });
+});
+
+// SSE: push order status updates in real-time (no polling needed)
+router.get("/orders/:id/events", async (req, res) => {
+  const id = parseInt(req.params.id);
+  if (isNaN(id)) return res.status(400).end();
+
+  res.setHeader("Content-Type", "text/event-stream");
+  res.setHeader("Cache-Control", "no-cache");
+  res.setHeader("Connection", "keep-alive");
+  res.setHeader("X-Accel-Buffering", "no");
+  res.flushHeaders();
+
+  // Send current status immediately on connect
+  try {
+    const [order] = await db.select().from(ordersTable).where(eq(ordersTable.id, id)).limit(1);
+    if (order) {
+      res.write(`data: ${JSON.stringify({ status: order.status, transactionId: order.transactionId ?? null })}\n\n`);
+      // If already in a final state, close right away
+      if (order.status === "paid" || order.status === "failed" || order.status === "cancelled") {
+        return res.end();
+      }
+    }
+  } catch {}
+
+  subscribeToOrder(id, res);
+
+  // Keepalive ping every 20s
+  const ping = setInterval(() => {
+    try { res.write(": ping\n\n"); } catch {}
+  }, 20_000);
+
+  req.on("close", () => {
+    clearInterval(ping);
+    unsubscribeFromOrder(id, res);
+  });
 });
 
 router.post("/orders/:id/pay", async (req, res) => {

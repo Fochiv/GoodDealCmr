@@ -60,26 +60,28 @@ export default function Checkout() {
 
   const startPolling = (id: number) => {
     if (pollRef.current) clearInterval(pollRef.current);
-    pollRef.current = setInterval(async () => {
+    // SSE: server pushes status instantly when IPN fires — no polling needed
+    const es = new EventSource(`${API_BASE}/orders/${id}/events`);
+    (pollRef as any).current = es;
+    es.onmessage = (e) => {
       try {
-        const r = await fetch(`${API_BASE}/orders/${id}`);
-        if (!r.ok) return;
-        const data = await r.json();
-        const status: OrderStatus = data.status;
+        const data = JSON.parse(e.data) as { status: string };
+        const status = data.status as OrderStatus;
         setOrderStatus(status);
         if (status === "paid" || status === "failed" || status === "cancelled") {
           clearPendingPayment();
-          clearInterval(pollRef.current!);
-          pollRef.current = null;
+          es.close();
         }
-      } catch {
-      }
-    }, 3000);
+      } catch {}
+    };
+    es.onerror = () => es.close();
   };
 
   useEffect(() => {
     return () => {
-      if (pollRef.current) clearInterval(pollRef.current);
+      const ref = (pollRef as any).current;
+      if (ref instanceof EventSource) ref.close();
+      else if (ref) clearInterval(ref);
     };
   }, []);
 
