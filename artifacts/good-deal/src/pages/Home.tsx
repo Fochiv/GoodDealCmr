@@ -322,24 +322,6 @@ export default function Home() {
           {/* Operator quick buttons */}
           <div className="flex flex-col sm:flex-row gap-4 justify-center mb-4">
             <button
-              onClick={() => mtnOp ? setLocation(`/operator/${mtnOp.id}`) : setLocation("/forfaits")}
-              className="group relative flex items-center gap-4 px-6 py-4 rounded-2xl font-black text-base transition-all hover:scale-105 active:scale-95 text-gray-900 overflow-hidden"
-              style={{ background: "linear-gradient(135deg, #FFD700, #FFA500)", boxShadow: "0 8px 24px rgba(255,193,0,0.5)" }}
-            >
-              <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity" style={{ background: "linear-gradient(135deg, #FFE44D, #FFB800)" }} />
-              <div className="relative flex items-center gap-3 flex-1">
-                <div className="w-10 h-10 rounded-xl overflow-hidden flex-shrink-0 border border-black/10">
-                  <img src="/logo-mtn.png" alt="MTN" className="w-full h-full object-cover" />
-                </div>
-                <div className="text-left">
-                  <div className="text-xs font-bold uppercase tracking-widest text-yellow-900/60 leading-none mb-0.5">Découvrir</div>
-                  <div className="text-lg font-black leading-tight">Good Deals MTN</div>
-                </div>
-              </div>
-              <ChevronRight className="relative w-5 h-5 text-yellow-900/50 group-hover:translate-x-1 transition-transform flex-shrink-0" />
-            </button>
-
-            <button
               onClick={() => orangeOp ? setLocation(`/operator/${orangeOp.id}`) : setLocation("/forfaits")}
               className="group relative flex items-center gap-4 px-6 py-4 rounded-2xl font-black text-base transition-all hover:scale-105 active:scale-95 text-white overflow-hidden"
               style={{ background: "linear-gradient(135deg, #FF6B00, #FF3D00)", boxShadow: "0 8px 24px rgba(255,80,0,0.45)" }}
@@ -355,6 +337,24 @@ export default function Home() {
                 </div>
               </div>
               <ChevronRight className="relative w-5 h-5 text-white/60 group-hover:translate-x-1 transition-transform flex-shrink-0" />
+            </button>
+
+            <button
+              onClick={() => mtnOp ? setLocation(`/operator/${mtnOp.id}`) : setLocation("/forfaits")}
+              className="group relative flex items-center gap-4 px-6 py-4 rounded-2xl font-black text-base transition-all hover:scale-105 active:scale-95 text-gray-900 overflow-hidden"
+              style={{ background: "linear-gradient(135deg, #FFD700, #FFA500)", boxShadow: "0 8px 24px rgba(255,193,0,0.5)" }}
+            >
+              <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity" style={{ background: "linear-gradient(135deg, #FFE44D, #FFB800)" }} />
+              <div className="relative flex items-center gap-3 flex-1">
+                <div className="w-10 h-10 rounded-xl overflow-hidden flex-shrink-0 border border-black/10">
+                  <img src="/logo-mtn.png" alt="MTN" className="w-full h-full object-cover" />
+                </div>
+                <div className="text-left">
+                  <div className="text-xs font-bold uppercase tracking-widest text-yellow-900/60 leading-none mb-0.5">Découvrir</div>
+                  <div className="text-lg font-black leading-tight">Good Deals MTN</div>
+                </div>
+              </div>
+              <ChevronRight className="relative w-5 h-5 text-yellow-900/50 group-hover:translate-x-1 transition-transform flex-shrink-0" />
             </button>
           </div>
 
@@ -386,32 +386,6 @@ export default function Home() {
           </div>
         ) : (
           <div className="grid md:grid-cols-2 gap-6">
-            {/* MTN Card */}
-            <button
-              onClick={() => mtnOp ? setLocation(`/operator/${mtnOp.id}`) : setLocation("/forfaits")}
-              className="group relative overflow-hidden rounded-2xl p-8 text-left transition-all hover:scale-[1.02] hover:shadow-2xl shadow-lg"
-              style={{ background: "linear-gradient(135deg, #FFD700 0%, #FFA500 50%, #FF8C00 100%)" }}
-            >
-              <div className="absolute inset-0 bg-black/0 group-hover:bg-black/5 transition-colors" />
-              <div className="relative">
-                <div className="flex items-center justify-between mb-6">
-                  <div className="bg-white/30 rounded-2xl p-2 w-20 h-14 flex items-center justify-center overflow-hidden">
-                    <img src="/logo-mtn.png" alt="MTN" className="w-full h-full object-contain" />
-                  </div>
-                  <ChevronRight className="w-6 h-6 text-gray-800 group-hover:translate-x-1 transition-transform" />
-                </div>
-                <h3 className="text-2xl font-black text-gray-900 mb-2">MTN Cameroon</h3>
-                <p className="text-gray-800 font-medium mb-4">{allMtnBundles.length} forfaits disponibles</p>
-                <div className="flex gap-2 flex-wrap">
-                  {mtnBundles.map(b => (
-                    <span key={b.id} className="bg-white/40 text-gray-900 text-xs font-bold px-3 py-1 rounded-full">
-                      {b.dataSize} — {formatFCFA(b.price)}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            </button>
-
             {/* Orange Card */}
             <button
               onClick={() => orangeOp ? setLocation(`/operator/${orangeOp.id}`) : setLocation("/forfaits")}
@@ -431,6 +405,32 @@ export default function Home() {
                 <div className="flex gap-2 flex-wrap">
                   {orangeBundles.map(b => (
                     <span key={b.id} className="bg-white/30 text-white text-xs font-bold px-3 py-1 rounded-full">
+                      {b.dataSize} — {formatFCFA(b.price)}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            </button>
+
+            {/* MTN Card */}
+            <button
+              onClick={() => mtnOp ? setLocation(`/operator/${mtnOp.id}`) : setLocation("/forfaits")}
+              className="group relative overflow-hidden rounded-2xl p-8 text-left transition-all hover:scale-[1.02] hover:shadow-2xl shadow-lg"
+              style={{ background: "linear-gradient(135deg, #FFD700 0%, #FFA500 50%, #FF8C00 100%)" }}
+            >
+              <div className="absolute inset-0 bg-black/0 group-hover:bg-black/5 transition-colors" />
+              <div className="relative">
+                <div className="flex items-center justify-between mb-6">
+                  <div className="bg-white/30 rounded-2xl p-2 w-20 h-14 flex items-center justify-center overflow-hidden">
+                    <img src="/logo-mtn.png" alt="MTN" className="w-full h-full object-contain" />
+                  </div>
+                  <ChevronRight className="w-6 h-6 text-gray-800 group-hover:translate-x-1 transition-transform" />
+                </div>
+                <h3 className="text-2xl font-black text-gray-900 mb-2">MTN Cameroon</h3>
+                <p className="text-gray-800 font-medium mb-4">{allMtnBundles.length} forfaits disponibles</p>
+                <div className="flex gap-2 flex-wrap">
+                  {mtnBundles.map(b => (
+                    <span key={b.id} className="bg-white/40 text-gray-900 text-xs font-bold px-3 py-1 rounded-full">
                       {b.dataSize} — {formatFCFA(b.price)}
                     </span>
                   ))}
