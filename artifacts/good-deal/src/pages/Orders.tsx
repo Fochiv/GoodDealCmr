@@ -222,10 +222,14 @@ function OrderCard({ order }: { order: Order }) {
         <div className="flex items-start gap-3">
           {/* Operator badge */}
           <div
-            className="w-12 h-12 rounded-xl flex-shrink-0 flex items-center justify-center text-xs font-black shadow-sm"
-            style={{ background: gradient, color: opText }}
+            className="w-12 h-12 rounded-xl flex-shrink-0 overflow-hidden shadow-sm border border-black/10"
+            style={{ background: gradient }}
           >
-            {isMtn ? "MTN" : "🟠"}
+            <img
+              src={isMtn ? "/logo-mtn.png" : "/logo-orange.jpg"}
+              alt={isMtn ? "MTN" : "Orange"}
+              className="w-full h-full object-cover"
+            />
           </div>
 
           <div className="flex-1 min-w-0">
@@ -234,12 +238,11 @@ function OrderCard({ order }: { order: Order }) {
               <span className="font-black text-foreground text-lg leading-tight">
                 {order.bundle?.dataSize ?? "—"}
               </span>
-              <span
-                className="text-xs font-bold px-2 py-0.5 rounded-full"
-                style={{ background: `${opColor}25`, color: isMtn ? "#92400e" : "#9a3412" }}
-              >
-                {isMtn ? "MTN" : "Orange"}
-              </span>
+              <img
+                src={isMtn ? "/logo-mtn.png" : "/logo-orange.jpg"}
+                alt={isMtn ? "MTN" : "Orange"}
+                className="h-4 w-auto object-contain rounded"
+              />
             </div>
 
             {/* Payer */}

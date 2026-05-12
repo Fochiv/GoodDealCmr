@@ -375,11 +375,12 @@ export default function Checkout() {
                 {/* Recipient recap */}
                 <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <div
-                      className="w-9 h-9 rounded-full flex items-center justify-center text-xs font-black flex-shrink-0"
-                      style={{ background: gradient, color: operatorTextColor }}
-                    >
-                      {operatorLabel[0]}
+                    <div className="w-9 h-9 rounded-full overflow-hidden flex-shrink-0 border border-black/10">
+                      <img
+                        src={isMtn ? "/logo-mtn.png" : "/logo-orange.jpg"}
+                        alt={operatorLabel}
+                        className="w-full h-full object-cover"
+                      />
                     </div>
                     <div>
                       <div className="text-xs text-muted-foreground">Numéro bénéficiaire</div>
@@ -420,11 +421,8 @@ export default function Checkout() {
                             <Check className="w-3 h-3 text-white" />
                           </div>
                         )}
-                        <div
-                          className="w-8 h-8 rounded-lg flex items-center justify-center mb-2 text-xs font-black"
-                          style={{ background: "linear-gradient(135deg, #FFD700, #FFA500)", color: "#1a1a1a" }}
-                        >
-                          M
+                        <div className="w-10 h-10 rounded-lg overflow-hidden mb-2 border border-black/10">
+                          <img src="/logo-mtn.png" alt="MTN" className="w-full h-full object-cover" />
                         </div>
                         <div className="text-sm font-bold text-gray-900">MTN MoMo</div>
                         <div className="text-xs text-muted-foreground mt-0.5">Mobile Money</div>
@@ -443,11 +441,8 @@ export default function Checkout() {
                             <Check className="w-3 h-3 text-white" />
                           </div>
                         )}
-                        <div
-                          className="w-8 h-8 rounded-lg flex items-center justify-center mb-2 text-xs font-black"
-                          style={{ background: "linear-gradient(135deg, #FF6B00, #FF8C00)", color: "#ffffff" }}
-                        >
-                          O
+                        <div className="w-10 h-10 rounded-lg overflow-hidden mb-2 border border-black/10">
+                          <img src="/logo-orange.jpg" alt="Orange" className="w-full h-full object-cover" />
                         </div>
                         <div className="text-sm font-bold text-gray-900">Orange Money</div>
                         <div className="text-xs text-muted-foreground mt-0.5">Orange Money</div>

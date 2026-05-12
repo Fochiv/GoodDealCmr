@@ -52,13 +52,14 @@ function TestimonialCard({ t }: { t: typeof TESTIMONIALS[0] }) {
       <div className="flex items-start justify-between mb-2">
         <div className="flex items-center gap-2">
           <div
-            className="w-9 h-9 rounded-full flex items-center justify-center text-xs font-black flex-shrink-0"
-            style={{
-              background: isMtn ? "linear-gradient(135deg,#FFD700,#FFA500)" : "linear-gradient(135deg,#FF6B00,#FF8C00)",
-              color: isMtn ? "#1a1a1a" : "white",
-            }}
+            className="w-9 h-9 rounded-full flex-shrink-0 overflow-hidden border border-black/10"
+            style={{ background: isMtn ? "#FFD700" : "#FF6B00" }}
           >
-            {isMtn ? "M" : "O"}
+            <img
+              src={isMtn ? "/logo-mtn.png" : "/logo-orange.jpg"}
+              alt={isMtn ? "MTN" : "Orange"}
+              className="w-full h-full object-cover"
+            />
           </div>
           <div>
             <div className="font-bold text-sm text-foreground">{t.phone}</div>
@@ -311,8 +312,8 @@ export default function Home() {
             >
               <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity" style={{ background: "linear-gradient(135deg, #FFE44D, #FFB800)" }} />
               <div className="relative flex items-center gap-3 flex-1">
-                <div className="w-10 h-10 rounded-xl bg-black/10 flex items-center justify-center flex-shrink-0">
-                  <span className="text-xl">🟡</span>
+                <div className="w-10 h-10 rounded-xl overflow-hidden flex-shrink-0 border border-black/10">
+                  <img src="/logo-mtn.png" alt="MTN" className="w-full h-full object-cover" />
                 </div>
                 <div className="text-left">
                   <div className="text-xs font-bold uppercase tracking-widest text-yellow-900/60 leading-none mb-0.5">Découvrir</div>
@@ -329,8 +330,8 @@ export default function Home() {
             >
               <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity" style={{ background: "linear-gradient(135deg, #FF8500, #FF4500)" }} />
               <div className="relative flex items-center gap-3 flex-1">
-                <div className="w-10 h-10 rounded-xl bg-white/15 flex items-center justify-center flex-shrink-0">
-                  <span className="text-xl">🟠</span>
+                <div className="w-10 h-10 rounded-xl overflow-hidden flex-shrink-0 border border-white/20">
+                  <img src="/logo-orange.jpg" alt="Orange" className="w-full h-full object-cover" />
                 </div>
                 <div className="text-left">
                   <div className="text-xs font-bold uppercase tracking-widest text-orange-100/70 leading-none mb-0.5">Découvrir</div>
@@ -378,8 +379,8 @@ export default function Home() {
               <div className="absolute inset-0 bg-black/0 group-hover:bg-black/5 transition-colors" />
               <div className="relative">
                 <div className="flex items-center justify-between mb-6">
-                  <div className="bg-white/30 rounded-2xl p-3">
-                    <div className="text-2xl font-black text-gray-900">MTN</div>
+                  <div className="bg-white/30 rounded-2xl p-2 w-20 h-14 flex items-center justify-center overflow-hidden">
+                    <img src="/logo-mtn.png" alt="MTN" className="w-full h-full object-contain" />
                   </div>
                   <ChevronRight className="w-6 h-6 text-gray-800 group-hover:translate-x-1 transition-transform" />
                 </div>
@@ -404,8 +405,8 @@ export default function Home() {
               <div className="absolute inset-0 bg-black/0 group-hover:bg-black/5 transition-colors" />
               <div className="relative">
                 <div className="flex items-center justify-between mb-6">
-                  <div className="bg-white/30 rounded-2xl p-3">
-                    <div className="text-2xl font-black text-white">Orange</div>
+                  <div className="bg-white/30 rounded-2xl p-2 w-20 h-14 flex items-center justify-center overflow-hidden">
+                    <img src="/logo-orange.jpg" alt="Orange" className="w-full h-full object-contain" />
                   </div>
                   <ChevronRight className="w-6 h-6 text-white group-hover:translate-x-1 transition-transform" />
                 </div>
