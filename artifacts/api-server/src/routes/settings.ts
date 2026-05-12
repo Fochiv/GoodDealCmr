@@ -5,11 +5,13 @@ import { z } from "zod";
 
 const router = Router();
 
-const ALLOWED_KEYS = ["whatsapp_number"] as const;
+const ALLOWED_KEYS = ["whatsapp_number", "good_deal_mtn_number", "good_deal_orange_number"] as const;
 type SettingKey = typeof ALLOWED_KEYS[number];
 
 const DEFAULT_VALUES: Record<SettingKey, string> = {
   whatsapp_number: "237650000000",
+  good_deal_mtn_number: "650000000",
+  good_deal_orange_number: "690000000",
 };
 
 router.get("/settings", async (_req, res) => {

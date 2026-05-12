@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
-import { ArrowLeft, Save, LogOut, Settings, Phone } from "lucide-react";
+import { ArrowLeft, Save, LogOut, Settings, Phone, Wifi } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -24,44 +24,59 @@ async function updateSetting(key: string, value: string): Promise<void> {
   if (!res.ok) throw new Error("Erreur mise à jour");
 }
 
+function formatPhoneDisplay(raw: string): string {
+  const digits = raw.replace(/\D/g, "");
+  if (digits.length <= 3) return digits;
+  if (digits.length <= 6) return digits.slice(0, 3) + " " + digits.slice(3);
+  return digits.slice(0, 3) + " " + digits.slice(3, 6) + " " + digits.slice(6, 9);
+}
+
 export default function AdminSettings() {
   const [, setLocation] = useLocation();
   const isAdmin = isAdminAuthenticated();
   const { toast } = useToast();
 
   const [whatsappNumber, setWhatsappNumber] = useState("");
+  const [mtnNumber, setMtnNumber] = useState("");
+  const [orangeNumber, setOrangeNumber] = useState("");
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
+  const [saving, setSaving] = useState<string | null>(null);
 
   useEffect(() => {
     if (!isAdmin) { setLocation("/ashtech"); return; }
     fetchSettings()
-      .then(s => { setWhatsappNumber(s.whatsapp_number ?? ""); })
+      .then(s => {
+        setWhatsappNumber(s.whatsapp_number ?? "");
+        setMtnNumber(s.good_deal_mtn_number ?? "");
+        setOrangeNumber(s.good_deal_orange_number ?? "");
+      })
       .catch(() => toast({ title: "Impossible de charger les paramètres", variant: "destructive" }))
       .finally(() => setLoading(false));
   }, [isAdmin]);
 
   if (!isAdmin) return null;
 
-  const handleSave = async () => {
-    const clean = whatsappNumber.replace(/\D/g, "");
-    if (clean.length < 8) {
-      toast({ title: "Numéro invalide (min. 8 chiffres)", variant: "destructive" });
+  const handleSave = async (key: string, value: string, label: string, minLen = 8) => {
+    const clean = value.replace(/\D/g, "");
+    if (clean.length < minLen) {
+      toast({ title: `Numéro invalide (min. ${minLen} chiffres)`, variant: "destructive" });
       return;
     }
-    setSaving(true);
+    setSaving(key);
     try {
-      await updateSetting("whatsapp_number", clean);
-      setWhatsappNumber(clean);
-      toast({ title: "Paramètres enregistrés" });
+      await updateSetting(key, clean);
+      if (key === "whatsapp_number") setWhatsappNumber(clean);
+      if (key === "good_deal_mtn_number") setMtnNumber(clean);
+      if (key === "good_deal_orange_number") setOrangeNumber(clean);
+      toast({ title: `${label} enregistré` });
     } catch {
       toast({ title: "Erreur lors de l'enregistrement", variant: "destructive" });
     } finally {
-      setSaving(false);
+      setSaving(null);
     }
   };
 
-  const preview = whatsappNumber
+  const whatsappPreview = whatsappNumber
     ? `https://wa.me/${whatsappNumber.replace(/\D/g, "")}?text=Bonjour+Good+Deal`
     : null;
 
@@ -83,46 +98,132 @@ export default function AdminSettings() {
           </Button>
         </div>
 
-        <div className="bg-white border border-gray-100 rounded-2xl p-6 shadow-sm">
-          <h2 className="font-bold text-foreground mb-1 flex items-center gap-2">
-            <Phone className="w-4 h-4 text-green-600" /> Service client WhatsApp
-          </h2>
-          <p className="text-sm text-muted-foreground mb-5">
-            Numéro WhatsApp affiché aux clients pour le support. Inclure l'indicatif pays (ex. : 237 pour le Cameroun).
-          </p>
-
-          {loading ? (
-            <div className="h-10 bg-gray-100 rounded-lg animate-pulse" />
-          ) : (
-            <div className="space-y-4">
-              <div className="space-y-1.5">
-                <Label htmlFor="whatsapp">Numéro WhatsApp</Label>
-                <Input
-                  id="whatsapp"
-                  type="tel"
-                  value={whatsappNumber}
-                  onChange={e => setWhatsappNumber(e.target.value)}
-                  placeholder="237650000000"
-                  className="font-mono"
-                />
-                <p className="text-xs text-muted-foreground">Chiffres uniquement, sans espaces ni tirets. Ex. : 237650123456</p>
-              </div>
-
-              {preview && (
-                <div className="bg-green-50 border border-green-100 rounded-xl px-4 py-3 text-sm text-green-800">
-                  <span className="font-semibold">Aperçu du lien :</span>{" "}
-                  <a href={preview} target="_blank" rel="noopener noreferrer" className="underline break-all">
-                    {preview}
-                  </a>
+        <div className="space-y-5">
+          {/* Good Deal MTN number */}
+          <div className="bg-white border border-gray-100 rounded-2xl p-6 shadow-sm">
+            <h2 className="font-bold text-foreground mb-1 flex items-center gap-2">
+              <Wifi className="w-4 h-4 text-yellow-500" /> Numéro MTN Good Deal
+            </h2>
+            <p className="text-sm text-muted-foreground mb-5">
+              Numéro MTN MoMo où les clients envoient leur paiement. Affiché à l'étape 3 du checkout.
+            </p>
+            {loading ? (
+              <div className="h-10 bg-gray-100 rounded-lg animate-pulse" />
+            ) : (
+              <div className="space-y-4">
+                <div className="space-y-1.5">
+                  <Label htmlFor="mtn-number">Numéro MTN MoMo</Label>
+                  <Input
+                    id="mtn-number"
+                    type="tel"
+                    value={mtnNumber}
+                    onChange={e => setMtnNumber(e.target.value)}
+                    placeholder="650000000"
+                    className="font-mono"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Chiffres uniquement. Ex. : 650123456 — Affiché : {formatPhoneDisplay(mtnNumber || "650000000")}
+                  </p>
                 </div>
-              )}
+                <div className="bg-yellow-50 border border-yellow-100 rounded-xl px-4 py-3 text-sm text-yellow-800 font-mono">
+                  Aperçu : <strong>{formatPhoneDisplay(mtnNumber || "650000000")}</strong>
+                </div>
+                <Button
+                  onClick={() => handleSave("good_deal_mtn_number", mtnNumber, "Numéro MTN", 8)}
+                  disabled={saving === "good_deal_mtn_number"}
+                  className="gap-2 bg-yellow-500 hover:bg-yellow-600 text-black"
+                >
+                  <Save className="w-4 h-4" />
+                  {saving === "good_deal_mtn_number" ? "Enregistrement…" : "Enregistrer"}
+                </Button>
+              </div>
+            )}
+          </div>
 
-              <Button onClick={handleSave} disabled={saving} className="gap-2">
-                <Save className="w-4 h-4" />
-                {saving ? "Enregistrement…" : "Enregistrer"}
-              </Button>
-            </div>
-          )}
+          {/* Good Deal Orange number */}
+          <div className="bg-white border border-gray-100 rounded-2xl p-6 shadow-sm">
+            <h2 className="font-bold text-foreground mb-1 flex items-center gap-2">
+              <Wifi className="w-4 h-4 text-orange-500" /> Numéro Orange Good Deal
+            </h2>
+            <p className="text-sm text-muted-foreground mb-5">
+              Numéro Orange Money où les clients envoient leur paiement. Affiché à l'étape 3 du checkout.
+            </p>
+            {loading ? (
+              <div className="h-10 bg-gray-100 rounded-lg animate-pulse" />
+            ) : (
+              <div className="space-y-4">
+                <div className="space-y-1.5">
+                  <Label htmlFor="orange-number">Numéro Orange Money</Label>
+                  <Input
+                    id="orange-number"
+                    type="tel"
+                    value={orangeNumber}
+                    onChange={e => setOrangeNumber(e.target.value)}
+                    placeholder="690000000"
+                    className="font-mono"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Chiffres uniquement. Ex. : 690123456 — Affiché : {formatPhoneDisplay(orangeNumber || "690000000")}
+                  </p>
+                </div>
+                <div className="bg-orange-50 border border-orange-100 rounded-xl px-4 py-3 text-sm text-orange-800 font-mono">
+                  Aperçu : <strong>{formatPhoneDisplay(orangeNumber || "690000000")}</strong>
+                </div>
+                <Button
+                  onClick={() => handleSave("good_deal_orange_number", orangeNumber, "Numéro Orange", 8)}
+                  disabled={saving === "good_deal_orange_number"}
+                  className="gap-2 bg-orange-500 hover:bg-orange-600 text-white"
+                >
+                  <Save className="w-4 h-4" />
+                  {saving === "good_deal_orange_number" ? "Enregistrement…" : "Enregistrer"}
+                </Button>
+              </div>
+            )}
+          </div>
+
+          {/* WhatsApp */}
+          <div className="bg-white border border-gray-100 rounded-2xl p-6 shadow-sm">
+            <h2 className="font-bold text-foreground mb-1 flex items-center gap-2">
+              <Phone className="w-4 h-4 text-green-600" /> Service client WhatsApp
+            </h2>
+            <p className="text-sm text-muted-foreground mb-5">
+              Numéro WhatsApp affiché aux clients pour le support. Inclure l'indicatif pays (ex. : 237 pour le Cameroun).
+            </p>
+            {loading ? (
+              <div className="h-10 bg-gray-100 rounded-lg animate-pulse" />
+            ) : (
+              <div className="space-y-4">
+                <div className="space-y-1.5">
+                  <Label htmlFor="whatsapp">Numéro WhatsApp</Label>
+                  <Input
+                    id="whatsapp"
+                    type="tel"
+                    value={whatsappNumber}
+                    onChange={e => setWhatsappNumber(e.target.value)}
+                    placeholder="237650000000"
+                    className="font-mono"
+                  />
+                  <p className="text-xs text-muted-foreground">Chiffres uniquement, sans espaces ni tirets. Ex. : 237650123456</p>
+                </div>
+                {whatsappPreview && (
+                  <div className="bg-green-50 border border-green-100 rounded-xl px-4 py-3 text-sm text-green-800">
+                    <span className="font-semibold">Aperçu du lien :</span>{" "}
+                    <a href={whatsappPreview} target="_blank" rel="noopener noreferrer" className="underline break-all">
+                      {whatsappPreview}
+                    </a>
+                  </div>
+                )}
+                <Button
+                  onClick={() => handleSave("whatsapp_number", whatsappNumber, "WhatsApp")}
+                  disabled={saving === "whatsapp_number"}
+                  className="gap-2"
+                >
+                  <Save className="w-4 h-4" />
+                  {saving === "whatsapp_number" ? "Enregistrement…" : "Enregistrer"}
+                </Button>
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>
