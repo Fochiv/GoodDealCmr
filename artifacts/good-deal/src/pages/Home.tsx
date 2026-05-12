@@ -111,6 +111,12 @@ export default function Home() {
             >
               Voir tous les forfaits
             </button>
+            <button
+              onClick={() => setLocation("/commandes")}
+              className="px-10 py-4 rounded-xl font-bold text-base transition-all hover:scale-105 shadow-md border-2 border-gray-200 bg-white text-foreground hover:bg-gray-50"
+            >
+              Suivre mes commandes
+            </button>
           </div>
         </div>
       </section>
