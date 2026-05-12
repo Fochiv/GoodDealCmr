@@ -29,9 +29,12 @@ router.get("/stats/revenue", async (req, res) => {
   if (!await requireAdmin(req, res)) return;
 
   const allOrders = await db.select().from(ordersTable);
-  const totalRevenue = allOrders.filter(o => o.status === "paid").reduce((sum, o) => sum + o.totalAmount, 0);
+  const paidList = allOrders.filter(o => o.status === "paid");
+  const pendingList = allOrders.filter(o => o.status === "pending");
+  const totalRevenue = paidList.reduce((sum, o) => sum + o.totalAmount, 0);
+  const pendingRevenue = pendingList.reduce((sum, o) => sum + o.totalAmount, 0);
   const totalOrders = allOrders.length;
-  const paidOrders = allOrders.filter(o => o.status === "paid").length;
+  const paidOrders = paidList.length;
 
   const operators = await db.select().from(operatorsTable);
   const bundles = await db.select().from(bundlesTable);
@@ -46,7 +49,7 @@ router.get("/stats/revenue", async (req, res) => {
     };
   });
 
-  return res.json({ totalRevenue, totalOrders, paidOrders, revenueByOperator });
+  return res.json({ totalRevenue, pendingRevenue, totalOrders, paidOrders, revenueByOperator });
 });
 
 router.get("/stats/orders", async (req, res) => {

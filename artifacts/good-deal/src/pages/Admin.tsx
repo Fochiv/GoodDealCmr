@@ -86,10 +86,10 @@ export default function Admin() {
         {/* Stats */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
           {[
-            { label: "Revenus totaux", value: revenue ? formatFCFA(revenue.totalRevenue) : "—", icon: TrendingUp, color: "text-green-600", bg: "bg-green-50", loading: revLoading },
-            { label: "Commandes totales", value: orderStats?.total ?? "—", icon: ShoppingBag, color: "text-blue-600", bg: "bg-blue-50", loading: ordersLoading },
-            { label: "Payées", value: revenue?.paidOrders ?? "—", icon: Package, color: "text-primary", bg: "bg-orange-50", loading: revLoading },
-            { label: "En attente", value: orderStats?.pending ?? "—", icon: ShoppingBag, color: "text-yellow-600", bg: "bg-yellow-50", loading: ordersLoading },
+            { label: "Revenus encaissés", value: revenue ? formatFCFA(revenue.totalRevenue) : "—", sub: `${revenue?.paidOrders ?? "—"} paiements`, icon: TrendingUp, color: "text-green-600", bg: "bg-green-50", loading: revLoading },
+            { label: "Paiements en attente", value: revenue ? formatFCFA(revenue.pendingRevenue) : "—", sub: `${orderStats?.pending ?? "—"} commandes`, icon: ShoppingBag, color: "text-yellow-600", bg: "bg-yellow-50", loading: revLoading || ordersLoading },
+            { label: "Commandes totales", value: orderStats?.total ?? "—", sub: null, icon: Package, color: "text-blue-600", bg: "bg-blue-50", loading: ordersLoading },
+            { label: "Échouées", value: orderStats?.failed ?? "—", sub: null, icon: ShoppingBag, color: "text-red-500", bg: "bg-red-50", loading: ordersLoading },
           ].map((stat) => (
             <div key={stat.label} className="bg-white border border-gray-100 rounded-xl p-4 shadow-sm">
               {stat.loading ? (
@@ -101,6 +101,7 @@ export default function Admin() {
                   </div>
                   <div className="text-xl font-black text-foreground">{stat.value}</div>
                   <div className="text-xs text-muted-foreground mt-0.5">{stat.label}</div>
+                  {stat.sub && <div className="text-xs font-semibold text-muted-foreground mt-1">{stat.sub}</div>}
                 </>
               )}
             </div>
