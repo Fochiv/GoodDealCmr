@@ -5,7 +5,6 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { Skeleton } from "@/components/ui/skeleton";
 import { isAdminAuthenticated } from "./Ashtech";
-import { getApiUrl } from "@/lib/api";
 
 type Review = {
   id: number;
