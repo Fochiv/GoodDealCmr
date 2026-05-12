@@ -96,10 +96,6 @@ export default function Home() {
       <section className="relative pt-28 pb-20 px-4 overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-br from-orange-50 via-white to-yellow-50" />
         <div className="relative max-w-4xl mx-auto text-center">
-          <div className="inline-flex items-center gap-2 bg-primary/10 text-primary px-4 py-1.5 rounded-full text-sm font-semibold mb-6">
-            <Zap className="w-4 h-4" />
-            Rechargez en moins de 2 minutes
-          </div>
           <h1 className="text-4xl md:text-6xl font-black text-foreground leading-tight mb-6">
             Internet mobile au<br />
             <span className="text-primary">meilleur prix</span> au Cameroun
