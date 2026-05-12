@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { useLocation } from "wouter";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
-import { TrendingUp, ShoppingBag, Package, ArrowRight, LogOut, RefreshCw } from "lucide-react";
+import { TrendingUp, ShoppingBag, Package, ArrowRight, LogOut, RefreshCw, Trophy, Wifi } from "lucide-react";
 import { formatFCFA, getStatusColor, getStatusLabel, formatDate } from "@/lib/api";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
@@ -108,6 +108,35 @@ export default function Admin() {
               )}
             </div>
           ))}
+        </div>
+
+        {/* Top forfait */}
+        <div className="mb-6">
+          {popLoading ? (
+            <Skeleton className="h-24 rounded-2xl" />
+          ) : popular[0] ? (() => {
+            const top = popular[0];
+            return (
+              <div
+                className="rounded-2xl p-4 flex items-center gap-4 shadow-sm border border-white/20"
+                style={{ background: `linear-gradient(135deg, ${top.bundle?.operatorColor ?? "#888"}dd, ${top.bundle?.operatorColor ?? "#888"}99)` }}
+              >
+                <div className="w-12 h-12 rounded-xl bg-white/20 flex items-center justify-center flex-shrink-0">
+                  <Trophy className="w-6 h-6 text-white" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="text-xs font-bold text-white/70 uppercase tracking-wide mb-0.5">Forfait le plus vendu</div>
+                  <div className="text-xl font-black text-white leading-tight">{top.bundle?.dataSize}</div>
+                  <div className="text-sm text-white/80">{top.bundle?.operatorName} · {top.bundle?.name}</div>
+                </div>
+                <div className="text-right flex-shrink-0">
+                  <div className="text-2xl font-black text-white">{top.totalOrders}</div>
+                  <div className="text-xs text-white/70">commande{top.totalOrders > 1 ? "s" : ""}</div>
+                  <div className="text-sm font-bold text-white/90 mt-0.5">{formatFCFA(top.totalRevenue)}</div>
+                </div>
+              </div>
+            );
+          })() : null}
         </div>
 
         <div className="grid lg:grid-cols-2 gap-6 mb-6">
