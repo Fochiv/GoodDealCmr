@@ -29,10 +29,21 @@ const TESTIMONIALS = [
   { phone: "688***267", bundle: "6 Go Orange", amount: "800 FCFA", msg: "Bonne appli, bonne connexion, bon prix ! 👌", stars: 5 },
   { phone: "664***450", bundle: "1 Go Orange", amount: "150 FCFA", msg: "Merci Good Deal, ma connexion est top 🎉", stars: 5 },
   { phone: "679***183", bundle: "30 Go MTN", amount: "3 500 FCFA", msg: "3 mois que j'utilise ce service, jamais déçu !", stars: 5 },
+  { phone: "682***310", bundle: "2 Go Orange", amount: "400 FCFA", msg: "Trop bien, j'ai rechargé depuis Yaoundé en 2 min !", stars: 5 },
+  { phone: "671***045", bundle: "10 Go MTN", amount: "1 200 FCFA", msg: "Good Deal c'est la solution pour les étudiants 📚", stars: 5 },
+  { phone: "698***722", bundle: "6 Go Orange", amount: "800 FCFA", msg: "Fiable à 100%, je commande tous les mois ici 🔄", stars: 5 },
+  { phone: "656***891", bundle: "15 Go MTN", amount: "2 000 FCFA", msg: "Meilleur prix que partout ailleurs, merci ! 💸", stars: 5 },
+  { phone: "692***437", bundle: "30 Go Orange", amount: "3 000 FCFA", msg: "On attend plus rien, c'est immédiat ici ✨", stars: 5 },
+  { phone: "643***269", bundle: "1 Go MTN", amount: "200 FCFA", msg: "Pratique même pour les petits forfaits 👏", stars: 5 },
+  { phone: "678***514", bundle: "800 Mo Orange", amount: "200 FCFA", msg: "Je n'ai plus besoin d'aller en boutique 🏠", stars: 5 },
+  { phone: "695***883", bundle: "2 Go MTN", amount: "500 FCFA", msg: "Super rapide, mon forfait est là avant même de fermer l'appli 🚀", stars: 5 },
+  { phone: "661***156", bundle: "6 Go MTN", amount: "1 000 FCFA", msg: "Tout le monde dans mon quartier connaît Good Deal 💬", stars: 5 },
+  { phone: "687***328", bundle: "10 Go Orange", amount: "1 500 FCFA", msg: "Service sérieux, je recommande sans hésiter ! 👍", stars: 5 },
 ];
 
 const ROW1 = TESTIMONIALS.slice(0, 11);
-const ROW2 = TESTIMONIALS.slice(11);
+const ROW2 = TESTIMONIALS.slice(11, 22);
+const ROW3 = TESTIMONIALS.slice(22);
 
 function TestimonialCard({ t }: { t: typeof TESTIMONIALS[0] }) {
   const isMtn = t.bundle.includes("MTN");
@@ -408,6 +419,7 @@ export default function Home() {
         <div className="space-y-3">
           <MarqueeRow items={ROW1} reverse={false} />
           <MarqueeRow items={ROW2} reverse={true} />
+          <MarqueeRow items={ROW3} reverse={false} />
         </div>
       </section>
 
