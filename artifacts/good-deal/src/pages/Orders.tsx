@@ -191,8 +191,8 @@ function OrderCard({ order }: { order: Order }) {
   const opText = isMtn ? "#1a1a1a" : "white";
 
   const isPaid = order.status === "paid";
-  const isPending = order.status === "pending";
-  const isFailed = order.status === "failed";
+  const isPending = order.status === "pending" || order.status === "processing";
+  const isFailed = order.status === "failed" || order.status === "cancelled";
 
   const borderColor = isPaid ? "#bbf7d0" : isPending ? "#fde68a" : isFailed ? "#fecaca" : "#e5e7eb";
   const bgColor = isPaid ? "#f0fdf4" : isPending ? "#fefce8" : isFailed ? "#fff1f2" : "#ffffff";
@@ -378,10 +378,10 @@ export default function Orders() {
 
   const handleSubmit = (e: React.FormEvent) => { e.preventDefault(); search(); };
 
-  const pendingCount = orders.filter(o => o.status === "pending").length;
+  const pendingCount = orders.filter(o => o.status === "pending" || o.status === "processing").length;
   const paidOrders   = orders.filter(o => o.status === "paid");
-  const pendingOrders = orders.filter(o => o.status === "pending");
-  const otherOrders  = orders.filter(o => o.status !== "paid" && o.status !== "pending");
+  const pendingOrders = orders.filter(o => o.status === "pending" || o.status === "processing");
+  const otherOrders  = orders.filter(o => o.status !== "paid" && o.status !== "pending" && o.status !== "processing");
 
   // Sorted: pending first, then paid, then others
   const sorted = [...pendingOrders, ...paidOrders, ...otherOrders];

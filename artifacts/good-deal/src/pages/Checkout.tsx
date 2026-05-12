@@ -12,6 +12,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { savePendingPayment, clearPendingPayment } from "@/components/PendingPaymentBar";
 
 const API_BASE = import.meta.env.VITE_API_URL ?? "/api";
 
@@ -67,6 +68,7 @@ export default function Checkout() {
         const status: OrderStatus = data.status;
         setOrderStatus(status);
         if (status === "paid" || status === "failed" || status === "cancelled") {
+          clearPendingPayment();
           clearInterval(pollRef.current!);
           pollRef.current = null;
         }
@@ -142,6 +144,18 @@ export default function Checkout() {
       setOrderStatus("processing");
       setPixpayState(payData.state ?? "PENDING");
       setStep(3);
+      // Save to localStorage so the global floating bar can show it
+      savePendingPayment({
+        orderId: id,
+        recipientPhone: recipientPhone.replace(/\s/g, ""),
+        dataSize: bundle?.dataSize ?? "",
+        operatorName: bundle?.operatorName ?? "",
+        operatorColor,
+        isMtn,
+        paymentMethod,
+        amount: bundle?.price ?? 0,
+        timestamp: Date.now(),
+      });
       startPolling(id);
     } catch (err: any) {
       toast({

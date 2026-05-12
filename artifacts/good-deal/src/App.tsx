@@ -5,6 +5,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Navbar } from "@/components/Navbar";
 import { BottomNav } from "@/components/BottomNav";
+import { PendingPaymentBar } from "@/components/PendingPaymentBar";
 import Home from "@/pages/Home";
 import OperatorBundles from "@/pages/OperatorBundles";
 import Checkout from "@/pages/Checkout";
@@ -56,6 +57,7 @@ function AppLayout() {
     <>
       <Navbar />
       <Router />
+      <PendingPaymentBar />
       <BottomNav />
     </>
   );
