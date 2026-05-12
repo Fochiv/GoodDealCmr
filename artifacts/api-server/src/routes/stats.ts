@@ -3,25 +3,26 @@ import { db, ordersTable, bundlesTable, operatorsTable, usersTable } from "@work
 import { eq, sql, desc } from "drizzle-orm";
 import { getUserIdFromToken } from "./auth";
 
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD ?? "Apashash28@";
+
 const router = Router();
 
 async function requireAdmin(req: any, res: any): Promise<boolean> {
+  // Accept X-Admin-Key header (used by the admin panel frontend)
+  if (req.headers["x-admin-key"] === ADMIN_PASSWORD) return true;
+
+  // Also accept JWT Bearer token (used by API clients with auth)
   const auth = req.headers.authorization;
-  if (!auth || !auth.startsWith("Bearer ")) {
-    res.status(401).json({ error: "Unauthorized" });
-    return false;
+  if (auth && auth.startsWith("Bearer ")) {
+    const userId = getUserIdFromToken(auth.slice(7));
+    if (userId) {
+      const [user] = await db.select().from(usersTable).where(eq(usersTable.id, userId)).limit(1);
+      if (user?.role === "admin") return true;
+    }
   }
-  const userId = getUserIdFromToken(auth.slice(7));
-  if (!userId) {
-    res.status(401).json({ error: "Unauthorized" });
-    return false;
-  }
-  const [user] = await db.select().from(usersTable).where(eq(usersTable.id, userId)).limit(1);
-  if (!user || user.role !== "admin") {
-    res.status(403).json({ error: "Forbidden" });
-    return false;
-  }
-  return true;
+
+  res.status(403).json({ error: "Accès refusé" });
+  return false;
 }
 
 router.get("/stats/revenue", async (req, res) => {

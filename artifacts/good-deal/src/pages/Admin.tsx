@@ -1,34 +1,49 @@
-import { useEffect } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useLocation } from "wouter";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
-import { TrendingUp, ShoppingBag, Package, ArrowRight, LogOut } from "lucide-react";
-import {
-  useGetRevenueStats, getGetRevenueStatsQueryKey,
-  useGetOrderStats, getGetOrderStatsQueryKey,
-  useGetPopularBundles, getGetPopularBundlesQueryKey,
-} from "@workspace/api-client-react";
+import { TrendingUp, ShoppingBag, Package, ArrowRight, LogOut, RefreshCw } from "lucide-react";
 import { formatFCFA, getStatusColor, getStatusLabel, formatDate } from "@/lib/api";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { isAdminAuthenticated, setAdminAuth } from "./Ashtech";
 
+function adminHeaders(): Record<string, string> {
+  return { "X-Admin-Key": localStorage.getItem("gd_admin_pass") ?? "" };
+}
+
 export default function Admin() {
   const [, setLocation] = useLocation();
   const isAdmin = isAdminAuthenticated();
+
+  const [revenue, setRevenue] = useState<any>(null);
+  const [revLoading, setRevLoading] = useState(true);
+  const [orderStats, setOrderStats] = useState<any>(null);
+  const [ordersLoading, setOrdersLoading] = useState(true);
+  const [popular, setPopular] = useState<any[]>([]);
+  const [popLoading, setPopLoading] = useState(true);
 
   useEffect(() => {
     if (!isAdmin) setLocation("/ashtech");
   }, [isAdmin]);
 
-  const { data: revenue, isLoading: revLoading } = useGetRevenueStats({
-    query: { enabled: isAdmin, queryKey: getGetRevenueStatsQueryKey() }
-  });
-  const { data: orderStats, isLoading: ordersLoading } = useGetOrderStats({
-    query: { enabled: isAdmin, queryKey: getGetOrderStatsQueryKey() }
-  });
-  const { data: popular, isLoading: popLoading } = useGetPopularBundles({
-    query: { enabled: isAdmin, queryKey: getGetPopularBundlesQueryKey() }
-  });
+  const fetchAll = useCallback(async () => {
+    if (!isAdmin) return;
+    setRevLoading(true); setOrdersLoading(true); setPopLoading(true);
+    const h = adminHeaders();
+    const [revRes, ordRes, popRes] = await Promise.all([
+      fetch("/api/stats/revenue", { headers: h }),
+      fetch("/api/stats/orders", { headers: h }),
+      fetch("/api/stats/popular-bundles", { headers: h }),
+    ]);
+    if (revRes.ok) { setRevenue(await revRes.json()); }
+    setRevLoading(false);
+    if (ordRes.ok) { setOrderStats(await ordRes.json()); }
+    setOrdersLoading(false);
+    if (popRes.ok) { setPopular(await popRes.json()); }
+    setPopLoading(false);
+  }, [isAdmin]);
+
+  useEffect(() => { fetchAll(); }, [fetchAll]);
 
   if (!isAdmin) return null;
 
@@ -51,9 +66,14 @@ export default function Admin() {
               <h1 className="text-xl font-black text-foreground">Tableau de bord admin</h1>
               <p className="text-muted-foreground text-xs">Good Deal — panneau d'administration</p>
             </div>
-            <Button variant="outline" size="sm" onClick={handleLogout} className="gap-1 text-red-600 border-red-200 hover:bg-red-50 flex-shrink-0">
-              <LogOut className="w-4 h-4" />
-            </Button>
+            <div className="flex gap-2 flex-shrink-0">
+              <Button variant="outline" size="sm" onClick={fetchAll} className="gap-1 text-blue-600 border-blue-200 hover:bg-blue-50">
+                <RefreshCw className="w-4 h-4" />
+              </Button>
+              <Button variant="outline" size="sm" onClick={handleLogout} className="gap-1 text-red-600 border-red-200 hover:bg-red-50">
+                <LogOut className="w-4 h-4" />
+              </Button>
+            </div>
           </div>
           <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar">
             <Button variant="outline" size="sm" onClick={() => setLocation("/ashtech/bundles")} className="flex-shrink-0">Forfaits</Button>
