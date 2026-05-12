@@ -1,9 +1,9 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useLocation } from "wouter";
 import {
   ArrowLeft, Phone, CreditCard, Loader2, Calendar, Check,
-  Wifi, User, ChevronRight, Signal, Clock, Copy, CheckCircle2,
-  PartyPopper,
+  Wifi, User, ChevronRight, Signal, CheckCircle2,
+  PartyPopper, XCircle, RefreshCw,
 } from "lucide-react";
 import { useGetBundle, getGetBundleQueryKey } from "@workspace/api-client-react";
 import { formatFCFA } from "@/lib/api";
@@ -22,15 +22,14 @@ function formatPhoneDisplay(raw: string): string {
   return d.slice(0, 3) + " " + d.slice(3, 6) + " " + d.slice(6, 9);
 }
 
+type OrderStatus = "pending" | "processing" | "paid" | "failed" | "cancelled";
+
 export default function Checkout() {
   const [, setLocation] = useLocation();
   const urlParams = new URLSearchParams(typeof window !== "undefined" ? window.location.search : "");
   const bundleId = parseInt(urlParams.get("bundleId") ?? "0");
 
-  // Step 1 state
   const [recipientPhone, setRecipientPhone] = useState("");
-
-  // Step 2 state
   const [paymentMethod, setPaymentMethod] = useState<"mtn_momo" | "orange_money">("mtn_momo");
   const [payerPhone, setPayerPhone] = useState("");
   const [payerName, setPayerName] = useState("");
@@ -38,25 +37,10 @@ export default function Checkout() {
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [processing, setProcessing] = useState(false);
   const [orderId, setOrderId] = useState<number | null>(null);
-  const [copied, setCopied] = useState(false);
+  const [orderStatus, setOrderStatus] = useState<OrderStatus>("processing");
+  const [pixpayState, setPixpayState] = useState<string>("");
 
-  // Payment confirmation state
-  const [paymentConfirmed, setPaymentConfirmed] = useState(false);
-  const [confirmingPayment, setConfirmingPayment] = useState(false);
-
-  // Good Deal numbers from settings
-  const [goodDealMtn, setGoodDealMtn] = useState("650 00 00 00");
-  const [goodDealOrange, setGoodDealOrange] = useState("690 00 00 00");
-
-  useEffect(() => {
-    fetch(`${API_BASE}/settings`)
-      .then(r => r.json())
-      .then((s: Record<string, string>) => {
-        if (s.good_deal_mtn_number) setGoodDealMtn(formatPhoneDisplay(s.good_deal_mtn_number));
-        if (s.good_deal_orange_number) setGoodDealOrange(formatPhoneDisplay(s.good_deal_orange_number));
-      })
-      .catch(() => {});
-  }, []);
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const { token } = useAuth();
   const { toast } = useToast();
@@ -72,23 +56,38 @@ export default function Checkout() {
   const gradient = isMtn
     ? "linear-gradient(135deg, #FFD700, #FFA500)"
     : "linear-gradient(135deg, #FF6B00, #FF8C00)";
-  const goodDealNumber = isMtn ? goodDealMtn : goodDealOrange;
+
+  const startPolling = (id: number) => {
+    if (pollRef.current) clearInterval(pollRef.current);
+    pollRef.current = setInterval(async () => {
+      try {
+        const r = await fetch(`${API_BASE}/orders/${id}`);
+        if (!r.ok) return;
+        const data = await r.json();
+        const status: OrderStatus = data.status;
+        setOrderStatus(status);
+        if (status === "paid" || status === "failed" || status === "cancelled") {
+          clearInterval(pollRef.current!);
+          pollRef.current = null;
+        }
+      } catch {
+      }
+    }, 3000);
+  };
+
+  useEffect(() => {
+    return () => {
+      if (pollRef.current) clearInterval(pollRef.current);
+    };
+  }, []);
 
   const handleValidateStep1 = () => {
     if (!recipientPhone.trim() || recipientPhone.replace(/\s/g, "").length < 9) {
       toast({ title: "Numéro invalide", description: "Entrez un numéro valide à 9 chiffres.", variant: "destructive" });
       return;
     }
-    // Pre-select payment method based on operator
     setPaymentMethod(isMtn ? "mtn_momo" : "orange_money");
     setStep(2);
-  };
-
-  const copyToClipboard = (text: string) => {
-    navigator.clipboard.writeText(text).then(() => {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    });
   };
 
   const handlePay = async () => {
@@ -107,48 +106,60 @@ export default function Checkout() {
       const headers: Record<string, string> = { "Content-Type": "application/json" };
       if (token) headers["Authorization"] = `Bearer ${token}`;
 
-      const orderRes = await fetch("/api/orders", {
+      const orderRes = await fetch(`${API_BASE}/orders`, {
         method: "POST",
         headers,
         body: JSON.stringify({
           bundleId,
-          phoneNumber: recipientPhone.trim(),
+          phoneNumber: recipientPhone.replace(/\s/g, ""),
           paymentMethod,
-          payerPhone: payerPhone.trim(),
+          payerPhone: payerPhone.replace(/\s/g, ""),
           payerName: payerName.trim(),
         }),
       });
 
       if (!orderRes.ok) throw new Error("Échec de création de commande");
       const order = await orderRes.json();
+      const id: number = order.id;
 
-      setOrderId(order.id);
+      const payRes = await fetch(`${API_BASE}/orders/${id}/pay`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify({
+          paymentMethod,
+          payerPhone: payerPhone.replace(/\s/g, ""),
+          payerName: payerName.trim(),
+        }),
+      });
+
+      if (!payRes.ok) {
+        const err = await payRes.json().catch(() => ({}));
+        throw new Error(err.error ?? "Échec de l'initiation du paiement");
+      }
+
+      const payData = await payRes.json();
+      setOrderId(id);
+      setOrderStatus("processing");
+      setPixpayState(payData.state ?? "PENDING");
       setStep(3);
-    } catch {
-      toast({ title: "Erreur", description: "Une erreur est survenue. Veuillez réessayer.", variant: "destructive" });
+      startPolling(id);
+    } catch (err: any) {
+      toast({
+        title: "Erreur de paiement",
+        description: err.message ?? "Une erreur est survenue. Veuillez réessayer.",
+        variant: "destructive",
+      });
     } finally {
       setProcessing(false);
     }
   };
 
-  const handleConfirmPayment = async () => {
-    if (!orderId) return;
-    setConfirmingPayment(true);
-    try {
-      const headers: Record<string, string> = { "Content-Type": "application/json" };
-      if (token) headers["Authorization"] = `Bearer ${token}`;
-      const res = await fetch(`/api/orders/${orderId}/pay`, {
-        method: "POST",
-        headers,
-        body: JSON.stringify({ paymentMethod, payerPhone: payerPhone.trim(), payerName: payerName.trim() }),
-      });
-      if (!res.ok) throw new Error("Échec");
-      setPaymentConfirmed(true);
-    } catch {
-      toast({ title: "Erreur", description: "Impossible de confirmer le paiement. Réessayez.", variant: "destructive" });
-    } finally {
-      setConfirmingPayment(false);
-    }
+  const handleRetry = () => {
+    if (pollRef.current) clearInterval(pollRef.current);
+    setOrderId(null);
+    setOrderStatus("processing");
+    setPixpayState("");
+    setStep(2);
   };
 
   if (!bundleId) {
@@ -166,16 +177,18 @@ export default function Checkout() {
     <div className="min-h-screen pt-20 pb-24 md:pb-8 px-4 bg-gray-50">
       <div className="max-w-lg mx-auto">
 
-        {/* Back button */}
         <button
-          onClick={() => step === 2 ? setStep(1) : window.history.back()}
+          onClick={() => {
+            if (step === 2) setStep(1);
+            else if (step === 3 && (orderStatus === "failed" || orderStatus === "cancelled")) handleRetry();
+            else if (step !== 3) window.history.back();
+          }}
           className="flex items-center gap-2 text-muted-foreground hover:text-foreground mb-6 font-medium text-sm"
         >
           <ArrowLeft className="w-4 h-4" />
-          {step === 2 ? "Modifier le numéro" : "Retour"}
+          {step === 2 ? "Modifier le numéro" : step === 3 ? (orderStatus === "failed" ? "Réessayer" : "") : "Retour"}
         </button>
 
-        {/* Step indicator — hidden on step 3 */}
         {step < 3 && (
           <div className="flex items-center gap-2 mb-6">
             <div className="flex items-center gap-2">
@@ -200,7 +213,6 @@ export default function Checkout() {
           </div>
         )}
 
-        {/* Bundle card — hidden on step 3 */}
         {step < 3 && bundleLoading ? (
           <div className="h-28 rounded-2xl bg-gray-200 animate-pulse mb-5" />
         ) : step < 3 && bundle ? (
@@ -225,7 +237,6 @@ export default function Checkout() {
         {/* ===================== STEP 1 ===================== */}
         {step === 1 && (
           <div className="space-y-4">
-            {/* Recipient phone */}
             <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
               <h2 className="text-base font-black text-foreground mb-4 flex items-center gap-2">
                 <Phone className="w-4 h-4" style={{ color: operatorColor }} />
@@ -241,14 +252,13 @@ export default function Checkout() {
                 value={recipientPhone}
                 onChange={e => setRecipientPhone(e.target.value)}
                 className="text-base mt-1"
-                style={{ borderColor: recipientPhone.length >= 9 ? operatorColor : undefined }}
+                style={{ borderColor: recipientPhone.replace(/\s/g,"").length >= 9 ? operatorColor : undefined }}
               />
               <p className="text-xs text-muted-foreground mt-2">
                 Ce numéro recevra directement le forfait internet {operatorLabel}.
               </p>
             </div>
 
-            {/* Récapitulatif commande */}
             <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
               <h2 className="text-base font-black text-foreground mb-4 flex items-center gap-2">
                 <Signal className="w-4 h-4" style={{ color: operatorColor }} />
@@ -309,205 +319,6 @@ export default function Checkout() {
           </div>
         )}
 
-        {/* ===================== STEP 3 — CONFIRMATION ===================== */}
-        {step === 3 && (
-          <div className="space-y-4">
-
-            {/* Progress bar */}
-            <div className="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm">
-              <div className="flex items-center justify-between relative">
-                {/* Line behind steps */}
-                <div className="absolute left-[calc(16.67%)] right-[calc(16.67%)] top-4 h-0.5 bg-gray-200 z-0" />
-                <div
-                  className="absolute left-[calc(16.67%)] top-4 h-0.5 z-0 transition-all duration-700"
-                  style={{
-                    width: paymentConfirmed ? "calc(66.66%)" : "0%",
-                    background: isMtn ? "#16a34a" : "#16a34a",
-                  }}
-                />
-
-                {/* Step 1 — Commande créée */}
-                <div className="flex flex-col items-center gap-2 flex-1 z-10">
-                  <div className="w-8 h-8 rounded-full flex items-center justify-center bg-green-500 shadow-sm">
-                    <Check className="w-4 h-4 text-white" />
-                  </div>
-                  <span className="text-xs font-semibold text-green-600 text-center leading-tight">Commande<br />créée</span>
-                </div>
-
-                {/* Step 2 — Paiement envoyé */}
-                <div className="flex flex-col items-center gap-2 flex-1 z-10">
-                  <div
-                    className="w-8 h-8 rounded-full flex items-center justify-center shadow-sm transition-all duration-500"
-                    style={{
-                      background: paymentConfirmed ? "#16a34a" : "#f59e0b",
-                    }}
-                  >
-                    {paymentConfirmed
-                      ? <Check className="w-4 h-4 text-white" />
-                      : <Clock className="w-4 h-4 text-white" />
-                    }
-                  </div>
-                  <span
-                    className="text-xs font-semibold text-center leading-tight transition-colors duration-500"
-                    style={{ color: paymentConfirmed ? "#16a34a" : "#b45309" }}
-                  >
-                    Paiement<br />{paymentConfirmed ? "envoyé" : "en attente"}
-                  </span>
-                </div>
-
-                {/* Step 3 — Forfait activé */}
-                <div className="flex flex-col items-center gap-2 flex-1 z-10">
-                  <div
-                    className="w-8 h-8 rounded-full flex items-center justify-center shadow-sm transition-all duration-700"
-                    style={{
-                      background: paymentConfirmed ? "#16a34a" : "#e5e7eb",
-                    }}
-                  >
-                    {paymentConfirmed
-                      ? <PartyPopper className="w-4 h-4 text-white" />
-                      : <Wifi className="w-4 h-4 text-gray-400" />
-                    }
-                  </div>
-                  <span
-                    className="text-xs font-semibold text-center leading-tight transition-colors duration-700"
-                    style={{ color: paymentConfirmed ? "#16a34a" : "#9ca3af" }}
-                  >
-                    Forfait<br />activé
-                  </span>
-                </div>
-              </div>
-
-              {/* Status text */}
-              <div className="mt-5 text-center">
-                {paymentConfirmed ? (
-                  <div className="space-y-1">
-                    <p className="text-sm font-black text-green-600">Paiement confirmé !</p>
-                    <p className="text-xs text-muted-foreground">Votre forfait sera activé dans les plus brefs délais.</p>
-                  </div>
-                ) : (
-                  <div className="space-y-1">
-                    <p className="text-sm font-bold text-amber-700">En attente de votre paiement</p>
-                    <p className="text-xs text-muted-foreground">Suivez les instructions ci-dessous puis confirmez.</p>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Instructions card — hidden after confirmation */}
-            {!paymentConfirmed && (
-              <div className="bg-white border-2 rounded-2xl p-5 shadow-sm space-y-4" style={{ borderColor: operatorColor }}>
-                <div className="flex items-center gap-2 mb-1">
-                  <Clock className="w-5 h-5" style={{ color: operatorColor }} />
-                  <h3 className="font-black text-foreground">Effectuez votre paiement maintenant</h3>
-                </div>
-                <p className="text-sm text-muted-foreground">
-                  Envoyez <strong className="text-foreground">{bundle ? formatFCFA(bundle.price) : ""}</strong> via{" "}
-                  <strong>{paymentMethod === "mtn_momo" ? "MTN Mobile Money" : "Orange Money"}</strong> au numéro Good Deal ci-dessous :
-                </p>
-
-                {/* Number to pay */}
-                <div
-                  className="rounded-xl p-4 flex items-center justify-between"
-                  style={{ background: `${operatorColor}15` }}
-                >
-                  <div>
-                    <div className="text-xs font-semibold text-muted-foreground mb-0.5">Numéro Good Deal {isMtn ? "MTN" : "Orange"}</div>
-                    <div className="text-2xl font-black tracking-wide" style={{ color: operatorColor === "#FFD700" ? "#b45309" : operatorColor }}>
-                      {goodDealNumber}
-                    </div>
-                  </div>
-                  <button
-                    onClick={() => copyToClipboard(goodDealNumber.replace(/\s/g, ""))}
-                    className="flex items-center gap-1 px-3 py-2 rounded-lg text-xs font-bold border transition-all"
-                    style={{ borderColor: operatorColor, color: operatorColor === "#FFD700" ? "#b45309" : operatorColor }}
-                  >
-                    {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
-                    {copied ? "Copié !" : "Copier"}
-                  </button>
-                </div>
-
-                {/* Steps */}
-                <div className="space-y-2.5">
-                  {[
-                    `Ouvrez votre appli ${paymentMethod === "mtn_momo" ? "MTN MoMo" : "Orange Money"}`,
-                    `Envoyez ${bundle ? formatFCFA(bundle.price) : ""} au ${goodDealNumber}`,
-                    "Mentionnez votre nom dans la note de transfert",
-                    "Appuyez sur le bouton ci-dessous dès que vous avez envoyé",
-                  ].map((instrStep, i) => (
-                    <div key={i} className="flex items-start gap-3">
-                      <div
-                        className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-black flex-shrink-0 mt-0.5"
-                        style={{ background: operatorColor, color: operatorTextColor }}
-                      >{i + 1}</div>
-                      <p className="text-sm text-foreground">{instrStep}</p>
-                    </div>
-                  ))}
-                </div>
-
-                {/* Confirm payment button */}
-                <button
-                  onClick={handleConfirmPayment}
-                  disabled={confirmingPayment}
-                  className="w-full py-4 rounded-2xl font-black text-base transition-all hover:scale-[1.02] active:scale-95 shadow-lg disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2 mt-2"
-                  style={{ background: "linear-gradient(135deg, #16a34a, #15803d)", color: "#fff" }}
-                >
-                  {confirmingPayment
-                    ? <><Loader2 className="w-5 h-5 animate-spin" /> Confirmation…</>
-                    : <><Check className="w-5 h-5" /> J'ai effectué le paiement</>
-                  }
-                </button>
-              </div>
-            )}
-
-            {/* Success banner after confirmation */}
-            {paymentConfirmed && (
-              <div className="bg-green-50 border-2 border-green-400 rounded-2xl p-5 shadow-sm text-center space-y-2">
-                <div className="w-14 h-14 rounded-full bg-green-100 flex items-center justify-center mx-auto">
-                  <CheckCircle2 className="w-8 h-8 text-green-600" />
-                </div>
-                <p className="font-black text-green-700 text-lg">Paiement reçu !</p>
-                <p className="text-sm text-green-600">
-                  Votre forfait <strong>{bundle?.dataSize}</strong> sera activé sur le <strong>{recipientPhone}</strong> dans les plus brefs délais.
-                </p>
-              </div>
-            )}
-
-            {/* Order summary */}
-            <div className="bg-white border border-gray-100 rounded-2xl p-4 shadow-sm text-sm space-y-2">
-              <div className="font-bold text-foreground mb-2">Récapitulatif</div>
-              <div className="flex justify-between"><span className="text-muted-foreground">Référence</span><span className="font-mono font-semibold">#{orderId}</span></div>
-              <div className="flex justify-between"><span className="text-muted-foreground">Forfait</span><span className="font-semibold">{bundle?.dataSize} — {bundle?.operatorName}</span></div>
-              <div className="flex justify-between"><span className="text-muted-foreground">Bénéficiaire</span><span className="font-semibold font-mono">{recipientPhone}</span></div>
-              <div className="flex justify-between"><span className="text-muted-foreground">Payeur</span><span className="font-semibold">{payerName} · {payerPhone}</span></div>
-              <div className="flex justify-between pt-2 border-t border-gray-100">
-                <span className="text-muted-foreground">Montant</span>
-                <span className="font-black text-lg" style={{ color: operatorColor === "#FFD700" ? "#b45309" : operatorColor }}>{bundle ? formatFCFA(bundle.price) : ""}</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-muted-foreground">Statut</span>
-                {paymentConfirmed
-                  ? <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-green-100 text-green-700">✅ Paiement confirmé</span>
-                  : <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-yellow-100 text-yellow-700">⏳ En attente de paiement</span>
-                }
-              </div>
-            </div>
-
-            {/* Track button */}
-            <button
-              onClick={() => setLocation("/commandes")}
-              className="w-full py-4 rounded-2xl font-black text-base border-2 transition-all hover:scale-[1.02] active:scale-95 flex items-center justify-center gap-2"
-              style={{ borderColor: operatorColor, color: operatorColor === "#FFD700" ? "#b45309" : operatorColor }}
-            >
-              Suivre ma commande
-              <ChevronRight className="w-5 h-5" />
-            </button>
-
-            <p className="text-xs text-center text-muted-foreground pb-4">
-              Une fois le paiement reçu, votre forfait sera activé dans les plus brefs délais.
-            </p>
-          </div>
-        )}
-
         {/* ===================== STEP 2 ===================== */}
         {step === 2 && (
           <>
@@ -519,14 +330,13 @@ export default function Checkout() {
                 >
                   <Loader2 className="w-8 h-8 animate-spin" style={{ color: operatorColor }} />
                 </div>
-                <h3 className="text-lg font-bold text-foreground mb-1">Traitement en cours...</h3>
+                <h3 className="text-lg font-bold text-foreground mb-1">Initiation du paiement...</h3>
                 <p className="text-sm text-muted-foreground">
-                  Votre paiement {isMtn ? "MTN MoMo" : "Orange Money"} est en cours de traitement.
+                  Connexion à {isMtn ? "MTN Mobile Money" : "Orange Money"} en cours.
                 </p>
               </div>
             ) : (
               <div className="space-y-4">
-                {/* Recipient recap */}
                 <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     <div className="w-9 h-9 rounded-full overflow-hidden flex-shrink-0 border border-black/10">
@@ -549,14 +359,12 @@ export default function Checkout() {
                   </div>
                 </div>
 
-                {/* Payment form */}
                 <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-5">
                   <h2 className="text-base font-black text-foreground flex items-center gap-2">
                     <CreditCard className="w-4 h-4" style={{ color: operatorColor }} />
                     Finaliser le paiement
                   </h2>
 
-                  {/* Payment method */}
                   <div>
                     <Label className="text-sm font-semibold text-foreground mb-3 block">
                       Mode de paiement
@@ -604,7 +412,6 @@ export default function Checkout() {
                     </div>
                   </div>
 
-                  {/* Payer phone */}
                   <div>
                     <Label htmlFor="payer-phone" className="text-sm font-semibold text-foreground mb-1 block">
                       Votre numéro de paiement
@@ -625,7 +432,6 @@ export default function Checkout() {
                     </p>
                   </div>
 
-                  {/* Full name */}
                   <div>
                     <Label htmlFor="payer-name" className="text-sm font-semibold text-foreground mb-1 block">
                       Nom complet
@@ -643,7 +449,6 @@ export default function Checkout() {
                     </div>
                   </div>
 
-                  {/* Total */}
                   <div className="flex items-center justify-between py-3 border-t border-gray-100">
                     <span className="text-sm font-semibold text-foreground">Total à payer</span>
                     <span className="text-xl font-black" style={{ color: operatorColor }}>
@@ -651,7 +456,6 @@ export default function Checkout() {
                     </span>
                   </div>
 
-                  {/* Pay button */}
                   <button
                     onClick={handlePay}
                     disabled={!payerPhone.replace(/\s/g, "") || !payerName.trim() || !bundle}
@@ -662,12 +466,131 @@ export default function Checkout() {
                   </button>
 
                   <p className="text-xs text-center text-muted-foreground">
-                    Paiement sécurisé via {paymentMethod === "mtn_momo" ? "MTN Mobile Money" : "Orange Money"}.
+                    Une demande de confirmation sera envoyée sur votre téléphone via {paymentMethod === "mtn_momo" ? "MTN MoMo" : "Orange Money"}.
                   </p>
                 </div>
               </div>
             )}
           </>
+        )}
+
+        {/* ===================== STEP 3 — SUIVI PAIEMENT ===================== */}
+        {step === 3 && (
+          <div className="space-y-4">
+
+            {/* Status card */}
+            {orderStatus === "processing" && (
+              <div className="bg-white border border-gray-100 rounded-2xl p-8 shadow-sm text-center space-y-4">
+                <div
+                  className="w-20 h-20 rounded-full flex items-center justify-center mx-auto"
+                  style={{ background: `${operatorColor}20` }}
+                >
+                  <Loader2 className="w-10 h-10 animate-spin" style={{ color: operatorColor }} />
+                </div>
+                <div>
+                  <h3 className="text-lg font-black text-foreground mb-1">
+                    Confirmez sur votre téléphone
+                  </h3>
+                  <p className="text-sm text-muted-foreground leading-relaxed">
+                    Une demande de paiement {isMtn ? "MTN MoMo" : "Orange Money"} a été envoyée au{" "}
+                    <strong className="text-foreground font-mono">{formatPhoneDisplay(payerPhone)}</strong>.
+                    <br />Validez le prompt USSD qui s'affiche sur votre écran.
+                  </p>
+                </div>
+                <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground">
+                  <RefreshCw className="w-3 h-3 animate-spin" />
+                  En attente de confirmation…
+                </div>
+              </div>
+            )}
+
+            {orderStatus === "paid" && (
+              <div className="bg-green-50 border-2 border-green-400 rounded-2xl p-8 shadow-sm text-center space-y-3">
+                <div className="w-20 h-20 rounded-full bg-green-100 flex items-center justify-center mx-auto">
+                  <PartyPopper className="w-10 h-10 text-green-600" />
+                </div>
+                <p className="font-black text-green-700 text-xl">Paiement confirmé !</p>
+                <p className="text-sm text-green-600 leading-relaxed">
+                  Votre forfait <strong>{bundle?.dataSize}</strong> sera activé sur le{" "}
+                  <strong className="font-mono">{recipientPhone}</strong> dans les plus brefs délais.
+                </p>
+                <div className="pt-2">
+                  <CheckCircle2 className="w-6 h-6 text-green-500 mx-auto" />
+                </div>
+              </div>
+            )}
+
+            {(orderStatus === "failed" || orderStatus === "cancelled") && (
+              <div className="bg-red-50 border-2 border-red-300 rounded-2xl p-8 shadow-sm text-center space-y-3">
+                <div className="w-20 h-20 rounded-full bg-red-100 flex items-center justify-center mx-auto">
+                  <XCircle className="w-10 h-10 text-red-500" />
+                </div>
+                <p className="font-black text-red-700 text-xl">Paiement échoué</p>
+                <p className="text-sm text-red-600 leading-relaxed">
+                  Le paiement n'a pas pu être confirmé. Vérifiez votre solde {isMtn ? "MTN MoMo" : "Orange Money"} et réessayez.
+                </p>
+                <button
+                  onClick={handleRetry}
+                  className="mt-2 px-6 py-3 rounded-xl font-bold text-sm border-2 border-red-400 text-red-600 hover:bg-red-100 transition-all"
+                >
+                  Réessayer
+                </button>
+              </div>
+            )}
+
+            {/* Order summary */}
+            <div className="bg-white border border-gray-100 rounded-2xl p-4 shadow-sm text-sm space-y-2">
+              <div className="font-bold text-foreground mb-2">Récapitulatif</div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Référence</span>
+                <span className="font-mono font-semibold">#{orderId}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Forfait</span>
+                <span className="font-semibold">{bundle?.dataSize} — {bundle?.operatorName}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Bénéficiaire</span>
+                <span className="font-semibold font-mono">{recipientPhone}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Payeur</span>
+                <span className="font-semibold">{payerName} · {formatPhoneDisplay(payerPhone)}</span>
+              </div>
+              <div className="flex justify-between pt-2 border-t border-gray-100">
+                <span className="text-muted-foreground">Montant</span>
+                <span className="font-black text-lg" style={{ color: operatorColor === "#FFD700" ? "#b45309" : operatorColor }}>
+                  {bundle ? formatFCFA(bundle.price) : ""}
+                </span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-muted-foreground">Statut</span>
+                {orderStatus === "paid"
+                  ? <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-green-100 text-green-700">✅ Payé</span>
+                  : orderStatus === "failed" || orderStatus === "cancelled"
+                  ? <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-red-100 text-red-700">❌ Échoué</span>
+                  : <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-blue-100 text-blue-700">⏳ En cours</span>
+                }
+              </div>
+            </div>
+
+            {orderStatus === "paid" && (
+              <button
+                onClick={() => setLocation("/commandes")}
+                className="w-full py-4 rounded-2xl font-black text-base border-2 transition-all hover:scale-[1.02] active:scale-95 flex items-center justify-center gap-2"
+                style={{ borderColor: operatorColor, color: operatorColor === "#FFD700" ? "#b45309" : operatorColor }}
+              >
+                Suivre ma commande
+                <ChevronRight className="w-5 h-5" />
+              </button>
+            )}
+
+            <p className="text-xs text-center text-muted-foreground pb-4">
+              {orderStatus === "processing"
+                ? "Une fois votre paiement confirmé, votre forfait sera activé automatiquement."
+                : "Merci d'avoir utilisé Good Deal."}
+            </p>
+          </div>
         )}
       </div>
     </div>

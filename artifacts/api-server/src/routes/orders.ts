@@ -2,8 +2,8 @@ import { Router } from "express";
 import { db, ordersTable, bundlesTable, operatorsTable, usersTable } from "@workspace/db";
 import { eq, desc } from "drizzle-orm";
 import { z } from "zod";
-import { createHash } from "crypto";
 import { getUserIdFromToken } from "./auth";
+import { initiatePixpayPayment } from "../lib/pixpay";
 
 const router = Router();
 
@@ -144,47 +144,50 @@ router.post("/orders/:id/pay", async (req, res) => {
 
   const schema = z.object({
     paymentMethod: z.enum(["mtn_momo", "orange_money"]),
-    payerPhone: z.string().optional(),
+    payerPhone: z.string().min(1, "Numéro de paiement requis"),
     payerName: z.string().optional(),
   });
 
   const parsed = schema.safeParse(req.body);
-  if (!parsed.success) return res.status(400).json({ error: "Données invalides" });
+  if (!parsed.success) return res.status(400).json({ error: "Données invalides", details: parsed.error.flatten() });
 
   const [order] = await db.select().from(ordersTable).where(eq(ordersTable.id, id)).limit(1);
   if (!order) return res.status(404).json({ error: "Commande introuvable" });
   if (order.status === "paid") return res.status(400).json({ error: "Commande déjà payée" });
+  if (order.status === "processing") return res.status(400).json({ error: "Paiement déjà en cours de traitement" });
 
-  const transactionId =
-    "TXN" +
-    createHash("sha256")
-      .update(`${id}:${Date.now()}`)
-      .digest("hex")
-      .slice(0, 12)
-      .toUpperCase();
+  try {
+    const pixpay = await initiatePixpayPayment({
+      amount: order.totalAmount,
+      destination: parsed.data.payerPhone,
+      paymentMethod: parsed.data.paymentMethod,
+      orderId: id,
+    });
 
-  const updateData: Record<string, any> = {
-    status: "paid",
-    transactionId,
-    paymentMethod: parsed.data.paymentMethod,
-  };
-  if (parsed.data.payerPhone) updateData.payerPhone = parsed.data.payerPhone;
-  if (parsed.data.payerName) updateData.payerName = parsed.data.payerName;
+    const [updated] = await db
+      .update(ordersTable)
+      .set({
+        status: "processing",
+        transactionId: pixpay.data.transaction_id,
+        paymentMethod: parsed.data.paymentMethod,
+        payerPhone: parsed.data.payerPhone,
+        payerName: parsed.data.payerName ?? null,
+      })
+      .where(eq(ordersTable.id, id))
+      .returning();
 
-  const [updated] = await db
-    .update(ordersTable)
-    .set(updateData)
-    .where(eq(ordersTable.id, id))
-    .returning();
+    const bundle = await getBundleWithOperator(updated.bundleId);
 
-  const bundle = await getBundleWithOperator(updated.bundleId);
-
-  return res.json({
-    success: true,
-    transactionId,
-    message: "Paiement réussi",
-    order: { ...updated, bundle },
-  });
+    return res.json({
+      success: true,
+      transactionId: pixpay.data.transaction_id,
+      state: pixpay.data.state,
+      message: pixpay.message,
+      order: { ...updated, bundle },
+    });
+  } catch (err: any) {
+    return res.status(502).json({ error: err.message ?? "Erreur lors de l'initiation du paiement" });
+  }
 });
 
 // Admin: clients list — grouped by phone number from orders

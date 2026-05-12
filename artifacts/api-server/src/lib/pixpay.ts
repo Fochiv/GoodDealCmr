@@ -1,0 +1,76 @@
+const PIXPAY_BASE_URL = "https://proxy-coreapi.pixelinnov.net/api_v1";
+
+const SERVICE_IDS: Record<string, number> = {
+  mtn_momo: 339,
+  orange_money: 337,
+};
+
+function getIpnUrl(): string {
+  const base =
+    process.env.BASE_URL ||
+    (process.env.REPLIT_DEV_DOMAIN
+      ? `https://${process.env.REPLIT_DEV_DOMAIN}`
+      : "");
+  return `${base}/api/payments/ipn`;
+}
+
+function formatPhone(phone: string): string {
+  return phone.replace(/\D/g, "");
+}
+
+export interface PixpayData {
+  transaction_id: string;
+  amount: number;
+  state: string;
+  destination: string;
+  service_id: number;
+  custom_data: string;
+}
+
+export interface PixpayResponse {
+  data: PixpayData;
+  message: string;
+  statut_code: number;
+}
+
+export async function initiatePixpayPayment(params: {
+  amount: number;
+  destination: string;
+  paymentMethod: string;
+  orderId: number;
+}): Promise<PixpayResponse> {
+  const apiKey = process.env.PIXPAY_API_KEY;
+  if (!apiKey) throw new Error("PIXPAY_API_KEY non configurée");
+
+  const serviceId = SERVICE_IDS[params.paymentMethod];
+  if (!serviceId)
+    throw new Error(`Méthode de paiement inconnue: ${params.paymentMethod}`);
+
+  const body = {
+    amount: params.amount,
+    destination: formatPhone(params.destination),
+    api_key: apiKey,
+    ipn_url: getIpnUrl(),
+    service_id: serviceId,
+    custom_data: String(params.orderId),
+  };
+
+  const response = await fetch(`${PIXPAY_BASE_URL}/transaction/airtime`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+
+  let data: PixpayResponse;
+  try {
+    data = (await response.json()) as PixpayResponse;
+  } catch {
+    throw new Error("Réponse invalide de Pixpay");
+  }
+
+  if (!response.ok || data.statut_code !== 200) {
+    throw new Error(data.message || "Échec de l'initiation du paiement Pixpay");
+  }
+
+  return data;
+}
