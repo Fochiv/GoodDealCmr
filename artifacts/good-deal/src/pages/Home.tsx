@@ -246,8 +246,10 @@ export default function Home() {
   const { data: operators, isLoading: opsLoading } = useListOperators();
   const { data: bundles } = useListBundles({ active: true });
 
-  const mtnBundles = bundles?.filter(b => b.operatorSlug === "mtn").slice(0, 3) ?? [];
-  const orangeBundles = bundles?.filter(b => b.operatorSlug === "orange").slice(0, 3) ?? [];
+  const allMtnBundles = bundles?.filter(b => b.operatorSlug === "mtn") ?? [];
+  const allOrangeBundles = bundles?.filter(b => b.operatorSlug === "orange") ?? [];
+  const mtnBundles = allMtnBundles.slice(0, 3);
+  const orangeBundles = allOrangeBundles.slice(0, 3);
 
   const mtnOp = operators?.find(o => o.slug === "mtn");
   const orangeOp = operators?.find(o => o.slug === "orange");
@@ -329,7 +331,7 @@ export default function Home() {
                   <ChevronRight className="w-6 h-6 text-gray-800 group-hover:translate-x-1 transition-transform" />
                 </div>
                 <h3 className="text-2xl font-black text-gray-900 mb-2">MTN Cameroon</h3>
-                <p className="text-gray-800 font-medium mb-4">{mtnBundles.length} forfaits disponibles</p>
+                <p className="text-gray-800 font-medium mb-4">{allMtnBundles.length} forfaits disponibles</p>
                 <div className="flex gap-2 flex-wrap">
                   {mtnBundles.map(b => (
                     <span key={b.id} className="bg-white/40 text-gray-900 text-xs font-bold px-3 py-1 rounded-full">
@@ -355,7 +357,7 @@ export default function Home() {
                   <ChevronRight className="w-6 h-6 text-white group-hover:translate-x-1 transition-transform" />
                 </div>
                 <h3 className="text-2xl font-black text-white mb-2">Orange Cameroun</h3>
-                <p className="text-orange-100 font-medium mb-4">{orangeBundles.length} forfaits disponibles</p>
+                <p className="text-orange-100 font-medium mb-4">{allOrangeBundles.length} forfaits disponibles</p>
                 <div className="flex gap-2 flex-wrap">
                   {orangeBundles.map(b => (
                     <span key={b.id} className="bg-white/30 text-white text-xs font-bold px-3 py-1 rounded-full">
