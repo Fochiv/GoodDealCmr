@@ -32,6 +32,10 @@ export default function AllBundles() {
   };
 
   const sorted = [...filtered].sort((a, b) => {
+    // Quand on affiche tous les forfaits, MTN toujours avant Orange
+    if (filter === "tous" && a.operatorSlug !== b.operatorSlug) {
+      return a.operatorSlug === "mtn" ? -1 : 1;
+    }
     if (sort === "price_asc") return a.price - b.price;
     if (sort === "price_desc") return b.price - a.price;
     if (sort === "data_asc") return parseDataMb(a.dataSize) - parseDataMb(b.dataSize);
