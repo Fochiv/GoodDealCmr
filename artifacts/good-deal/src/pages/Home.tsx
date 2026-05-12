@@ -1,7 +1,10 @@
+import { useState } from "react";
 import { useLocation } from "wouter";
-import { Wifi, Zap, Phone, ChevronRight, Check, Star, CheckCircle } from "lucide-react";
+import { Wifi, Zap, Phone, ChevronRight, Check, Star, CheckCircle, MessageCircle, X, Send, HeadphonesIcon } from "lucide-react";
 import { useListOperators, useListBundles } from "@workspace/api-client-react";
 import { formatFCFA } from "@/lib/api";
+
+const WHATSAPP_NUMBER = "237650000000";
 
 const TESTIMONIALS = [
   { phone: "690***432", bundle: "2 Go MTN", amount: "500 FCFA", msg: "Reçu en moins d'une minute, incroyable 🔥", stars: 5 },
@@ -82,13 +85,172 @@ function MarqueeRow({ items, reverse = false }: { items: typeof TESTIMONIALS; re
   );
 }
 
+function AvisModal({ onClose }: { onClose: () => void }) {
+  const [name, setName] = useState("");
+  const [phone, setPhone] = useState("");
+  const [stars, setStars] = useState(5);
+  const [msg, setMsg] = useState("");
+  const [sent, setSent] = useState(false);
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setSent(true);
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">
+        <button
+          onClick={onClose}
+          className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-full bg-gray-100 hover:bg-gray-200 transition-colors"
+        >
+          <X className="w-4 h-4 text-gray-600" />
+        </button>
+
+        {sent ? (
+          <div className="text-center py-6">
+            <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <CheckCircle className="w-8 h-8 text-green-500" />
+            </div>
+            <h3 className="text-xl font-black text-foreground mb-2">Merci pour votre avis !</h3>
+            <p className="text-muted-foreground text-sm mb-6">Votre témoignage a bien été envoyé. Merci de faire confiance à Good Deal 🙏</p>
+            <button
+              onClick={onClose}
+              className="px-8 py-3 rounded-xl font-bold text-white transition-all hover:scale-105"
+              style={{ background: "linear-gradient(135deg, #FF6B00, #FFD700)" }}
+            >
+              Fermer
+            </button>
+          </div>
+        ) : (
+          <>
+            <div className="mb-5">
+              <h3 className="text-xl font-black text-foreground">Poster un avis</h3>
+              <p className="text-sm text-muted-foreground mt-1">Partagez votre expérience avec Good Deal</p>
+            </div>
+
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div>
+                <label className="block text-sm font-semibold text-foreground mb-1">Votre nom</label>
+                <input
+                  type="text"
+                  required
+                  value={name}
+                  onChange={e => setName(e.target.value)}
+                  placeholder="Ex: Jean-Pierre K."
+                  className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-300"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-foreground mb-1">Numéro de téléphone</label>
+                <input
+                  type="tel"
+                  required
+                  value={phone}
+                  onChange={e => setPhone(e.target.value)}
+                  placeholder="Ex: 690***432"
+                  className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-300"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-foreground mb-2">Note</label>
+                <div className="flex gap-1">
+                  {[1, 2, 3, 4, 5].map(s => (
+                    <button
+                      key={s}
+                      type="button"
+                      onClick={() => setStars(s)}
+                      className="transition-transform hover:scale-110"
+                    >
+                      <Star className={`w-7 h-7 transition-colors ${s <= stars ? "fill-yellow-400 text-yellow-400" : "text-gray-300"}`} />
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-foreground mb-1">Votre message</label>
+                <textarea
+                  required
+                  value={msg}
+                  onChange={e => setMsg(e.target.value)}
+                  rows={3}
+                  placeholder="Parlez de votre expérience avec Good Deal..."
+                  className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-300 resize-none"
+                />
+              </div>
+              <button
+                type="submit"
+                className="w-full py-3 rounded-xl font-bold text-white transition-all hover:scale-[1.02] flex items-center justify-center gap-2"
+                style={{ background: "linear-gradient(135deg, #FF6B00, #FFD700)" }}
+              >
+                <Send className="w-4 h-4" />
+                Envoyer mon avis
+              </button>
+            </form>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function FloatingActions() {
+  const [open, setOpen] = useState(false);
+
+  const whatsappUrl = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent("Bonjour Good Deal, j'ai besoin d'aide 👋")}`;
+
+  return (
+    <div className="fixed bottom-24 right-4 md:bottom-8 z-40 flex flex-col items-end gap-3">
+      {open && (
+        <div className="flex flex-col items-end gap-2 animate-in slide-in-from-bottom-2 fade-in duration-200">
+          <a
+            href={whatsappUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-3 bg-white rounded-2xl shadow-xl border border-gray-100 px-4 py-3 transition-all hover:scale-105"
+          >
+            <div className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: "#25D366" }}>
+              <svg className="w-5 h-5 text-white fill-white" viewBox="0 0 24 24">
+                <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/>
+                <path d="M12 0C5.373 0 0 5.373 0 12c0 2.123.554 4.118 1.524 5.855L.057 23.293a.75.75 0 0 0 .908.941l5.629-1.48A11.944 11.944 0 0 0 12 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 21.75a9.694 9.694 0 0 1-4.951-1.355l-.355-.212-3.683.967.984-3.595-.232-.37A9.694 9.694 0 0 1 2.25 12C2.25 6.615 6.615 2.25 12 2.25S21.75 6.615 21.75 12 17.385 21.75 12 21.75z"/>
+              </svg>
+            </div>
+            <div>
+              <div className="text-sm font-bold text-foreground">Service client</div>
+              <div className="text-xs text-muted-foreground">Répondre sous 5 min</div>
+            </div>
+          </a>
+        </div>
+      )}
+
+      <button
+        onClick={() => setOpen(o => !o)}
+        className="w-14 h-14 rounded-full shadow-2xl flex items-center justify-center transition-all hover:scale-110 active:scale-95"
+        style={{ background: open ? "#6b7280" : "linear-gradient(135deg, #FF6B00, #FFD700)" }}
+        aria-label="Aide"
+      >
+        {open ? (
+          <X className="w-6 h-6 text-white" />
+        ) : (
+          <HeadphonesIcon className="w-6 h-6 text-white" />
+        )}
+      </button>
+    </div>
+  );
+}
+
 export default function Home() {
   const [, setLocation] = useLocation();
+  const [showAvisModal, setShowAvisModal] = useState(false);
   const { data: operators, isLoading: opsLoading } = useListOperators();
   const { data: bundles } = useListBundles({ active: true });
 
   const mtnBundles = bundles?.filter(b => b.operatorSlug === "mtn").slice(0, 3) ?? [];
   const orangeBundles = bundles?.filter(b => b.operatorSlug === "orange").slice(0, 3) ?? [];
+
+  const mtnOp = operators?.find(o => o.slug === "mtn");
+  const orangeOp = operators?.find(o => o.slug === "orange");
 
   return (
     <div className="min-h-screen">
@@ -103,17 +265,39 @@ export default function Home() {
           <p className="text-lg text-muted-foreground max-w-xl mx-auto mb-10">
             Achetez vos forfaits internet MTN et Orange directement depuis votre téléphone. Paiement Mobile Money instantané.
           </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+
+          {/* Operator quick buttons */}
+          <div className="flex flex-col sm:flex-row gap-3 justify-center mb-4">
+            <button
+              onClick={() => mtnOp ? setLocation(`/operator/${mtnOp.id}`) : setLocation("/forfaits")}
+              className="flex items-center justify-center gap-2 px-8 py-4 rounded-xl font-black text-base transition-all hover:scale-105 shadow-lg text-gray-900"
+              style={{ background: "linear-gradient(135deg, #FFD700, #FFC200)" }}
+            >
+              <span className="text-lg">📶</span>
+              Forfaits MTN
+            </button>
+            <button
+              onClick={() => orangeOp ? setLocation(`/operator/${orangeOp.id}`) : setLocation("/forfaits")}
+              className="flex items-center justify-center gap-2 px-8 py-4 rounded-xl font-black text-base transition-all hover:scale-105 shadow-lg text-white"
+              style={{ background: "linear-gradient(135deg, #FF6B00, #FF4500)" }}
+            >
+              <span className="text-lg">📶</span>
+              Forfaits Orange
+            </button>
+          </div>
+
+          {/* Secondary buttons */}
+          <div className="flex flex-col sm:flex-row gap-3 justify-center">
             <button
               onClick={() => setLocation("/forfaits")}
-              className="px-10 py-4 rounded-xl font-bold text-white text-base transition-all hover:scale-105 shadow-lg"
+              className="px-8 py-3.5 rounded-xl font-bold text-white text-sm transition-all hover:scale-105 shadow-md"
               style={{ background: "linear-gradient(135deg, #FF6B00, #FFD700)" }}
             >
               Voir tous les forfaits
             </button>
             <button
               onClick={() => setLocation("/commandes")}
-              className="px-10 py-4 rounded-xl font-bold text-base transition-all hover:scale-105 shadow-md border-2 border-gray-200 bg-white text-foreground hover:bg-gray-50"
+              className="px-8 py-3.5 rounded-xl font-bold text-sm transition-all hover:scale-105 shadow-md border-2 border-gray-200 bg-white text-foreground hover:bg-gray-50"
             >
               Suivre mes commandes
             </button>
@@ -132,7 +316,7 @@ export default function Home() {
           <div className="grid md:grid-cols-2 gap-6">
             {/* MTN Card */}
             <button
-              onClick={() => setLocation("/forfaits")}
+              onClick={() => mtnOp ? setLocation(`/operator/${mtnOp.id}`) : setLocation("/forfaits")}
               className="group relative overflow-hidden rounded-2xl p-8 text-left transition-all hover:scale-[1.02] hover:shadow-2xl shadow-lg"
               style={{ background: "linear-gradient(135deg, #FFD700 0%, #FFA500 50%, #FF8C00 100%)" }}
             >
@@ -158,7 +342,7 @@ export default function Home() {
 
             {/* Orange Card */}
             <button
-              onClick={() => setLocation("/forfaits")}
+              onClick={() => orangeOp ? setLocation(`/operator/${orangeOp.id}`) : setLocation("/forfaits")}
               className="group relative overflow-hidden rounded-2xl p-8 text-left transition-all hover:scale-[1.02] hover:shadow-2xl shadow-lg"
               style={{ background: "linear-gradient(135deg, #FF6B00 0%, #FF8C00 50%, #FFA040 100%)" }}
             >
@@ -193,7 +377,15 @@ export default function Home() {
             Clients satisfaits
           </div>
           <h2 className="text-2xl font-black text-foreground mb-2">Ce que disent nos clients</h2>
-          <p className="text-muted-foreground text-sm">Plus de <strong>10 000 forfaits</strong> vendus — ils témoignent</p>
+          <p className="text-muted-foreground text-sm mb-6">Plus de <strong>10 000 forfaits</strong> vendus — ils témoignent</p>
+          <button
+            onClick={() => setShowAvisModal(true)}
+            className="inline-flex items-center gap-2 px-6 py-3 rounded-xl font-bold text-sm text-white transition-all hover:scale-105 shadow-md"
+            style={{ background: "linear-gradient(135deg, #FF6B00, #FFD700)" }}
+          >
+            <Star className="w-4 h-4 fill-white" />
+            Poster un avis
+          </button>
         </div>
 
         <div className="space-y-3">
@@ -250,6 +442,12 @@ export default function Home() {
       </section>
 
       <div className="h-16 md:hidden" />
+
+      {/* Floating Actions */}
+      <FloatingActions />
+
+      {/* Avis Modal */}
+      {showAvisModal && <AvisModal onClose={() => setShowAvisModal(false)} />}
     </div>
   );
 }
