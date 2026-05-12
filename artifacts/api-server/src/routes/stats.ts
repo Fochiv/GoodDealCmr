@@ -36,7 +36,7 @@ router.get("/stats/revenue", async (req, res) => {
   const totalOrders = allOrders.length;
   const paidOrders = paidList.length;
 
-  const operators = await db.select().from(operatorsTable);
+  const operators = await db.select().from(operatorsTable).orderBy(operatorsTable.id);
   const bundles = await db.select().from(bundlesTable);
 
   const revenueByOperator = operators.map(op => {

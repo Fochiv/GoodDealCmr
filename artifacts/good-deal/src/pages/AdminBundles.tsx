@@ -102,7 +102,7 @@ export default function AdminBundles() {
                 <Label>Opérateur</Label>
                 <Select value={form.operatorId} onValueChange={v => setForm(p => ({ ...p, operatorId: v }))}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>{operators?.map(op => <SelectItem key={op.id} value={String(op.id)}>{op.name}</SelectItem>)}</SelectContent>
+                  <SelectContent>{[...(operators ?? [])].sort((a, b) => a.id - b.id).map(op => <SelectItem key={op.id} value={String(op.id)}>{op.name}</SelectItem>)}</SelectContent>
                 </Select>
               </div>
               <div className="space-y-1.5">
