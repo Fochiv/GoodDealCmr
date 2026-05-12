@@ -1,7 +1,10 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useLocation } from "wouter";
-import { ArrowLeft, Phone, CreditCard, Loader2, Wifi, Calendar, Check } from "lucide-react";
-import { useGetBundle, useCreateOrder, usePayOrder, getGetBundleQueryKey } from "@workspace/api-client-react";
+import {
+  ArrowLeft, Phone, CreditCard, Loader2, Calendar, Check,
+  Wifi, User, ChevronRight, Signal,
+} from "lucide-react";
+import { useGetBundle, getGetBundleQueryKey } from "@workspace/api-client-react";
 import { formatFCFA } from "@/lib/api";
 import { useAuth } from "@/contexts/auth-context";
 import { useToast } from "@/hooks/use-toast";
@@ -9,37 +12,63 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
+// Good Deal contact numbers per operator
+const GOOD_DEAL_MTN = "650 00 00 00";
+const GOOD_DEAL_ORANGE = "690 00 00 00";
+
 export default function Checkout() {
-  const [location, setLocation] = useLocation();
+  const [, setLocation] = useLocation();
   const urlParams = new URLSearchParams(typeof window !== "undefined" ? window.location.search : "");
   const bundleId = parseInt(urlParams.get("bundleId") ?? "0");
 
-  const [phone, setPhone] = useState("");
-  const [paymentMethod, setPaymentMethod] = useState<"mtn_momo" | "orange_money">("mtn_momo");
-  const [step, setStep] = useState<"form" | "processing" | "done">("form");
+  // Step 1 state
+  const [recipientPhone, setRecipientPhone] = useState("");
 
-  const { isAuthenticated, token } = useAuth();
+  // Step 2 state
+  const [paymentMethod, setPaymentMethod] = useState<"mtn_momo" | "orange_money">("mtn_momo");
+  const [payerPhone, setPayerPhone] = useState("");
+  const [payerName, setPayerName] = useState("");
+
+  const [step, setStep] = useState<1 | 2>(1);
+  const [processing, setProcessing] = useState(false);
+
+  const { token } = useAuth();
   const { toast } = useToast();
 
   const { data: bundle, isLoading: bundleLoading } = useGetBundle(bundleId, {
-    query: { enabled: bundleId > 0, queryKey: getGetBundleQueryKey(bundleId) }
+    query: { enabled: bundleId > 0, queryKey: getGetBundleQueryKey(bundleId) },
   });
 
-  const createOrder = useCreateOrder();
-  const payOrder = usePayOrder();
-
   const isMtn = bundle?.operatorSlug === "mtn";
+  const operatorLabel = isMtn ? "MTN" : "Orange";
+  const operatorColor = isMtn ? "#FFD700" : "#FF6B00";
+  const operatorTextColor = isMtn ? "#1a1a1a" : "#ffffff";
   const gradient = isMtn
     ? "linear-gradient(135deg, #FFD700, #FFA500)"
     : "linear-gradient(135deg, #FF6B00, #FF8C00)";
+  const goodDealNumber = isMtn ? GOOD_DEAL_MTN : GOOD_DEAL_ORANGE;
+
+  const handleValidateStep1 = () => {
+    if (!recipientPhone.trim() || recipientPhone.replace(/\s/g, "").length < 9) {
+      toast({ title: "Numéro invalide", description: "Entrez un numéro valide à 9 chiffres.", variant: "destructive" });
+      return;
+    }
+    // Pre-select payment method based on operator
+    setPaymentMethod(isMtn ? "mtn_momo" : "orange_money");
+    setStep(2);
+  };
 
   const handlePay = async () => {
-    if (!phone.trim() || phone.trim().length < 9) {
-      toast({ title: "Numéro invalide", description: "Entrez un numéro à 9 chiffres minimum.", variant: "destructive" });
+    if (!payerPhone.replace(/\s/g, "")) {
+      toast({ title: "Numéro manquant", description: "Entrez votre numéro de paiement.", variant: "destructive" });
+      return;
+    }
+    if (!payerName.trim()) {
+      toast({ title: "Nom manquant", description: "Entrez votre nom complet.", variant: "destructive" });
       return;
     }
 
-    setStep("processing");
+    setProcessing(true);
 
     try {
       const headers: Record<string, string> = { "Content-Type": "application/json" };
@@ -48,7 +77,13 @@ export default function Checkout() {
       const orderRes = await fetch("/api/orders", {
         method: "POST",
         headers,
-        body: JSON.stringify({ bundleId, phoneNumber: phone.trim(), paymentMethod }),
+        body: JSON.stringify({
+          bundleId,
+          phoneNumber: recipientPhone.trim(),
+          paymentMethod,
+          payerPhone: payerPhone.trim(),
+          payerName: payerName.trim(),
+        }),
       });
 
       if (!orderRes.ok) throw new Error("Échec de création de commande");
@@ -59,16 +94,18 @@ export default function Checkout() {
       const payRes = await fetch(`/api/orders/${order.id}/pay`, {
         method: "POST",
         headers,
-        body: JSON.stringify({ paymentMethod }),
+        body: JSON.stringify({ paymentMethod, payerPhone: payerPhone.trim(), payerName: payerName.trim() }),
       });
 
       if (!payRes.ok) throw new Error("Échec du paiement");
       const result = await payRes.json();
 
-      setLocation(`/payment/success?txn=${result.transactionId}&orderId=${order.id}&amount=${bundle?.price ?? 0}&phone=${encodeURIComponent(phone)}`);
-    } catch (err) {
-      setStep("form");
-      toast({ title: "Erreur", description: "Une erreur est survenue. Réessayez.", variant: "destructive" });
+      setLocation(
+        `/payment/success?txn=${result.transactionId}&orderId=${order.id}&amount=${bundle?.price ?? 0}&phone=${encodeURIComponent(recipientPhone)}`
+      );
+    } catch {
+      setProcessing(false);
+      toast({ title: "Erreur", description: "Une erreur est survenue. Veuillez réessayer.", variant: "destructive" });
     }
   };
 
@@ -84,134 +121,304 @@ export default function Checkout() {
   }
 
   return (
-    <div className="min-h-screen pt-20 pb-24 md:pb-8 px-4">
+    <div className="min-h-screen pt-20 pb-24 md:pb-8 px-4 bg-gray-50">
       <div className="max-w-lg mx-auto">
+
+        {/* Back button */}
         <button
-          onClick={() => window.history.back()}
+          onClick={() => step === 2 ? setStep(1) : window.history.back()}
           className="flex items-center gap-2 text-muted-foreground hover:text-foreground mb-6 font-medium text-sm"
-          data-testid="button-back"
         >
           <ArrowLeft className="w-4 h-4" />
-          Retour
+          {step === 2 ? "Modifier le numéro" : "Retour"}
         </button>
 
-        <h1 className="text-2xl font-black text-foreground mb-6">Finaliser l'achat</h1>
+        {/* Step indicator */}
+        <div className="flex items-center gap-2 mb-6">
+          <div className="flex items-center gap-2">
+            <div
+              className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-black"
+              style={{ background: step >= 1 ? operatorColor : "#e5e7eb", color: step >= 1 ? operatorTextColor : "#9ca3af" }}
+            >1</div>
+            <span className={`text-sm font-semibold ${step === 1 ? "text-foreground" : "text-muted-foreground"}`}>
+              Numéro bénéficiaire
+            </span>
+          </div>
+          <ChevronRight className="w-4 h-4 text-gray-300 flex-shrink-0" />
+          <div className="flex items-center gap-2">
+            <div
+              className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-black"
+              style={{ background: step >= 2 ? operatorColor : "#e5e7eb", color: step >= 2 ? operatorTextColor : "#9ca3af" }}
+            >2</div>
+            <span className={`text-sm font-semibold ${step === 2 ? "text-foreground" : "text-muted-foreground"}`}>
+              Paiement
+            </span>
+          </div>
+        </div>
 
-        {/* Bundle Summary */}
+        {/* Bundle card */}
         {bundleLoading ? (
-          <div className="h-32 rounded-2xl bg-muted animate-pulse mb-6" />
+          <div className="h-28 rounded-2xl bg-gray-200 animate-pulse mb-5" />
         ) : bundle ? (
-          <div
-            className="rounded-2xl p-5 mb-6 shadow-lg"
-            style={{ background: gradient }}
-            data-testid="bundle-summary"
-          >
-            <div className={`flex items-center justify-between ${isMtn ? "text-gray-900" : "text-white"}`}>
+          <div className="rounded-2xl p-5 mb-5 shadow-lg" style={{ background: gradient }}>
+            <div className="flex items-center justify-between" style={{ color: operatorTextColor }}>
               <div>
-                <div className="text-xs font-bold opacity-75 mb-1">{bundle.operatorName}</div>
-                <div className="text-3xl font-black mb-1">{bundle.dataSize}</div>
-                <div className="flex items-center gap-3 text-sm opacity-80">
-                  <span className="flex items-center gap-1"><Calendar className="w-3.5 h-3.5" />{bundle.validity} jours</span>
+                <div className="text-xs font-bold opacity-70 mb-0.5">{bundle.operatorName}</div>
+                <div className="text-3xl font-black">{bundle.dataSize}</div>
+                <div className="flex items-center gap-1.5 text-sm opacity-80 mt-1">
+                  <Calendar className="w-3.5 h-3.5" />
+                  <span>Validité : {bundle.validity} jours</span>
                 </div>
               </div>
               <div className="text-right">
                 <div className="text-2xl font-black">{formatFCFA(bundle.price)}</div>
-                <div className="text-xs opacity-75 mt-1">Prix total</div>
+                <div className="text-xs opacity-70 mt-0.5">Prix forfait</div>
               </div>
             </div>
           </div>
         ) : null}
 
-        {step === "processing" ? (
-          <div className="bg-card border border-card-border rounded-2xl p-10 text-center">
-            <Loader2 className="w-12 h-12 animate-spin text-primary mx-auto mb-4" />
-            <h3 className="text-lg font-bold text-foreground mb-2">Traitement en cours...</h3>
-            <p className="text-sm text-muted-foreground">Votre paiement Mobile Money est en cours de traitement.</p>
-          </div>
-        ) : (
-          <div className="bg-card border border-card-border rounded-2xl p-6 space-y-6">
-            {/* Phone number */}
-            <div className="space-y-2">
-              <Label htmlFor="phone" className="font-semibold flex items-center gap-2">
-                <Phone className="w-4 h-4" />
-                Numéro à recharger
+        {/* ===================== STEP 1 ===================== */}
+        {step === 1 && (
+          <div className="space-y-4">
+            {/* Recipient phone */}
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+              <h2 className="text-base font-black text-foreground mb-4 flex items-center gap-2">
+                <Phone className="w-4 h-4" style={{ color: operatorColor }} />
+                Numéro {operatorLabel} à recharger
+              </h2>
+              <Label htmlFor="recipient" className="text-sm text-muted-foreground mb-1 block">
+                Entrez le numéro <strong>{operatorLabel}</strong> qui recevra le forfait
               </Label>
               <Input
-                id="phone"
+                id="recipient"
                 type="tel"
-                placeholder="Ex: 6XXXXXXXX"
-                value={phone}
-                onChange={e => setPhone(e.target.value)}
-                className="text-base"
-                data-testid="input-phone"
+                placeholder={isMtn ? "Ex: 650 00 00 00" : "Ex: 690 00 00 00"}
+                value={recipientPhone}
+                onChange={e => setRecipientPhone(e.target.value)}
+                className="text-base mt-1"
+                style={{ borderColor: recipientPhone.length >= 9 ? operatorColor : undefined }}
               />
-              <p className="text-xs text-muted-foreground">Entrez le numéro qui recevra le forfait internet</p>
+              <p className="text-xs text-muted-foreground mt-2">
+                Ce numéro recevra directement le forfait internet {operatorLabel}.
+              </p>
             </div>
 
-            {/* Payment method */}
-            <div className="space-y-3">
-              <Label className="font-semibold flex items-center gap-2">
-                <CreditCard className="w-4 h-4" />
-                Moyen de paiement
-              </Label>
-              <div className="grid grid-cols-2 gap-3">
-                <button
-                  onClick={() => setPaymentMethod("mtn_momo")}
-                  className={`relative p-4 rounded-xl border-2 transition-all text-left ${
-                    paymentMethod === "mtn_momo"
-                      ? "border-yellow-400 bg-yellow-50 dark:bg-yellow-950/20"
-                      : "border-border bg-background"
-                  }`}
-                  data-testid="button-payment-mtn"
-                >
-                  {paymentMethod === "mtn_momo" && (
-                    <div className="absolute top-2 right-2 w-5 h-5 rounded-full bg-yellow-400 flex items-center justify-center">
-                      <Check className="w-3 h-3 text-white" />
-                    </div>
-                  )}
-                  <div className="text-sm font-bold" style={{ color: "#B8860B" }}>MTN</div>
-                  <div className="text-xs text-muted-foreground mt-0.5">Mobile Money</div>
-                </button>
-                <button
-                  onClick={() => setPaymentMethod("orange_money")}
-                  className={`relative p-4 rounded-xl border-2 transition-all text-left ${
-                    paymentMethod === "orange_money"
-                      ? "border-orange-400 bg-orange-50 dark:bg-orange-950/20"
-                      : "border-border bg-background"
-                  }`}
-                  data-testid="button-payment-orange"
-                >
-                  {paymentMethod === "orange_money" && (
-                    <div className="absolute top-2 right-2 w-5 h-5 rounded-full bg-orange-400 flex items-center justify-center">
-                      <Check className="w-3 h-3 text-white" />
-                    </div>
-                  )}
-                  <div className="text-sm font-bold text-orange-700">Orange</div>
-                  <div className="text-xs text-muted-foreground mt-0.5">Orange Money</div>
-                </button>
+            {/* Good Deal network info */}
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+              <h2 className="text-base font-black text-foreground mb-4 flex items-center gap-2">
+                <Signal className="w-4 h-4" style={{ color: operatorColor }} />
+                Informations Good Deal
+              </h2>
+              <div className="space-y-3">
+                <div className="flex items-center justify-between py-2.5 border-b border-gray-50">
+                  <div className="flex items-center gap-2">
+                    <Wifi className="w-4 h-4 text-muted-foreground" />
+                    <span className="text-sm text-muted-foreground">Réseau Good Deal</span>
+                  </div>
+                  <span
+                    className="text-sm font-black px-3 py-0.5 rounded-full"
+                    style={{ background: isMtn ? "#FFF3CD" : "#FFE5CC", color: isMtn ? "#B8860B" : "#CC4400" }}
+                  >
+                    {operatorLabel}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between py-2.5 border-b border-gray-50">
+                  <div className="flex items-center gap-2">
+                    <Phone className="w-4 h-4 text-muted-foreground" />
+                    <span className="text-sm text-muted-foreground">Numéro {operatorLabel} Good Deal</span>
+                  </div>
+                  <span className="text-sm font-black text-foreground">{goodDealNumber}</span>
+                </div>
+                <div className="flex items-center justify-between py-2.5">
+                  <div className="flex items-center gap-2">
+                    <CreditCard className="w-4 h-4 text-muted-foreground" />
+                    <span className="text-sm text-muted-foreground">Montant forfait</span>
+                  </div>
+                  <span className="text-sm font-black" style={{ color: operatorColor }}>
+                    {bundle ? formatFCFA(bundle.price) : "—"}
+                  </span>
+                </div>
               </div>
             </div>
 
-            {/* Total */}
-            <div className="flex items-center justify-between py-3 border-t border-border">
-              <span className="font-semibold text-foreground">Total à payer</span>
-              <span className="text-xl font-black text-primary">{bundle ? formatFCFA(bundle.price) : "—"}</span>
-            </div>
-
-            <Button
-              onClick={handlePay}
-              className="w-full py-6 text-base font-bold rounded-xl"
-              style={{ background: gradient, color: isMtn ? "#1a1a1a" : "white", border: "none" }}
-              disabled={!phone.trim() || !bundle}
-              data-testid="button-pay"
+            <button
+              onClick={handleValidateStep1}
+              disabled={!bundle || recipientPhone.replace(/\s/g, "").length < 9}
+              className="w-full py-4 rounded-2xl font-black text-base transition-all hover:scale-[1.02] active:scale-95 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 flex items-center justify-center gap-2"
+              style={{ background: gradient, color: operatorTextColor }}
             >
-              Payer {bundle ? formatFCFA(bundle.price) : ""}
-            </Button>
-
-            <p className="text-xs text-center text-muted-foreground">
-              Paiement 100% sécurisé. Mode démo activé — aucun vrai paiement prélevé.
-            </p>
+              Valider et choisir le paiement
+              <ChevronRight className="w-5 h-5" />
+            </button>
           </div>
+        )}
+
+        {/* ===================== STEP 2 ===================== */}
+        {step === 2 && (
+          <>
+            {processing ? (
+              <div className="bg-white border border-gray-100 rounded-2xl p-12 text-center shadow-sm">
+                <div
+                  className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4"
+                  style={{ background: `${operatorColor}20` }}
+                >
+                  <Loader2 className="w-8 h-8 animate-spin" style={{ color: operatorColor }} />
+                </div>
+                <h3 className="text-lg font-bold text-foreground mb-1">Traitement en cours...</h3>
+                <p className="text-sm text-muted-foreground">
+                  Votre paiement {isMtn ? "MTN MoMo" : "Orange Money"} est en cours de traitement.
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {/* Recipient recap */}
+                <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div
+                      className="w-9 h-9 rounded-full flex items-center justify-center text-xs font-black flex-shrink-0"
+                      style={{ background: gradient, color: operatorTextColor }}
+                    >
+                      {operatorLabel[0]}
+                    </div>
+                    <div>
+                      <div className="text-xs text-muted-foreground">Numéro bénéficiaire</div>
+                      <div className="font-black text-foreground">{recipientPhone}</div>
+                    </div>
+                  </div>
+                  <div
+                    className="text-xs font-bold px-2.5 py-1 rounded-full"
+                    style={{ background: isMtn ? "#FFF3CD" : "#FFE5CC", color: isMtn ? "#B8860B" : "#CC4400" }}
+                  >
+                    {operatorLabel}
+                  </div>
+                </div>
+
+                {/* Payment form */}
+                <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-5">
+                  <h2 className="text-base font-black text-foreground flex items-center gap-2">
+                    <CreditCard className="w-4 h-4" style={{ color: operatorColor }} />
+                    Finaliser le paiement
+                  </h2>
+
+                  {/* Payment method */}
+                  <div>
+                    <Label className="text-sm font-semibold text-foreground mb-3 block">
+                      Mode de paiement
+                    </Label>
+                    <div className="grid grid-cols-2 gap-3">
+                      <button
+                        onClick={() => setPaymentMethod("mtn_momo")}
+                        className={`relative p-4 rounded-xl border-2 transition-all text-left ${
+                          paymentMethod === "mtn_momo"
+                            ? "border-yellow-400 bg-yellow-50"
+                            : "border-gray-200 bg-white hover:bg-gray-50"
+                        }`}
+                      >
+                        {paymentMethod === "mtn_momo" && (
+                          <div className="absolute top-2.5 right-2.5 w-5 h-5 rounded-full bg-yellow-400 flex items-center justify-center">
+                            <Check className="w-3 h-3 text-white" />
+                          </div>
+                        )}
+                        <div
+                          className="w-8 h-8 rounded-lg flex items-center justify-center mb-2 text-xs font-black"
+                          style={{ background: "linear-gradient(135deg, #FFD700, #FFA500)", color: "#1a1a1a" }}
+                        >
+                          M
+                        </div>
+                        <div className="text-sm font-bold text-gray-900">MTN MoMo</div>
+                        <div className="text-xs text-muted-foreground mt-0.5">Mobile Money</div>
+                      </button>
+
+                      <button
+                        onClick={() => setPaymentMethod("orange_money")}
+                        className={`relative p-4 rounded-xl border-2 transition-all text-left ${
+                          paymentMethod === "orange_money"
+                            ? "border-orange-400 bg-orange-50"
+                            : "border-gray-200 bg-white hover:bg-gray-50"
+                        }`}
+                      >
+                        {paymentMethod === "orange_money" && (
+                          <div className="absolute top-2.5 right-2.5 w-5 h-5 rounded-full bg-orange-500 flex items-center justify-center">
+                            <Check className="w-3 h-3 text-white" />
+                          </div>
+                        )}
+                        <div
+                          className="w-8 h-8 rounded-lg flex items-center justify-center mb-2 text-xs font-black"
+                          style={{ background: "linear-gradient(135deg, #FF6B00, #FF8C00)", color: "#ffffff" }}
+                        >
+                          O
+                        </div>
+                        <div className="text-sm font-bold text-gray-900">Orange Money</div>
+                        <div className="text-xs text-muted-foreground mt-0.5">Orange Money</div>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Payer phone */}
+                  <div>
+                    <Label htmlFor="payer-phone" className="text-sm font-semibold text-foreground mb-1 block">
+                      Votre numéro de paiement
+                    </Label>
+                    <div className="relative">
+                      <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                      <Input
+                        id="payer-phone"
+                        type="tel"
+                        placeholder={paymentMethod === "mtn_momo" ? "Ex: 650 00 00 00 (MTN)" : "Ex: 690 00 00 00 (Orange)"}
+                        value={payerPhone}
+                        onChange={e => setPayerPhone(e.target.value)}
+                        className="pl-9 text-base"
+                      />
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Le numéro {paymentMethod === "mtn_momo" ? "MTN MoMo" : "Orange Money"} qui sera débité
+                    </p>
+                  </div>
+
+                  {/* Full name */}
+                  <div>
+                    <Label htmlFor="payer-name" className="text-sm font-semibold text-foreground mb-1 block">
+                      Nom complet
+                    </Label>
+                    <div className="relative">
+                      <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                      <Input
+                        id="payer-name"
+                        type="text"
+                        placeholder="Ex: Jean-Pierre Kamga"
+                        value={payerName}
+                        onChange={e => setPayerName(e.target.value)}
+                        className="pl-9 text-base"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Total */}
+                  <div className="flex items-center justify-between py-3 border-t border-gray-100">
+                    <span className="text-sm font-semibold text-foreground">Total à payer</span>
+                    <span className="text-xl font-black" style={{ color: operatorColor }}>
+                      {bundle ? formatFCFA(bundle.price) : "—"}
+                    </span>
+                  </div>
+
+                  {/* Pay button */}
+                  <button
+                    onClick={handlePay}
+                    disabled={!payerPhone.replace(/\s/g, "") || !payerName.trim() || !bundle}
+                    className="w-full py-4 rounded-2xl font-black text-base transition-all hover:scale-[1.02] active:scale-95 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 flex items-center justify-center gap-2"
+                    style={{ background: gradient, color: operatorTextColor }}
+                  >
+                    Payer {bundle ? formatFCFA(bundle.price) : ""}
+                  </button>
+
+                  <p className="text-xs text-center text-muted-foreground">
+                    Paiement sécurisé via {paymentMethod === "mtn_momo" ? "MTN Mobile Money" : "Orange Money"}.
+                  </p>
+                </div>
+              </div>
+            )}
+          </>
         )}
       </div>
     </div>
