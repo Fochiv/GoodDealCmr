@@ -6,7 +6,7 @@ export function BottomNav() {
 
   const items = [
     { href: "/", icon: Home, label: "Accueil" },
-    { href: "/operator/1", icon: Wifi, label: "Forfaits" },
+    { href: "/forfaits", icon: Wifi, label: "Forfaits" },
     { href: "/commandes", icon: ClipboardList, label: "Commandes" },
   ];
 
@@ -23,9 +23,7 @@ export function BottomNav() {
             key={item.href}
             href={item.href}
             className={`flex-1 flex flex-col items-center gap-1 py-3 text-xs font-medium transition-colors ${
-              isActive(item.href)
-                ? "text-primary"
-                : "text-gray-400 hover:text-gray-600"
+              isActive(item.href) ? "text-primary" : "text-gray-400 hover:text-gray-600"
             }`}
           >
             <item.icon className="w-5 h-5" />

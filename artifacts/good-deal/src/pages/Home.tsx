@@ -109,18 +109,11 @@ export default function Home() {
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <button
-              onClick={() => setLocation("/operator/1")}
-              className="px-8 py-3.5 rounded-xl font-bold text-gray-900 text-base transition-all hover:scale-105 shadow-lg"
-              style={{ background: "linear-gradient(135deg, #FFD700, #FFA500)" }}
+              onClick={() => setLocation("/forfaits")}
+              className="px-10 py-4 rounded-xl font-bold text-white text-base transition-all hover:scale-105 shadow-lg"
+              style={{ background: "linear-gradient(135deg, #FF6B00, #FFD700)" }}
             >
-              Forfaits MTN
-            </button>
-            <button
-              onClick={() => setLocation("/operator/2")}
-              className="px-8 py-3.5 rounded-xl font-bold text-white text-base transition-all hover:scale-105 shadow-lg"
-              style={{ background: "linear-gradient(135deg, #FF6B00, #FF8C00)" }}
-            >
-              Forfaits Orange
+              Voir tous les forfaits
             </button>
           </div>
         </div>
@@ -135,8 +128,9 @@ export default function Home() {
           </div>
         ) : (
           <div className="grid md:grid-cols-2 gap-6">
+            {/* MTN Card */}
             <button
-              onClick={() => setLocation("/operator/1")}
+              onClick={() => setLocation("/forfaits")}
               className="group relative overflow-hidden rounded-2xl p-8 text-left transition-all hover:scale-[1.02] hover:shadow-2xl shadow-lg"
               style={{ background: "linear-gradient(135deg, #FFD700 0%, #FFA500 50%, #FF8C00 100%)" }}
             >
@@ -160,8 +154,9 @@ export default function Home() {
               </div>
             </button>
 
+            {/* Orange Card */}
             <button
-              onClick={() => setLocation("/operator/2")}
+              onClick={() => setLocation("/forfaits")}
               className="group relative overflow-hidden rounded-2xl p-8 text-left transition-all hover:scale-[1.02] hover:shadow-2xl shadow-lg"
               style={{ background: "linear-gradient(135deg, #FF6B00 0%, #FF8C00 50%, #FFA040 100%)" }}
             >

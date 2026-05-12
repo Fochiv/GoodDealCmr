@@ -10,6 +10,7 @@ import OperatorBundles from "@/pages/OperatorBundles";
 import Checkout from "@/pages/Checkout";
 import PaymentSuccess from "@/pages/PaymentSuccess";
 import Orders from "@/pages/Orders";
+import AllBundles from "@/pages/AllBundles";
 import Ashtech from "@/pages/Ashtech";
 import Admin from "@/pages/Admin";
 import AdminBundles from "@/pages/AdminBundles";
@@ -30,6 +31,7 @@ function Router() {
       <Route path="/operator/:id" component={OperatorBundles} />
       <Route path="/checkout" component={Checkout} />
       <Route path="/payment/success" component={PaymentSuccess} />
+      <Route path="/forfaits" component={AllBundles} />
       <Route path="/commandes" component={Orders} />
       <Route path="/ashtech" component={Ashtech} />
       <Route path="/ashtech/dashboard" component={Admin} />
