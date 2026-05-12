@@ -184,4 +184,40 @@ router.post("/orders/:id/pay", async (req, res) => {
   });
 });
 
+// Admin: manually set order status to paid or failed
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD ?? "Apashash28@";
+
+router.patch("/admin/orders/:id/status", async (req, res) => {
+  if (req.headers["x-admin-key"] !== ADMIN_PASSWORD) {
+    return res.status(403).json({ error: "Accès refusé" });
+  }
+
+  const id = parseInt(req.params.id);
+  if (isNaN(id)) return res.status(400).json({ error: "ID invalide" });
+
+  const schema = z.object({ status: z.enum(["paid", "failed", "cancelled"]) });
+  const parsed = schema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: "Statut invalide" });
+
+  const [order] = await db.select().from(ordersTable).where(eq(ordersTable.id, id)).limit(1);
+  if (!order) return res.status(404).json({ error: "Commande introuvable" });
+
+  const updateData: Record<string, any> = { status: parsed.data.status };
+
+  if (parsed.data.status === "paid" && !order.transactionId) {
+    const { createHash } = await import("crypto");
+    updateData.transactionId = "TXN" + createHash("sha256")
+      .update(`admin:${id}:${Date.now()}`).digest("hex").slice(0, 12).toUpperCase();
+  }
+
+  const [updated] = await db
+    .update(ordersTable)
+    .set(updateData)
+    .where(eq(ordersTable.id, id))
+    .returning();
+
+  const bundle = await getBundleWithOperator(updated.bundleId);
+  return res.json({ ...updated, bundle });
+});
+
 export default router;
