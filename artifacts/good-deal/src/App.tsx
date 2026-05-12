@@ -17,6 +17,7 @@ import AdminBundles from "@/pages/AdminBundles";
 import AdminOrders from "@/pages/AdminOrders";
 import AdminUsers from "@/pages/AdminUsers";
 import AdminReviews from "@/pages/AdminReviews";
+import AdminSettings from "@/pages/AdminSettings";
 import NotFound from "@/pages/not-found";
 
 const queryClient = new QueryClient({
@@ -40,6 +41,7 @@ function Router() {
       <Route path="/ashtech/orders" component={AdminOrders} />
       <Route path="/ashtech/users" component={AdminUsers} />
       <Route path="/ashtech/reviews" component={AdminReviews} />
+      <Route path="/ashtech/settings" component={AdminSettings} />
       <Route component={NotFound} />
     </Switch>
   );

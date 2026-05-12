@@ -82,6 +82,7 @@ export default function Admin() {
             <Button variant="outline" size="sm" onClick={() => setLocation("/ashtech/orders")} className="justify-start sm:justify-center">🧾 Commandes</Button>
             <Button variant="outline" size="sm" onClick={() => setLocation("/ashtech/users")} className="justify-start sm:justify-center">👥 Utilisateurs</Button>
             <Button variant="outline" size="sm" onClick={() => setLocation("/ashtech/reviews")} className="justify-start sm:justify-center">⭐ Avis</Button>
+            <Button variant="outline" size="sm" onClick={() => setLocation("/ashtech/settings")} className="justify-start sm:justify-center">⚙️ Paramètres</Button>
           </div>
         </div>
 

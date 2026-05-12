@@ -2,9 +2,23 @@ import { useState } from "react";
 import { useLocation } from "wouter";
 import { Wifi, Zap, Phone, ChevronRight, Check, Star, CheckCircle, MessageCircle, X, Send, HeadphonesIcon } from "lucide-react";
 import { useListOperators, useListBundles } from "@workspace/api-client-react";
+import { useQuery } from "@tanstack/react-query";
 import { formatFCFA } from "@/lib/api";
 
-const WHATSAPP_NUMBER = "237650000000";
+const DEFAULT_WHATSAPP = "237650000000";
+const API_BASE = import.meta.env.VITE_API_URL ?? "/api";
+
+function useSettings() {
+  return useQuery<Record<string, string>>({
+    queryKey: ["settings"],
+    queryFn: async () => {
+      const res = await fetch(`${API_BASE}/settings`);
+      if (!res.ok) throw new Error("settings fetch failed");
+      return res.json();
+    },
+    staleTime: 60000,
+  });
+}
 
 const TESTIMONIALS = [
   { phone: "690***432", bundle: "2 Go MTN", amount: "500 FCFA", msg: "Reçu en moins d'une minute, incroyable 🔥", stars: 5 },
@@ -218,10 +232,10 @@ function AvisModal({ onClose }: { onClose: () => void }) {
   );
 }
 
-function FloatingActions({ onAvis }: { onAvis: () => void }) {
+function FloatingActions({ whatsappNumber, onAvis }: { whatsappNumber: string; onAvis: () => void }) {
   const [open, setOpen] = useState(false);
 
-  const whatsappUrl = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent("Bonjour Good Deal, j'ai besoin d'aide 👋")}`;
+  const whatsappUrl = `https://wa.me/${whatsappNumber}?text=${encodeURIComponent("Bonjour Good Deal, j'ai besoin d'aide 👋")}`;
 
   return (
     <div className="fixed bottom-24 right-4 md:bottom-8 z-40 flex flex-col items-end gap-3">
@@ -280,6 +294,8 @@ export default function Home() {
   const [showAvisModal, setShowAvisModal] = useState(false);
   const { data: operators, isLoading: opsLoading } = useListOperators();
   const { data: bundles } = useListBundles({ active: true });
+  const { data: settings } = useSettings();
+  const whatsappNumber = settings?.whatsapp_number ?? DEFAULT_WHATSAPP;
 
   const allMtnBundles = bundles?.filter(b => b.operatorSlug === "mtn") ?? [];
   const allOrangeBundles = bundles?.filter(b => b.operatorSlug === "orange") ?? [];
@@ -493,7 +509,7 @@ export default function Home() {
       <div className="h-16 md:hidden" />
 
       {/* Floating Actions */}
-      <FloatingActions onAvis={() => setShowAvisModal(true)} />
+      <FloatingActions whatsappNumber={whatsappNumber} onAvis={() => setShowAvisModal(true)} />
 
       {/* Avis Modal */}
       {showAvisModal && <AvisModal onClose={() => setShowAvisModal(false)} />}
