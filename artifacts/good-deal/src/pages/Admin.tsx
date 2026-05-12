@@ -45,19 +45,21 @@ export default function Admin() {
   return (
     <div className="min-h-screen pt-20 pb-8 px-4 bg-gray-50">
       <div className="max-w-6xl mx-auto">
-        <div className="mb-8 flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-black text-foreground">Tableau de bord admin</h1>
-            <p className="text-muted-foreground text-sm">Good Deal — panneau d'administration</p>
-          </div>
-          <div className="flex gap-2">
-            <Button variant="outline" size="sm" onClick={() => setLocation("/ashtech/bundles")}>Forfaits</Button>
-            <Button variant="outline" size="sm" onClick={() => setLocation("/ashtech/orders")}>Commandes</Button>
-            <Button variant="outline" size="sm" onClick={() => setLocation("/ashtech/users")}>Utilisateurs</Button>
-            <Button variant="outline" size="sm" onClick={() => setLocation("/ashtech/reviews")} className="gap-1">⭐ Avis</Button>
-            <Button variant="outline" size="sm" onClick={handleLogout} className="gap-1 text-red-600 border-red-200 hover:bg-red-50">
+        <div className="mb-6">
+          <div className="flex items-center justify-between mb-3">
+            <div>
+              <h1 className="text-xl font-black text-foreground">Tableau de bord admin</h1>
+              <p className="text-muted-foreground text-xs">Good Deal — panneau d'administration</p>
+            </div>
+            <Button variant="outline" size="sm" onClick={handleLogout} className="gap-1 text-red-600 border-red-200 hover:bg-red-50 flex-shrink-0">
               <LogOut className="w-4 h-4" />
             </Button>
+          </div>
+          <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar">
+            <Button variant="outline" size="sm" onClick={() => setLocation("/ashtech/bundles")} className="flex-shrink-0">Forfaits</Button>
+            <Button variant="outline" size="sm" onClick={() => setLocation("/ashtech/orders")} className="flex-shrink-0">Commandes</Button>
+            <Button variant="outline" size="sm" onClick={() => setLocation("/ashtech/users")} className="flex-shrink-0">Utilisateurs</Button>
+            <Button variant="outline" size="sm" onClick={() => setLocation("/ashtech/reviews")} className="flex-shrink-0 gap-1">⭐ Avis</Button>
           </div>
         </div>
 
