@@ -192,6 +192,92 @@ function CreateMerchantModal({ onClose, onCreated }: { onClose: () => void; onCr
   );
 }
 
+function AdminDepositModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: () => void }) {
+  const { toast } = useToast();
+  const [amount, setAmount] = useState("");
+  const [note, setNote] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const amt = parseInt(amount);
+    if (!amt || amt < 100) { toast({ title: "Montant minimum : 100 FCFA", variant: "destructive" }); return; }
+    setLoading(true);
+    try {
+      const res = await fetch(`${API_BASE}/admin/deposit`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...adminHeaders() },
+        body: JSON.stringify({ amount: amt, note: note.trim() || undefined }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        toast({ title: data.error ?? "Erreur", variant: "destructive" });
+      } else {
+        toast({ title: `${formatFCFA(amt)} ajouté au solde disponible` });
+        onSuccess();
+        onClose();
+      }
+    } catch {
+      toast({ title: "Erreur réseau", variant: "destructive" });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center px-4 bg-black/40 backdrop-blur-sm">
+      <div className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-xl">
+        <div className="flex items-center justify-between mb-5">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-lg bg-green-100 flex items-center justify-center">
+              <PlusCircle className="w-4 h-4 text-green-600" />
+            </div>
+            <h2 className="font-black text-lg">Ajouter des fonds</h2>
+          </div>
+          <button onClick={onClose} className="text-muted-foreground hover:text-foreground"><X className="w-5 h-5" /></button>
+        </div>
+        <p className="text-xs text-muted-foreground mb-4">
+          Crédite directement ton solde admin (dépôt externe, virement, recette manuelle…)
+        </p>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="space-y-1.5">
+            <Label>Montant (FCFA)</Label>
+            <Input
+              type="number"
+              placeholder="Ex: 50 000"
+              value={amount}
+              onChange={e => setAmount(e.target.value)}
+              min={100}
+              autoFocus
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label>Note (optionnel)</Label>
+            <Input
+              type="text"
+              placeholder="Ex: Virement OrangeMoney, recette journée..."
+              value={note}
+              onChange={e => setNote(e.target.value)}
+            />
+          </div>
+          {amount && parseInt(amount) >= 100 && (
+            <div className="text-sm font-semibold p-3 rounded-xl bg-green-50 text-green-700">
+              +{formatFCFA(parseInt(amount))} seront ajoutés à ton solde disponible
+            </div>
+          )}
+          <Button
+            type="submit"
+            className="w-full bg-green-600 hover:bg-green-700 text-white font-bold"
+            disabled={!amount || parseInt(amount) < 100 || loading}
+          >
+            {loading ? "En cours..." : `Ajouter ${amount ? formatFCFA(parseInt(amount) || 0) : ""}`}
+          </Button>
+        </form>
+      </div>
+    </div>
+  );
+}
+
 type AdminWithdrawStep = "operator" | "details";
 
 function AdminWithdrawModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: () => void }) {
@@ -336,6 +422,7 @@ export default function Admin() {
   const [withdrawalsLoading, setWithdrawalsLoading] = useState(true);
   const [showCreateMerchant, setShowCreateMerchant] = useState(false);
   const [showAdminWithdraw, setShowAdminWithdraw] = useState(false);
+  const [showAdminDeposit, setShowAdminDeposit] = useState(false);
   const [adjustMerchant, setAdjustMerchant] = useState<any | null>(null);
 
   useEffect(() => {
@@ -419,22 +506,33 @@ export default function Admin() {
         {revLoading ? (
           <Skeleton className="h-24 rounded-2xl mb-4" />
         ) : (
-          <div className="rounded-2xl p-5 mb-4 flex items-center justify-between shadow-sm border border-white/20"
+          <div className="rounded-2xl p-5 mb-4 shadow-sm border border-white/20"
             style={{ background: "linear-gradient(135deg, #16a34a, #15803d)" }}>
-            <div>
-              <div className="text-xs font-bold text-white/70 uppercase tracking-wide mb-1">Solde disponible</div>
-              <div className="text-3xl font-black text-white">{revenue ? formatFCFA(revenue.availableBalance) : "—"}</div>
-              <div className="text-xs text-white/70 mt-1">
-                {revenue ? `${formatFCFA(revenue.totalRevenue)} brut − ${formatFCFA(revenue.merchantCommissionsTotal)} commissions − ${formatFCFA(revenue.adminWithdrawalsTotal)} retraits` : ""}
+            <div className="flex items-start justify-between gap-3 mb-3">
+              <div>
+                <div className="text-xs font-bold text-white/70 uppercase tracking-wide mb-1">Solde disponible</div>
+                <div className="text-3xl font-black text-white">{revenue ? formatFCFA(revenue.availableBalance) : "—"}</div>
+                <div className="text-xs text-white/70 mt-1">
+                  {revenue ? `${formatFCFA(revenue.totalRevenue)} brut − ${formatFCFA(revenue.merchantCommissionsTotal)} commissions − ${formatFCFA(revenue.adminWithdrawalsTotal)} retraits` : ""}
+                </div>
               </div>
             </div>
-            <Button
-              onClick={() => setShowAdminWithdraw(true)}
-              className="font-bold gap-2 flex-shrink-0"
-              style={{ background: "rgba(255,255,255,0.2)", color: "#fff", border: "1px solid rgba(255,255,255,0.3)" }}
-            >
-              <ArrowDownCircle className="w-4 h-4" /> Retrait
-            </Button>
+            <div className="flex gap-2">
+              <Button
+                onClick={() => setShowAdminDeposit(true)}
+                className="flex-1 font-bold gap-2"
+                style={{ background: "rgba(255,255,255,0.2)", color: "#fff", border: "1px solid rgba(255,255,255,0.3)" }}
+              >
+                <PlusCircle className="w-4 h-4" /> Ajouter des fonds
+              </Button>
+              <Button
+                onClick={() => setShowAdminWithdraw(true)}
+                className="flex-1 font-bold gap-2"
+                style={{ background: "rgba(255,255,255,0.15)", color: "#fff", border: "1px solid rgba(255,255,255,0.3)" }}
+              >
+                <ArrowDownCircle className="w-4 h-4" /> Retrait
+              </Button>
+            </div>
           </div>
         )}
 
@@ -865,6 +963,7 @@ export default function Admin() {
 
       {showCreateMerchant && <CreateMerchantModal onClose={() => setShowCreateMerchant(false)} onCreated={fetchAll} />}
       {showAdminWithdraw && <AdminWithdrawModal onClose={() => setShowAdminWithdraw(false)} onSuccess={fetchAll} />}
+      {showAdminDeposit && <AdminDepositModal onClose={() => setShowAdminDeposit(false)} onSuccess={fetchAll} />}
       {adjustMerchant && <AdjustBalanceModal merchant={adjustMerchant} onClose={() => setAdjustMerchant(null)} onDone={fetchAll} />}
     </div>
   );
