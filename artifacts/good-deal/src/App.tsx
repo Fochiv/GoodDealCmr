@@ -6,6 +6,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { Navbar } from "@/components/Navbar";
 import { BottomNav } from "@/components/BottomNav";
 import { PendingPaymentBar } from "@/components/PendingPaymentBar";
+import { DevicePendingBar } from "@/components/DevicePendingBar";
 import Home from "@/pages/Home";
 import OperatorBundles from "@/pages/OperatorBundles";
 import Checkout from "@/pages/Checkout";
@@ -58,6 +59,7 @@ function AppLayout() {
       <Navbar />
       <Router />
       <PendingPaymentBar />
+      <DevicePendingBar />
       <BottomNav />
     </>
   );

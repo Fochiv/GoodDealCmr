@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { savePendingPayment, clearPendingPayment } from "@/components/PendingPaymentBar";
+import { saveDevicePhone } from "@/components/DevicePendingBar";
 
 const API_BASE = import.meta.env.VITE_API_URL ?? "/api";
 
@@ -128,6 +129,7 @@ export default function Checkout() {
       toast({ title: "Numéro invalide", description: "Entrez un numéro valide à 9 chiffres.", variant: "destructive" });
       return;
     }
+    saveDevicePhone(recipientPhone);
     setPaymentMethod(isMtn ? "mtn_momo" : "orange_money");
     setStep(2);
   };

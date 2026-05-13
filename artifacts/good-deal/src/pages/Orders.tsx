@@ -5,6 +5,7 @@ import {
   CircleDot, AlertCircle,
 } from "lucide-react";
 import { formatFCFA, formatDate, formatRef } from "@/lib/api";
+import { saveDevicePhone } from "@/components/DevicePendingBar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -365,7 +366,9 @@ export default function Orders() {
     try {
       const res = await fetch(`/api/orders/track?phone=${encodeURIComponent(q)}`);
       if (!res.ok) throw new Error("Erreur serveur");
-      setOrders(await res.json());
+      const data = await res.json();
+      setOrders(data);
+      if (data.length > 0) saveDevicePhone(q);
     } catch {
       setError("Impossible de récupérer les commandes. Réessayez.");
       setOrders([]);
