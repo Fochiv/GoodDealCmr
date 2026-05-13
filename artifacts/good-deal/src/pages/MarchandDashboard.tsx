@@ -31,8 +31,8 @@ function WithdrawModal({ balance, onClose, onSuccess }: { balance: number; onClo
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const amt = parseInt(amount);
-    if (!amt || amt < 500) {
-      toast({ title: "Montant minimum: 500 FCFA", variant: "destructive" });
+    if (!amt || amt < 100) {
+      toast({ title: "Montant minimum: 100 FCFA", variant: "destructive" });
       return;
     }
     if (amt > balance) {
@@ -136,11 +136,11 @@ function WithdrawModal({ balance, onClose, onSuccess }: { balance: number; onClo
                 placeholder="Ex: 5000"
                 value={amount}
                 onChange={e => setAmount(e.target.value)}
-                min={500}
+                min={100}
                 max={balance}
                 autoFocus
               />
-              <p className="text-xs text-muted-foreground">Minimum 500 FCFA · Maximum {formatFCFA(balance)}</p>
+              <p className="text-xs text-muted-foreground">Minimum 100 FCFA · Maximum {formatFCFA(balance)}</p>
             </div>
             <div className="space-y-1.5">
               <Label>Numéro {operatorLabel}</Label>
