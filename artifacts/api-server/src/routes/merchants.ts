@@ -65,7 +65,8 @@ router.get("/merchant/me", async (req, res) => {
 
   const allOrders = await db.select().from(ordersTable).where(eq(ordersTable.merchantId, merchantId)).orderBy(desc(ordersTable.createdAt));
 
-  const paidOrders = allOrders.filter(o => o.status === "paid");
+  // "confirmed" = paiement encaissé, livraison en cours — inclure dans les gains
+  const paidOrders = allOrders.filter(o => o.status === "paid" || o.status === "confirmed");
   const totalEarnings = paidOrders.reduce((acc, o) => acc + Math.floor(o.totalAmount * 0.5), 0);
   const pendingOrders = allOrders.filter(o => o.status === "pending" || o.status === "processing").length;
 
@@ -298,8 +299,9 @@ router.post("/admin/withdraw", async (req, res) => {
   }
 
   // Calculer le solde disponible avant d'autoriser le retrait
+  // "confirmed" = paiement encaissé — inclure dans le calcul du solde
   const allOrders = await db.select().from(ordersTable);
-  const paidOrders = allOrders.filter(o => o.status === "paid");
+  const paidOrders = allOrders.filter(o => o.status === "paid" || o.status === "confirmed");
   const totalRevenue = paidOrders.reduce((sum, o) => sum + o.totalAmount, 0);
   const merchantCommissionsTotal = paidOrders
     .filter(o => o.merchantId !== null)

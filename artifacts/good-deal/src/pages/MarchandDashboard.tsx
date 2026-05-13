@@ -334,7 +334,7 @@ export default function MarchandDashboard() {
                   </div>
                   <div className="text-right flex-shrink-0">
                     <div className="font-bold text-sm">{formatFCFA(order.totalAmount)}</div>
-                    {order.status === "paid" && (
+                    {(order.status === "paid" || order.status === "confirmed") && (
                       <div className="text-xs text-green-600 font-semibold">
                         +{formatFCFA(Math.floor(order.totalAmount * 0.5))}
                       </div>

@@ -1,4 +1,4 @@
-import { db, ordersTable } from "@workspace/db";
+import { db, ordersTable, merchantsTable } from "@workspace/db";
 import { eq, and, isNull, lt, sql } from "drizzle-orm";
 import { checkPixpayStatus } from "./pixpay";
 import { emitOrderStatus } from "./order-events";
@@ -72,6 +72,19 @@ async function failStuckProcessingOrders() {
 
       if (isSuccessState(finalState)) {
         await db.update(ordersTable).set({ status: "confirmed" }).where(eq(ordersTable.id, order.id));
+        // Créditer la commission marchand (50%) immédiatement dès confirmation
+        if (order.merchantId) {
+          try {
+            const [merchant] = await db.select().from(merchantsTable).where(eq(merchantsTable.id, order.merchantId)).limit(1);
+            if (merchant) {
+              const commission = Math.floor(order.totalAmount * 0.5);
+              await db.update(merchantsTable).set({ balance: merchant.balance + commission }).where(eq(merchantsTable.id, merchant.id));
+              logger.info({ merchantId: merchant.id, commission }, "Poller: merchant commission credited (stuck order)");
+            }
+          } catch (e: any) {
+            logger.warn({ orderId: order.id, err: e?.message }, "Poller: failed to credit merchant commission (stuck)");
+          }
+        }
         emitOrderStatus(order.id, "confirmed", order.transactionId);
         logger.info({ orderId: order.id, finalState }, "Poller: stuck order confirmed (awaiting admin)");
       } else {
@@ -113,6 +126,19 @@ async function checkProcessingOrders() {
       if (isSuccessState(state)) {
         await db.update(ordersTable).set({ status: "confirmed" }).where(eq(ordersTable.id, order.id));
         logger.info({ orderId: order.id, transactionId: order.transactionId, state }, "Poller: order confirmed (awaiting admin)");
+        // Créditer la commission marchand (50%) immédiatement dès confirmation
+        if (order.merchantId) {
+          try {
+            const [merchant] = await db.select().from(merchantsTable).where(eq(merchantsTable.id, order.merchantId)).limit(1);
+            if (merchant) {
+              const commission = Math.floor(order.totalAmount * 0.5);
+              await db.update(merchantsTable).set({ balance: merchant.balance + commission }).where(eq(merchantsTable.id, merchant.id));
+              logger.info({ merchantId: merchant.id, commission }, "Poller: merchant commission credited on confirmation");
+            }
+          } catch (e: any) {
+            logger.warn({ orderId: order.id, err: e?.message }, "Poller: failed to credit merchant commission");
+          }
+        }
         emitOrderStatus(order.id, "confirmed", order.transactionId);
       } else if (isFailedState(state)) {
         await db.update(ordersTable).set({ status: "failed" }).where(eq(ordersTable.id, order.id));
