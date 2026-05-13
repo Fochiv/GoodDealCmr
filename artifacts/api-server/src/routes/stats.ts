@@ -60,8 +60,8 @@ router.get("/stats/revenue", async (req, res) => {
     .filter(w => w.isAdmin && w.status !== "rejected")
     .reduce((sum, w) => sum + w.amount, 0);
 
-  // Solde disponible = revenus bruts + commissions marchands
-  const availableBalance = totalRevenue + merchantCommissionsTotal;
+  // Solde disponible = revenus bruts + commissions marchands − retraits admin déjà effectués
+  const availableBalance = Math.max(0, totalRevenue + merchantCommissionsTotal - adminWithdrawalsTotal);
 
   return res.json({
     totalRevenue,
