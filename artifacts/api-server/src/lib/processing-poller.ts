@@ -71,9 +71,9 @@ async function failStuckProcessingOrders() {
       }
 
       if (isSuccessState(finalState)) {
-        await db.update(ordersTable).set({ status: "paid" }).where(eq(ordersTable.id, order.id));
-        emitOrderStatus(order.id, "paid", order.transactionId);
-        logger.info({ orderId: order.id, finalState }, "Poller: stuck order finally paid");
+        await db.update(ordersTable).set({ status: "confirmed" }).where(eq(ordersTable.id, order.id));
+        emitOrderStatus(order.id, "confirmed", order.transactionId);
+        logger.info({ orderId: order.id, finalState }, "Poller: stuck order confirmed (awaiting admin)");
       } else {
         await db.update(ordersTable).set({ status: "failed" }).where(eq(ordersTable.id, order.id));
         emitOrderStatus(order.id, "failed", order.transactionId);
@@ -111,9 +111,9 @@ async function checkProcessingOrders() {
       logger.debug({ orderId: order.id, transactionId: order.transactionId, state }, "Poller: Pixpay status");
 
       if (isSuccessState(state)) {
-        await db.update(ordersTable).set({ status: "paid" }).where(eq(ordersTable.id, order.id));
-        logger.info({ orderId: order.id, transactionId: order.transactionId, state }, "Poller: order marked paid");
-        emitOrderStatus(order.id, "paid", order.transactionId);
+        await db.update(ordersTable).set({ status: "confirmed" }).where(eq(ordersTable.id, order.id));
+        logger.info({ orderId: order.id, transactionId: order.transactionId, state }, "Poller: order confirmed (awaiting admin)");
+        emitOrderStatus(order.id, "confirmed", order.transactionId);
       } else if (isFailedState(state)) {
         await db.update(ordersTable).set({ status: "failed" }).where(eq(ordersTable.id, order.id));
         logger.info({ orderId: order.id, transactionId: order.transactionId, state }, "Poller: order marked failed");

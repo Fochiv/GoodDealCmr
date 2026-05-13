@@ -298,7 +298,7 @@ router.patch("/admin/orders/:id/status", async (req, res) => {
   const id = parseInt(req.params.id);
   if (isNaN(id)) return res.status(400).json({ error: "ID invalide" });
 
-  const schema = z.object({ status: z.enum(["paid", "failed", "cancelled"]) });
+  const schema = z.object({ status: z.enum(["paid", "failed", "cancelled", "confirmed"]) });
   const parsed = schema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: "Statut invalide" });
 
@@ -318,6 +318,9 @@ router.patch("/admin/orders/:id/status", async (req, res) => {
     .set(updateData)
     .where(eq(ordersTable.id, id))
     .returning();
+
+  // Push real-time update to any listening client
+  emitOrderStatus(updated.id, updated.status, updated.transactionId ?? undefined);
 
   const bundle = await getBundleWithOperator(updated.bundleId);
   return res.json({ ...updated, bundle });

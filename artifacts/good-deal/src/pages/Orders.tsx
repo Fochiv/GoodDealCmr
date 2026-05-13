@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import {
   Phone, Search, Wifi, CheckCircle, XCircle, Clock,
   Loader2, RefreshCw, User, HeadphonesIcon, X,
-  CircleDot, AlertCircle,
+  CircleDot, AlertCircle, Package,
 } from "lucide-react";
 import { formatFCFA, formatDate, formatRef } from "@/lib/api";
 import { saveDevicePhone } from "@/components/DevicePendingBar";
@@ -192,15 +192,16 @@ function OrderCard({ order }: { order: Order }) {
   const opText = isMtn ? "#1a1a1a" : "white";
 
   const isPaid = order.status === "paid";
-  // "processing" = sent to Pixpay, waiting for confirmation
+  // "confirmed" = Pixpay confirmed payment, admin validating delivery
+  const isDelivering = order.status === "confirmed";
+  // "processing" = USSD sent to Pixpay, waiting for payment confirmation
   const isProcessing = order.status === "processing" || (order.status === "pending" && !!order.transactionId);
   // "notStarted" = order created but never paid (no USSD sent)
   const isNotStarted = order.status === "pending" && !order.transactionId;
-  const isPending = isProcessing; // keep alias for stripe/badge
   const isFailed = order.status === "failed" || order.status === "cancelled";
 
-  const borderColor = isPaid ? "#bbf7d0" : isProcessing ? "#fde68a" : isNotStarted ? "#e5e7eb" : isFailed ? "#fecaca" : "#e5e7eb";
-  const bgColor = isPaid ? "#f0fdf4" : isProcessing ? "#fefce8" : isNotStarted ? "#fafafa" : isFailed ? "#fff1f2" : "#ffffff";
+  const borderColor = isPaid ? "#bbf7d0" : isDelivering ? "#bfdbfe" : isProcessing ? "#fde68a" : isNotStarted ? "#e5e7eb" : isFailed ? "#fecaca" : "#e5e7eb";
+  const bgColor     = isPaid ? "#f0fdf4" : isDelivering ? "#eff6ff" : isProcessing ? "#fefce8" : isNotStarted ? "#fafafa" : isFailed ? "#fff1f2" : "#ffffff";
 
   return (
     <div
@@ -220,8 +221,19 @@ function OrderCard({ order }: { order: Order }) {
           <style>{`@keyframes moveStripe { 0%{margin-left:-50%} 100%{margin-left:150%} }`}</style>
         </div>
       )}
+      {isDelivering && (
+        <div className="h-1.5 w-full overflow-hidden bg-blue-200">
+          <div className="h-full"
+            style={{
+              background: "linear-gradient(90deg, transparent, #3b82f6, transparent)",
+              animation: "moveStripe 2s ease-in-out infinite",
+              width: "50%",
+            }}
+          />
+        </div>
+      )}
       {isNotStarted && <div className="h-1.5 w-full bg-gray-200" />}
-      {isPaid && <div className="h-1.5 w-full bg-green-500" />}
+      {isPaid   && <div className="h-1.5 w-full bg-green-500" />}
       {isFailed && <div className="h-1.5 w-full bg-red-400" />}
 
       <div className="p-4">
@@ -274,22 +286,51 @@ function OrderCard({ order }: { order: Order }) {
             <div className="text-xs text-muted-foreground">{formatDate(order.createdAt)}</div>
             <div className={`inline-flex items-center gap-1 mt-1 px-2 py-0.5 rounded-full text-xs font-bold ${
               isPaid        ? "bg-green-100 text-green-700"  :
+              isDelivering  ? "bg-blue-100 text-blue-700"   :
               isProcessing  ? "bg-yellow-100 text-yellow-700" :
               isNotStarted  ? "bg-gray-100 text-gray-500"    :
               isFailed      ? "bg-red-100 text-red-600"      :
               "bg-gray-100 text-gray-600"
             }`}>
-              {isPaid       && <CheckCircle className="w-3 h-3" />}
-              {isProcessing && <Clock className="w-3 h-3" />}
-              {isNotStarted && <Clock className="w-3 h-3" />}
-              {isFailed     && <XCircle className="w-3 h-3" />}
-              {isPaid ? "Livré" : isProcessing ? "En attente" : isNotStarted ? "Non payé" : isFailed ? "Échoué" : order.status}
+              {isPaid        && <CheckCircle className="w-3 h-3" />}
+              {isDelivering  && <Package className="w-3 h-3" />}
+              {isProcessing  && <Clock className="w-3 h-3" />}
+              {isNotStarted  && <Clock className="w-3 h-3" />}
+              {isFailed      && <XCircle className="w-3 h-3" />}
+              {isPaid ? "Livré" : isDelivering ? "En livraison" : isProcessing ? "En attente" : isNotStarted ? "Non payé" : isFailed ? "Échoué" : order.status}
             </div>
           </div>
         </div>
 
         {/* Progress section */}
         {isProcessing  && <PendingProgress />}
+        {isDelivering  && (
+          <div className="mt-3">
+            <div className="flex items-center justify-between mb-1.5">
+              <span className="text-xs font-bold text-blue-700 flex items-center gap-1.5">
+                <Package className="w-3 h-3 animate-pulse" />
+                En cours de livraison
+              </span>
+              <div className="flex gap-0.5">
+                {[0, 1, 2].map(i => (
+                  <div key={i}
+                    className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-bounce"
+                    style={{ animationDelay: `${i * 0.2}s` }}
+                  />
+                ))}
+              </div>
+            </div>
+            <div className="w-full bg-blue-100 rounded-full h-2 overflow-hidden">
+              <div
+                className="h-2 rounded-full bg-gradient-to-r from-blue-400 to-blue-600"
+                style={{ width: "55%", transition: "width 0.5s" }}
+              />
+            </div>
+            <div className="text-xs text-blue-700 mt-1.5 text-center">
+              Paiement confirmé — activation forfait en cours
+            </div>
+          </div>
+        )}
         {isNotStarted  && (
           <div className="mt-3">
             <div className="w-full bg-gray-200 rounded-full h-2">
@@ -397,19 +438,20 @@ export default function Orders() {
 
   const handleSubmit = (e: React.FormEvent) => { e.preventDefault(); search(); };
 
-  // Only real Pixpay-initiated orders count as "en attente de confirmation"
-  const pendingCount  = orders.filter(o =>
-    o.status === "processing" || (o.status === "pending" && o.transactionId)
-  ).length;
-  const paidOrders    = orders.filter(o => o.status === "paid");
-  const pendingOrders = orders.filter(o =>
+  // Orders in active states (visible in floating bars)
+  const deliveringOrders = orders.filter(o => o.status === "confirmed");
+  const processingOrders = orders.filter(o =>
     o.status === "processing" || (o.status === "pending" && o.transactionId)
   );
+  const pendingCount     = deliveringOrders.length + processingOrders.length;
+  const paidOrders       = orders.filter(o => o.status === "paid");
   const notStartedOrders = orders.filter(o => o.status === "pending" && !o.transactionId);
-  const otherOrders   = orders.filter(o => o.status !== "paid" && o.status !== "pending" && o.status !== "processing");
+  const otherOrders      = orders.filter(o =>
+    o.status !== "paid" && o.status !== "pending" && o.status !== "processing" && o.status !== "confirmed"
+  );
 
-  // Sorted: processing first, then paid, then not-started, then failed/cancelled
-  const sorted = [...pendingOrders, ...paidOrders, ...notStartedOrders, ...otherOrders];
+  // Sorted: delivering first, then processing, then paid, then not-started, then failed/cancelled
+  const sorted = [...deliveringOrders, ...processingOrders, ...paidOrders, ...notStartedOrders, ...otherOrders];
 
   return (
     <div className="min-h-screen pt-20 pb-24 md:pb-8 bg-gray-50">

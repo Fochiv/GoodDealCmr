@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from "react";
 import { useLocation } from "wouter";
-import { Loader2, ChevronRight, X, CheckCircle2, XCircle } from "lucide-react";
+import { Loader2, ChevronRight, X, CheckCircle2, XCircle, Package } from "lucide-react";
 
 export interface PendingPayment {
   orderId: number;
@@ -29,8 +29,8 @@ function loadPendingPayment(): PendingPayment | null {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return null;
     const p = JSON.parse(raw) as PendingPayment;
-    // Expire after 30 minutes
-    if (Date.now() - p.timestamp > 30 * 60 * 1000) {
+    // Expire after 60 minutes (extended for delivery window)
+    if (Date.now() - p.timestamp > 60 * 60 * 1000) {
       clearPendingPayment();
       return null;
     }
@@ -40,13 +40,14 @@ function loadPendingPayment(): PendingPayment | null {
   }
 }
 
+type FinalStatus = "confirmed" | "paid" | "failed";
+
 export function PendingPaymentBar() {
   const [, setLocation] = useLocation();
   const [payment, setPayment] = useState<PendingPayment | null>(null);
-  const [finalStatus, setFinalStatus] = useState<"paid" | "failed" | null>(null);
+  const [finalStatus, setFinalStatus] = useState<FinalStatus | null>(null);
   const [dismissed, setDismissed] = useState(false);
   const [pulse, setPulse] = useState(0);
-  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const pulseRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Load from localStorage on mount + listen for storage changes
@@ -55,11 +56,9 @@ export function PendingPaymentBar() {
       const p = loadPendingPayment();
       setPayment(p);
       setDismissed(false);
-      setFinalStatus(null);
     };
     load();
     window.addEventListener("storage", load);
-    // Also check on focus
     window.addEventListener("focus", load);
     return () => {
       window.removeEventListener("storage", load);
@@ -75,20 +74,27 @@ export function PendingPaymentBar() {
 
   // Check status + subscribe to SSE for real-time updates
   useEffect(() => {
-    if (!payment || finalStatus) return;
+    if (!payment || finalStatus === "paid" || finalStatus === "failed") return;
 
     let es: EventSource | null = null;
     let cancelled = false;
 
-    function handleFinal(status: "paid" | "failed") {
+    function handleStatus(status: string) {
       if (cancelled) return;
-      setFinalStatus(status);
-      clearPendingPayment();
-      es?.close();
-      const delay = status === "paid" ? 4000 : 5000;
-      setTimeout(() => {
-        if (!cancelled) { setDismissed(true); setPayment(null); }
-      }, delay);
+      if (status === "confirmed") {
+        setFinalStatus("confirmed");
+        // Don't dismiss — keep showing "En cours de livraison"
+      } else if (status === "paid") {
+        setFinalStatus("paid");
+        clearPendingPayment();
+        es?.close();
+        setTimeout(() => { if (!cancelled) { setDismissed(true); setPayment(null); } }, 5000);
+      } else if (status === "failed" || status === "cancelled") {
+        setFinalStatus("failed");
+        clearPendingPayment();
+        es?.close();
+        setTimeout(() => { if (!cancelled) { setDismissed(true); setPayment(null); } }, 6000);
+      }
     }
 
     function openSSE() {
@@ -96,11 +102,9 @@ export function PendingPaymentBar() {
       es.onmessage = (e) => {
         try {
           const data = JSON.parse(e.data) as { status: string };
-          if (data.status === "paid") handleFinal("paid");
-          else if (data.status === "failed" || data.status === "cancelled") handleFinal("failed");
+          handleStatus(data.status);
         } catch {}
       };
-      // On SSE error, fall back to polling every 3s
       es.onerror = () => {
         es?.close();
         if (!cancelled) scheduleRetry();
@@ -118,16 +122,16 @@ export function PendingPaymentBar() {
         const r = await fetch(`/api/orders/${payment!.orderId}`);
         if (!r.ok) { scheduleRetry(); return; }
         const data = await r.json() as { status: string };
-        if (data.status === "paid") { handleFinal("paid"); return; }
-        if (data.status === "failed" || data.status === "cancelled") { handleFinal("failed"); return; }
-        // Still processing — open SSE to wait for push
+        if (data.status === "confirmed" || data.status === "paid" || data.status === "failed" || data.status === "cancelled") {
+          handleStatus(data.status);
+          if (data.status !== "confirmed") return; // terminal for paid/failed — SSE not needed
+        }
         openSSE();
       } catch {
         scheduleRetry();
       }
     }
 
-    // Always start with a direct GET first to catch already-resolved orders
     checkCurrent();
 
     return () => {
@@ -139,31 +143,52 @@ export function PendingPaymentBar() {
 
   if (!payment || dismissed) return null;
 
-  const color = payment.isMtn ? "#B8860B" : "#CC4400";
-  const bgColor = payment.isMtn ? "#FFFBEB" : "#FFF7F0";
-  const borderColor = payment.isMtn ? "#FCD34D" : "#FDBA74";
-  const barFrom = payment.isMtn ? "#F59E0B" : "#F97316";
-  const barTo = payment.isMtn ? "#FCD34D" : "#FB923C";
+  // ── Colors based on mode ──────────────────────────────────────────────────
+  const isDelivering = finalStatus === "confirmed";
+  const isPaid       = finalStatus === "paid";
+  const isFailed     = finalStatus === "failed";
+  const isPending    = !finalStatus || finalStatus === null;
+
+  // Blue for delivery mode, operator color for payment pending
+  const color       = isPaid ? "#15803D" : isFailed ? "#B91C1C" : isDelivering ? "#1D4ED8" : payment.isMtn ? "#B8860B" : "#CC4400";
+  const bgColor     = isPaid ? "#F0FDF4" : isFailed ? "#FFF1F2" : isDelivering ? "#EFF6FF" : payment.isMtn ? "#FFFBEB" : "#FFF7F0";
+  const borderColor = isPaid ? "#86EFAC" : isFailed ? "#FCA5A5" : isDelivering ? "#BFDBFE" : payment.isMtn ? "#FCD34D" : "#FDBA74";
+  const barFrom     = isDelivering ? "#3B82F6" : payment.isMtn ? "#F59E0B" : "#F97316";
+  const barTo       = isDelivering ? "#60A5FA" : payment.isMtn ? "#FCD34D" : "#FB923C";
 
   const barWidth = 30 + 40 * Math.abs(Math.sin((pulse / 100) * Math.PI));
-  const barLeft = Math.max(0, pulse - 30);
+  const barLeft  = Math.max(0, pulse - 30);
 
   const handleClick = () => {
     setLocation(`/commandes?phone=${encodeURIComponent(payment.recipientPhone)}`);
   };
 
+  const title = isPaid
+    ? "✅ Forfait activé !"
+    : isFailed
+    ? "❌ Paiement échoué"
+    : isDelivering
+    ? "📦 En cours de livraison…"
+    : "⏳ Paiement en cours…";
+
+  const subtitle = isPaid
+    ? `Forfait ${payment.dataSize} activé sur ${payment.recipientPhone}`
+    : isFailed
+    ? `Le paiement n'a pas abouti pour ${payment.recipientPhone}`
+    : isDelivering
+    ? `Paiement confirmé — activation en cours pour ${payment.recipientPhone}`
+    : `${payment.dataSize} · ${payment.operatorName} · ${payment.recipientPhone}`;
+
+  const showBar = !isPaid && !isFailed;
+
   return (
     <div
       className="fixed left-3 right-3 z-50 rounded-2xl shadow-2xl border-2 overflow-hidden"
-      style={{
-        bottom: "74px", // above BottomNav on mobile
-        borderColor: finalStatus === "paid" ? "#86EFAC" : finalStatus === "failed" ? "#FCA5A5" : borderColor,
-        background: finalStatus === "paid" ? "#F0FDF4" : finalStatus === "failed" ? "#FFF1F2" : bgColor,
-      }}
+      style={{ bottom: "74px", borderColor, background: bgColor }}
     >
       {/* Animated progress bar at top */}
-      {!finalStatus && (
-        <div className="h-1 w-full overflow-hidden bg-yellow-100">
+      {showBar && (
+        <div className="h-1 w-full overflow-hidden" style={{ background: isDelivering ? "#DBEAFE" : "#FEF9C3" }}>
           <div
             className="h-1 rounded-full"
             style={{
@@ -175,51 +200,40 @@ export function PendingPaymentBar() {
           />
         </div>
       )}
-      {finalStatus === "paid" && <div className="h-1 w-full bg-green-400" />}
-      {finalStatus === "failed" && <div className="h-1 w-full bg-red-400" />}
+      {isPaid   && <div className="h-1 w-full bg-green-400" />}
+      {isFailed && <div className="h-1 w-full bg-red-400" />}
 
       <div className="flex items-center gap-3 px-4 py-3">
         {/* Icon */}
         <div
           className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0"
-          style={{
-            background: finalStatus === "paid" ? "#DCFCE7" : finalStatus === "failed" ? "#FEE2E2" : `${borderColor}60`,
-          }}
+          style={{ background: `${borderColor}60` }}
         >
-          {finalStatus === "paid"
+          {isPaid
             ? <CheckCircle2 className="w-5 h-5 text-green-600" />
-            : finalStatus === "failed"
+            : isFailed
             ? <XCircle className="w-5 h-5 text-red-500" />
+            : isDelivering
+            ? <Package className="w-5 h-5 animate-pulse" style={{ color }} />
             : <Loader2 className="w-5 h-5 animate-spin" style={{ color }} />
           }
         </div>
 
-        {/* Text — clickable area */}
+        {/* Text */}
         <button
-          onClick={!finalStatus ? handleClick : undefined}
+          onClick={!isPaid && !isFailed ? handleClick : undefined}
           className="flex-1 text-left min-w-0"
         >
-          <div
-            className="text-sm font-black leading-tight truncate"
-            style={{ color: finalStatus === "paid" ? "#15803D" : finalStatus === "failed" ? "#B91C1C" : color }}
-          >
-            {finalStatus === "paid"
-              ? "✅ Paiement confirmé !"
-              : finalStatus === "failed"
-              ? "❌ Paiement échoué"
-              : `⏳ Paiement en cours…`}
+          <div className="text-sm font-black leading-tight truncate" style={{ color }}>
+            {title}
           </div>
-          <div className="text-xs mt-0.5 truncate" style={{ color: finalStatus === "paid" ? "#16A34A" : finalStatus === "failed" ? "#DC2626" : color, opacity: 0.85 }}>
-            {finalStatus === "paid"
-              ? `Forfait ${payment.dataSize} activé sur ${payment.recipientPhone}`
-              : finalStatus === "failed"
-              ? `Le paiement n'a pas abouti pour ${payment.recipientPhone}`
-              : `${payment.dataSize} · ${payment.operatorName} · ${payment.recipientPhone}`}
+          <div className="text-xs mt-0.5 truncate" style={{ color, opacity: 0.85 }}>
+            {subtitle}
           </div>
         </button>
 
         {/* Right action */}
-        {!finalStatus ? (
+        {!isPaid && !isFailed ? (
           <button
             onClick={handleClick}
             className="flex items-center gap-0.5 text-xs font-bold flex-shrink-0 px-2.5 py-1.5 rounded-xl transition-all active:scale-95"

@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback } from "react";
 import { useLocation } from "wouter";
 import {
   ArrowLeft, Check, X, RefreshCw, Wifi,
-  TrendingUp, Clock, CheckCircle, XCircle, Search
+  TrendingUp, Clock, CheckCircle, XCircle, Search, Package, Pause
 } from "lucide-react";
 import { formatFCFA, formatDate, getStatusColor, getStatusLabel, formatRef } from "@/lib/api";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -33,17 +33,18 @@ type Order = {
 };
 
 const TABS = [
-  { key: "all",     label: "Tout",           color: "gray"   },
-  { key: "pending", label: "En attente",      color: "yellow" },
-  { key: "paid",    label: "Validées",        color: "green"  },
-  { key: "failed",  label: "Échouées",        color: "red"    },
-  { key: "cancelled", label: "Annulées",      color: "slate"  },
+  { key: "all",       label: "Tout",             color: "gray"   },
+  { key: "confirmed", label: "À livrer",          color: "blue"   },
+  { key: "paid",      label: "Livrées",           color: "green"  },
+  { key: "failed",    label: "Échouées",          color: "red"    },
+  { key: "cancelled", label: "Annulées",          color: "slate"  },
 ] as const;
 
 type TabKey = typeof TABS[number]["key"];
 
 const TAB_ACTIVE: Record<string, string> = {
   gray:   "bg-gray-900 text-white border-gray-900",
+  blue:   "bg-blue-50 text-blue-700 border-blue-300",
   yellow: "bg-yellow-50 text-yellow-700 border-yellow-300",
   green:  "bg-green-50 text-green-700 border-green-300",
   red:    "bg-red-50 text-red-600 border-red-300",
@@ -58,8 +59,10 @@ export default function AdminOrders() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<number | null>(null);
-  const [tab, setTab] = useState<TabKey>("pending");
+  const [tab, setTab] = useState<TabKey>("confirmed");
   const [search, setSearch] = useState("");
+  // Track "laisser en attente" dismissals locally (just hides action buttons for that card)
+  const [snoozed, setSnoozed] = useState<Set<number>>(new Set());
 
   useEffect(() => { if (!isAdmin) setLocation("/ashtech"); }, [isAdmin]);
 
@@ -90,10 +93,12 @@ export default function AdminOrders() {
       const updated = await res.json();
       setOrders(prev => prev.map(o => o.id === id ? { ...o, ...updated } : o));
       toast({
-        title: status === "paid" ? "✅ Paiement validé" : "❌ Paiement échoué",
+        title: status === "paid"
+          ? "✅ Forfait livré"
+          : "❌ Commande rejetée",
         description: status === "paid"
           ? `${updated.bundle?.dataSize} activé pour ${updated.phoneNumber}`
-          : `Commande #${id} marquée comme échouée`,
+          : `Commande ${formatRef(id)} marquée comme échouée`,
       });
     } catch {
       toast({ title: "Erreur", variant: "destructive" });
@@ -102,12 +107,17 @@ export default function AdminOrders() {
     }
   }
 
+  function handleSnooze(id: number) {
+    setSnoozed(prev => new Set([...prev, id]));
+    toast({ title: "⏸ Laissé en attente", description: `La commande ${formatRef(id)} reste en cours.` });
+  }
+
   // Stats
-  const total       = orders.length;
-  const totalPaid   = orders.filter(o => o.status === "paid").reduce((s, o) => s + o.totalAmount, 0);
-  const pending     = orders.filter(o => o.status === "pending");
-  const pendingAmt  = pending.reduce((s, o) => s + o.totalAmount, 0);
-  const failed      = orders.filter(o => o.status === "failed").length;
+  const total          = orders.length;
+  const totalPaid      = orders.filter(o => o.status === "paid").reduce((s, o) => s + o.totalAmount, 0);
+  const confirmedOrders = orders.filter(o => o.status === "confirmed");
+  const confirmedAmt   = confirmedOrders.reduce((s, o) => s + o.totalAmount, 0);
+  const failed         = orders.filter(o => o.status === "failed").length;
 
   // Filter
   const q = search.trim().toLowerCase();
@@ -129,7 +139,7 @@ export default function AdminOrders() {
             <ArrowLeft className="w-5 h-5" />
           </button>
           <div className="flex-1 min-w-0">
-            <h1 className="text-xl font-black text-foreground">Historique des paiements</h1>
+            <h1 className="text-xl font-black text-foreground">Gestion des commandes</h1>
             <p className="text-xs text-muted-foreground">{total} commandes au total</p>
           </div>
           <Button variant="outline" size="sm" onClick={fetchOrders} disabled={loading}
@@ -142,8 +152,8 @@ export default function AdminOrders() {
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
           {[
             { icon: TrendingUp,   color: "text-green-600",  bg: "bg-green-50",  label: "Encaissé",    value: formatFCFA(totalPaid) },
-            { icon: Clock,        color: "text-yellow-600", bg: "bg-yellow-50", label: "En attente",  value: `${formatFCFA(pendingAmt)}` },
-            { icon: CheckCircle,  color: "text-blue-600",   bg: "bg-blue-50",   label: "Validées",    value: `${orders.filter(o=>o.status==="paid").length} cmd` },
+            { icon: Package,      color: "text-blue-600",   bg: "bg-blue-50",   label: "À livrer",    value: `${formatFCFA(confirmedAmt)}` },
+            { icon: CheckCircle,  color: "text-green-600",  bg: "bg-green-50",  label: "Livrées",     value: `${orders.filter(o=>o.status==="paid").length} cmd` },
             { icon: XCircle,      color: "text-red-500",    bg: "bg-red-50",    label: "Échouées",    value: `${failed} cmd` },
           ].map(s => (
             <div key={s.label} className="bg-white border border-gray-100 rounded-xl p-3 shadow-sm flex items-center gap-3">
@@ -170,12 +180,12 @@ export default function AdminOrders() {
                 }`}
               >
                 {t.label}
-                {t.key === "pending" && pending.length > 0 && (
-                  <span className="ml-1.5 bg-yellow-400 text-yellow-900 text-xs font-black px-1.5 py-0.5 rounded-full">
-                    {pending.length}
+                {t.key === "confirmed" && confirmedOrders.length > 0 && (
+                  <span className="ml-1.5 bg-blue-500 text-white text-xs font-black px-1.5 py-0.5 rounded-full">
+                    {confirmedOrders.length}
                   </span>
                 )}
-                {t.key !== "pending" && (
+                {t.key !== "confirmed" && (
                   <span className="ml-1.5 opacity-50">
                     {t.key === "all" ? total : orders.filter(o => o.status === t.key).length}
                   </span>
@@ -201,89 +211,138 @@ export default function AdminOrders() {
           </div>
         ) : filtered.length === 0 ? (
           <div className="bg-white border border-gray-100 rounded-2xl p-12 text-center shadow-sm">
-            <Clock className="w-10 h-10 mx-auto mb-3 text-muted-foreground opacity-30" />
+            <Package className="w-10 h-10 mx-auto mb-3 text-muted-foreground opacity-30" />
             <p className="text-muted-foreground text-sm">
-              {search ? `Aucun résultat pour "${search}"` : "Aucune commande"}
+              {search ? `Aucun résultat pour "${search}"` : tab === "confirmed" ? "Aucune commande à livrer" : "Aucune commande"}
             </p>
           </div>
         ) : (
           <div className="space-y-3">
-            {filtered.map(order => (
-              <div
-                key={order.id}
-                className={`bg-white border rounded-2xl p-4 shadow-sm transition-all ${
-                  order.status === "pending"   ? "border-yellow-200" :
-                  order.status === "paid"      ? "border-green-100"  :
-                  order.status === "failed"    ? "border-red-100"    :
-                  "border-gray-100"
-                }`}
-              >
-                <div className="flex items-start gap-3">
-                  {/* Operator dot */}
-                  <div
-                    className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 mt-0.5"
-                    style={{ background: order.bundle?.operatorColor ? `${order.bundle.operatorColor}20` : "#f3f4f6" }}
-                  >
-                    <Wifi className="w-5 h-5" style={{ color: order.bundle?.operatorColor ?? "#888" }} />
-                  </div>
+            {filtered.map(order => {
+              const isConfirmed = order.status === "confirmed";
+              const isSnoozed   = snoozed.has(order.id);
 
-                  {/* Details */}
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap mb-1">
-                      <span className="font-black text-foreground">{order.bundle?.dataSize ?? "—"}</span>
-                      <span className="text-xs text-muted-foreground">{order.bundle?.operatorName}</span>
-                      <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${getStatusColor(order.status)}`}>
-                        {getStatusLabel(order.status)}
-                      </span>
+              return (
+                <div
+                  key={order.id}
+                  className={`bg-white border-2 rounded-2xl overflow-hidden shadow-sm transition-all ${
+                    isConfirmed        ? "border-blue-200"   :
+                    order.status === "paid"    ? "border-green-100"  :
+                    order.status === "failed"  ? "border-red-100"    :
+                    "border-gray-100"
+                  }`}
+                >
+                  {/* Status stripe */}
+                  {isConfirmed && (
+                    <div className="h-1 w-full overflow-hidden bg-blue-100">
+                      <div className="h-full"
+                        style={{
+                          background: "linear-gradient(90deg, transparent, #3b82f6, transparent)",
+                          animation: "moveStripe 2s ease-in-out infinite",
+                          width: "50%",
+                        }}
+                      />
+                      <style>{`@keyframes moveStripe { 0%{margin-left:-50%} 100%{margin-left:150%} }`}</style>
                     </div>
-                    <div className="text-xs text-muted-foreground space-y-0.5">
-                      <div>📱 <span className="font-semibold text-foreground">{order.phoneNumber}</span></div>
-                      {order.payerName && (
-                        <div>👤 {order.payerName}{order.payerPhone ? ` · ${order.payerPhone}` : ""}</div>
-                      )}
-                      <div>💳 {order.paymentMethod === "mtn_momo" ? "MTN MoMo" : "Orange Money"}</div>
-                      <div>🕐 {formatDate(order.createdAt)}</div>
-                      <div className="font-mono text-xs text-muted-foreground/70">{formatRef(order.id)}</div>
-                    </div>
-                  </div>
+                  )}
 
-                  {/* Amount + ID */}
-                  <div className="text-right flex-shrink-0">
-                    <div className={`font-black text-lg ${
-                      order.status === "paid" ? "text-green-600" :
-                      order.status === "failed" ? "text-red-500" :
-                      "text-foreground"
-                    }`}>{formatFCFA(order.totalAmount)}</div>
-                    <div className="text-xs text-muted-foreground font-mono">#{order.id}</div>
+                  <div className="p-4">
+                    <div className="flex items-start gap-3">
+                      {/* Operator dot */}
+                      <div
+                        className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 mt-0.5"
+                        style={{ background: order.bundle?.operatorColor ? `${order.bundle.operatorColor}20` : "#f3f4f6" }}
+                      >
+                        <Wifi className="w-5 h-5" style={{ color: order.bundle?.operatorColor ?? "#888" }} />
+                      </div>
+
+                      {/* Details */}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap mb-1">
+                          <span className="font-black text-foreground">{order.bundle?.dataSize ?? "—"}</span>
+                          <span className="text-xs text-muted-foreground">{order.bundle?.operatorName}</span>
+                          <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${getStatusColor(order.status)}`}>
+                            {getStatusLabel(order.status)}
+                          </span>
+                        </div>
+                        <div className="text-xs text-muted-foreground space-y-0.5">
+                          <div>📱 <span className="font-semibold text-foreground">{order.phoneNumber}</span></div>
+                          {order.payerName && (
+                            <div>👤 {order.payerName}{order.payerPhone ? ` · ${order.payerPhone}` : ""}</div>
+                          )}
+                          <div>💳 {order.paymentMethod === "mtn_momo" ? "MTN MoMo" : "Orange Money"}</div>
+                          <div>🕐 {formatDate(order.createdAt)}</div>
+                          {order.transactionId && (
+                            <div className="font-mono text-xs text-muted-foreground/70">TXN: {order.transactionId}</div>
+                          )}
+                          <div className="font-mono text-xs text-muted-foreground/70">{formatRef(order.id)}</div>
+                        </div>
+                      </div>
+
+                      {/* Amount */}
+                      <div className="text-right flex-shrink-0">
+                        <div className={`font-black text-lg ${
+                          order.status === "paid"    ? "text-green-600" :
+                          order.status === "confirmed" ? "text-blue-600" :
+                          order.status === "failed"  ? "text-red-500"  :
+                          "text-foreground"
+                        }`}>{formatFCFA(order.totalAmount)}</div>
+                        <div className="text-xs text-muted-foreground font-mono">#{order.id}</div>
+                      </div>
+                    </div>
+
+                    {/* Action buttons — confirmed only, unless snoozed */}
+                    {isConfirmed && !isSnoozed && (
+                      <div className="flex gap-2 mt-3 pt-3 border-t border-blue-100">
+                        {/* Rejeter */}
+                        <button
+                          onClick={() => handleStatus(order.id, "failed")}
+                          disabled={actionLoading === order.id}
+                          className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-sm font-bold border border-red-200 text-red-600 bg-red-50 hover:bg-red-100 active:scale-95 transition-all disabled:opacity-50"
+                        >
+                          <X className="w-4 h-4" />
+                          Rejeter
+                        </button>
+                        {/* Laisser en attente */}
+                        <button
+                          onClick={() => handleSnooze(order.id)}
+                          disabled={actionLoading === order.id}
+                          className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-sm font-bold border border-gray-200 text-gray-600 bg-gray-50 hover:bg-gray-100 active:scale-95 transition-all disabled:opacity-50"
+                        >
+                          <Pause className="w-4 h-4" />
+                          En attente
+                        </button>
+                        {/* Valider */}
+                        <button
+                          onClick={() => handleStatus(order.id, "paid")}
+                          disabled={actionLoading === order.id}
+                          className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-sm font-bold text-white active:scale-95 transition-all disabled:opacity-50"
+                          style={{ background: "linear-gradient(135deg,#22c55e,#16a34a)", boxShadow: "0 4px 12px rgba(34,197,94,.35)" }}
+                        >
+                          {actionLoading === order.id
+                            ? <RefreshCw className="w-4 h-4 animate-spin" />
+                            : <Check className="w-4 h-4" />}
+                          Valider
+                        </button>
+                      </div>
+                    )}
+
+                    {/* Snoozed notice */}
+                    {isConfirmed && isSnoozed && (
+                      <div className="flex items-center justify-between mt-3 pt-3 border-t border-blue-100">
+                        <span className="text-xs text-gray-500 italic">Laissé en attente</span>
+                        <button
+                          onClick={() => setSnoozed(prev => { const s = new Set(prev); s.delete(order.id); return s; })}
+                          className="text-xs text-blue-600 font-bold hover:underline"
+                        >
+                          Reprendre
+                        </button>
+                      </div>
+                    )}
                   </div>
                 </div>
-
-                {/* Action buttons — pending only */}
-                {order.status === "pending" && (
-                  <div className="flex gap-2 mt-3 pt-3 border-t border-gray-100">
-                    <button
-                      onClick={() => handleStatus(order.id, "failed")}
-                      disabled={actionLoading === order.id}
-                      className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-sm font-bold border border-red-200 text-red-600 bg-red-50 hover:bg-red-100 active:scale-95 transition-all disabled:opacity-50"
-                    >
-                      <X className="w-4 h-4" />
-                      Marquer échoué
-                    </button>
-                    <button
-                      onClick={() => handleStatus(order.id, "paid")}
-                      disabled={actionLoading === order.id}
-                      className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-sm font-bold text-white active:scale-95 transition-all disabled:opacity-50"
-                      style={{ background: "linear-gradient(135deg,#22c55e,#16a34a)", boxShadow: "0 4px 12px rgba(34,197,94,.35)" }}
-                    >
-                      {actionLoading === order.id
-                        ? <RefreshCw className="w-4 h-4 animate-spin" />
-                        : <Check className="w-4 h-4" />}
-                      Valider le paiement
-                    </button>
-                  </div>
-                )}
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>

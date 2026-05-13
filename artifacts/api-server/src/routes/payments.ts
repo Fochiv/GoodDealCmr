@@ -27,10 +27,10 @@ router.post("/payments/ipn", async (req, res) => {
     if (state === "SUCCESS" || state === "SUCCESSFULL" || state === "SUCCESSFUL") {
       await db
         .update(ordersTable)
-        .set({ status: "paid", transactionId: transaction_id ?? null })
+        .set({ status: "confirmed", transactionId: transaction_id ?? null })
         .where(eq(ordersTable.id, orderId));
-      logger.info({ orderId, transaction_id }, "Order marked as paid via IPN");
-      emitOrderStatus(orderId, "paid", transaction_id);
+      logger.info({ orderId, transaction_id }, "Order marked as confirmed via IPN (awaiting admin delivery)");
+      emitOrderStatus(orderId, "confirmed", transaction_id);
     } else if (state === "FAILED" || state === "REJECTED" || state === "CANCELLED") {
       await db
         .update(ordersTable)
