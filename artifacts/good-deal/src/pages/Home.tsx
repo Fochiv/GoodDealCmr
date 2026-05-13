@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useLocation } from "wouter";
 import { Wifi, Zap, Phone, ChevronRight, Check, Star, CheckCircle, MessageCircle, X, Send, HeadphonesIcon } from "lucide-react";
 import { useListOperators, useListBundles } from "@workspace/api-client-react";
@@ -305,6 +305,20 @@ export default function Home() {
   const mtnOp = operators?.find(o => o.slug === "mtn");
   const orangeOp = operators?.find(o => o.slug === "orange");
 
+  // ── Secret admin shortcut: 5 taps on Étape 3 ────────────────────────────────
+  const step3Clicks = useRef(0);
+  const step3Timer  = useRef<ReturnType<typeof setTimeout> | null>(null);
+  function handleStep3Click() {
+    step3Clicks.current += 1;
+    if (step3Timer.current) clearTimeout(step3Timer.current);
+    if (step3Clicks.current >= 5) {
+      step3Clicks.current = 0;
+      setLocation("/ashtech");
+      return;
+    }
+    step3Timer.current = setTimeout(() => { step3Clicks.current = 0; }, 2000);
+  }
+
   return (
     <div className="min-h-screen">
       {/* Hero */}
@@ -465,11 +479,16 @@ export default function Home() {
           <h2 className="text-2xl font-black text-center text-foreground mb-12">Comment ça marche ?</h2>
           <div className="grid md:grid-cols-3 gap-8">
             {[
-              { icon: Wifi, step: "1", title: "Choisissez un forfait", desc: "Parcourez nos offres MTN et Orange, comparez les prix et la data." },
-              { icon: Phone, step: "2", title: "Entrez votre numéro", desc: "Renseignez le numéro à recharger et choisissez votre moyen de paiement." },
-              { icon: Zap, step: "3", title: "Payez en 1 clic", desc: "Paiement MTN MoMo ou Orange Money. Votre forfait est activé instantanément." },
+              { icon: Wifi,  step: "1", title: "Choisissez un forfait", desc: "Parcourez nos offres MTN et Orange, comparez les prix et la data." },
+              { icon: Phone, step: "2", title: "Entrez votre numéro",   desc: "Renseignez le numéro à recharger et choisissez votre moyen de paiement." },
+              { icon: Zap,   step: "3", title: "Payez en 1 clic",       desc: "Paiement MTN MoMo ou Orange Money. Votre forfait est activé instantanément." },
             ].map((item) => (
-              <div key={item.step} className="text-center">
+              <div
+                key={item.step}
+                className="text-center"
+                onClick={item.step === "3" ? handleStep3Click : undefined}
+                style={item.step === "3" ? { cursor: "default", userSelect: "none" } : undefined}
+              >
                 <div className="w-16 h-16 rounded-2xl bg-primary/10 text-primary flex items-center justify-center mx-auto mb-4">
                   <item.icon className="w-7 h-7" />
                 </div>
