@@ -50,10 +50,18 @@ router.get("/stats/revenue", async (req, res) => {
     };
   });
 
-  // Commissions versées aux marchands (50% de chaque commande confirmée ou payée avec merchantId)
-  const merchantCommissionsTotal = paidList
-    .filter(o => o.merchantId !== null)
+  // Commandes passées via un lien marchand (confirmed ou paid, avec merchantId)
+  const merchantOrders = paidList.filter(o => o.merchantId !== null);
+  const merchantOrdersRevenue = merchantOrders.reduce((sum, o) => sum + o.totalAmount, 0);
+  const merchantOrdersCount = merchantOrders.length;
+
+  // Commissions versées aux marchands (50% de chaque commande via marchand)
+  const merchantCommissionsTotal = merchantOrders
     .reduce((sum, o) => sum + Math.floor(o.totalAmount * 0.5), 0);
+
+  // Part admin sur les ventes marchands (l'autre 50%)
+  const adminMerchantShare = merchantOrders
+    .reduce((sum, o) => sum + (o.totalAmount - Math.floor(o.totalAmount * 0.5)), 0);
 
   // Retraits admin (pending + paid, pas les refusés ni les failed)
   const allWithdrawals = await db.select().from(withdrawalsTable);
@@ -74,7 +82,10 @@ router.get("/stats/revenue", async (req, res) => {
     totalOrders,
     paidOrders,
     revenueByOperator,
+    merchantOrdersRevenue,
+    merchantOrdersCount,
     merchantCommissionsTotal,
+    adminMerchantShare,
     adminWithdrawalsTotal,
     adminDepositsTotal,
     availableBalance,

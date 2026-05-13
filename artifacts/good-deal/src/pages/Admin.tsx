@@ -463,6 +463,48 @@ export default function Admin() {
           ))}
         </div>
 
+        {/* ── Gains via marchands ──────────────────────────────────────────── */}
+        {!revLoading && revenue && (revenue.merchantOrdersCount > 0 || revenue.merchantOrdersRevenue > 0) && (
+          <div className="rounded-2xl border border-purple-100 bg-white shadow-sm mb-6 overflow-hidden">
+            <div className="flex items-center gap-2 px-5 pt-5 pb-3 border-b border-purple-50">
+              <div className="w-8 h-8 rounded-lg bg-purple-100 flex items-center justify-center flex-shrink-0">
+                <Store className="w-4 h-4 text-purple-600" />
+              </div>
+              <div>
+                <h2 className="font-bold text-foreground text-sm">Ventes via marchands</h2>
+                <p className="text-xs text-muted-foreground">{revenue.merchantOrdersCount} commande{revenue.merchantOrdersCount !== 1 ? "s" : ""} passées via lien de parrainage</p>
+              </div>
+              <div className="ml-auto text-right">
+                <div className="text-xs text-muted-foreground">Chiffre d'affaires</div>
+                <div className="font-black text-base text-foreground">{formatFCFA(revenue.merchantOrdersRevenue)}</div>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 divide-x divide-purple-50">
+              <div className="px-5 py-4">
+                <div className="text-xs text-muted-foreground mb-1">Ma part (50%)</div>
+                <div className="text-xl font-black text-purple-700">{formatFCFA(revenue.adminMerchantShare)}</div>
+                <div className="text-xs text-muted-foreground mt-0.5">Revenus nets admin sur ventes marchands</div>
+              </div>
+              <div className="px-5 py-4">
+                <div className="text-xs text-muted-foreground mb-1">Commissions marchands (50%)</div>
+                <div className="text-xl font-black text-orange-500">{formatFCFA(revenue.merchantCommissionsTotal)}</div>
+                <div className="text-xs text-muted-foreground mt-0.5">Versés aux marchands partenaires</div>
+              </div>
+            </div>
+          </div>
+        )}
+        {!revLoading && revenue && revenue.merchantOrdersCount === 0 && (
+          <div className="rounded-2xl border border-gray-100 bg-white shadow-sm mb-6 px-5 py-4 flex items-center gap-3">
+            <div className="w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center flex-shrink-0">
+              <Store className="w-4 h-4 text-gray-400" />
+            </div>
+            <div>
+              <div className="font-semibold text-sm text-foreground">Ventes via marchands</div>
+              <div className="text-xs text-muted-foreground">Aucune vente via lien marchand pour l'instant</div>
+            </div>
+          </div>
+        )}
+
         {/* Top forfait */}
         <div className="mb-6">
           {popLoading ? (
