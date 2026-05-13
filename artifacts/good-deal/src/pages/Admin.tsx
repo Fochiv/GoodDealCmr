@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { useLocation } from "wouter";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
-import { TrendingUp, ShoppingBag, Package, ArrowRight, LogOut, RefreshCw, Trophy, Search, ChevronLeft, ChevronRight, Store, Plus, ArrowDownCircle, Wallet, X, Shield } from "lucide-react";
+import { TrendingUp, ShoppingBag, Package, ArrowRight, LogOut, RefreshCw, Trophy, Search, ChevronLeft, ChevronRight, Store, Plus, ArrowDownCircle, Wallet, X, Shield, PlusCircle, MinusCircle } from "lucide-react";
 import { formatFCFA, getStatusColor, getStatusLabel, formatDate } from "@/lib/api";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
@@ -15,6 +15,121 @@ const API_BASE = "/api";
 
 function adminHeaders(): Record<string, string> {
   return { "X-Admin-Key": localStorage.getItem("gd_admin_pass") ?? "" };
+}
+
+function AdjustBalanceModal({ merchant, onClose, onDone }: { merchant: any; onClose: () => void; onDone: () => void }) {
+  const { toast } = useToast();
+  const [type, setType] = useState<"add" | "subtract">("add");
+  const [amount, setAmount] = useState("");
+  const [note, setNote] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const amt = parseInt(amount);
+    if (!amt || amt <= 0) { toast({ title: "Montant invalide", variant: "destructive" }); return; }
+    setLoading(true);
+    try {
+      const res = await fetch(`${API_BASE}/admin/merchants/${merchant.id}/balance`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", ...adminHeaders() },
+        body: JSON.stringify({ type, amount: amt, note }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        toast({ title: data.error ?? "Erreur", variant: "destructive" });
+      } else {
+        toast({
+          title: type === "add"
+            ? `+${formatFCFA(amt)} ajouté au solde de ${merchant.name}`
+            : `-${formatFCFA(amt)} déduit du solde de ${merchant.name}`,
+        });
+        onDone();
+        onClose();
+      }
+    } catch {
+      toast({ title: "Erreur réseau", variant: "destructive" });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center px-4 bg-black/40 backdrop-blur-sm">
+      <div className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-xl">
+        <div className="flex items-center justify-between mb-5">
+          <div>
+            <h2 className="font-black text-lg">Ajuster le solde</h2>
+            <p className="text-xs text-muted-foreground">{merchant.name} · Solde actuel : <strong>{formatFCFA(merchant.balance)}</strong></p>
+          </div>
+          <button onClick={onClose} className="text-muted-foreground hover:text-foreground"><X className="w-5 h-5" /></button>
+        </div>
+
+        {/* Type toggle */}
+        <div className="grid grid-cols-2 gap-2 mb-4">
+          <button
+            type="button"
+            onClick={() => setType("add")}
+            className={`flex items-center justify-center gap-2 py-3 rounded-xl border-2 font-bold text-sm transition-all ${
+              type === "add" ? "border-green-500 bg-green-50 text-green-700" : "border-gray-200 text-gray-500 hover:border-gray-300"
+            }`}
+          >
+            <PlusCircle className="w-4 h-4" /> Ajouter
+          </button>
+          <button
+            type="button"
+            onClick={() => setType("subtract")}
+            className={`flex items-center justify-center gap-2 py-3 rounded-xl border-2 font-bold text-sm transition-all ${
+              type === "subtract" ? "border-red-500 bg-red-50 text-red-700" : "border-gray-200 text-gray-500 hover:border-gray-300"
+            }`}
+          >
+            <MinusCircle className="w-4 h-4" /> Réduire
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="space-y-1.5">
+            <Label>Montant (FCFA)</Label>
+            <Input
+              type="number"
+              placeholder="Ex: 5000"
+              value={amount}
+              onChange={e => setAmount(e.target.value)}
+              min={1}
+              autoFocus
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label>Note (optionnel)</Label>
+            <Input
+              type="text"
+              placeholder="Ex: Correction manuelle, bonus..."
+              value={note}
+              onChange={e => setNote(e.target.value)}
+            />
+          </div>
+
+          {amount && parseInt(amount) > 0 && (
+            <div className={`text-sm font-semibold p-3 rounded-xl ${type === "add" ? "bg-green-50 text-green-700" : "bg-red-50 text-red-700"}`}>
+              Nouveau solde : {formatFCFA(
+                type === "add"
+                  ? merchant.balance + parseInt(amount)
+                  : Math.max(0, merchant.balance - parseInt(amount))
+              )}
+            </div>
+          )}
+
+          <Button
+            type="submit"
+            className={`w-full font-bold text-white ${type === "add" ? "bg-green-600 hover:bg-green-700" : "bg-red-600 hover:bg-red-700"}`}
+            disabled={!amount || loading}
+          >
+            {loading ? "En cours..." : type === "add" ? `Ajouter ${amount ? formatFCFA(parseInt(amount) || 0) : ""}` : `Déduire ${amount ? formatFCFA(parseInt(amount) || 0) : ""}`}
+          </Button>
+        </form>
+      </div>
+    </div>
+  );
 }
 
 function CreateMerchantModal({ onClose, onCreated }: { onClose: () => void; onCreated: () => void }) {
@@ -221,6 +336,7 @@ export default function Admin() {
   const [withdrawalsLoading, setWithdrawalsLoading] = useState(true);
   const [showCreateMerchant, setShowCreateMerchant] = useState(false);
   const [showAdminWithdraw, setShowAdminWithdraw] = useState(false);
+  const [adjustMerchant, setAdjustMerchant] = useState<any | null>(null);
 
   useEffect(() => {
     if (!isAdmin) setLocation("/ashtech");
@@ -604,9 +720,18 @@ export default function Admin() {
                     <div className="font-semibold text-sm">{m.name}</div>
                     <div className="text-xs text-muted-foreground">📱 {m.phone} · Code: <span className="font-mono font-bold text-orange-600">{m.referralCode}</span></div>
                   </div>
-                  <div className="text-right flex-shrink-0">
-                    <div className="font-bold text-sm text-green-600">{formatFCFA(m.balance)}</div>
-                    <div className="text-xs text-muted-foreground">solde</div>
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    <div className="text-right">
+                      <div className="font-bold text-sm text-green-600">{formatFCFA(m.balance)}</div>
+                      <div className="text-xs text-muted-foreground">solde</div>
+                    </div>
+                    <button
+                      onClick={() => setAdjustMerchant(m)}
+                      className="w-8 h-8 rounded-lg bg-gray-100 hover:bg-orange-100 hover:text-orange-600 flex items-center justify-center transition-all"
+                      title="Ajuster le solde"
+                    >
+                      <PlusCircle className="w-4 h-4" />
+                    </button>
                   </div>
                 </div>
               ))}
@@ -698,6 +823,7 @@ export default function Admin() {
 
       {showCreateMerchant && <CreateMerchantModal onClose={() => setShowCreateMerchant(false)} onCreated={fetchAll} />}
       {showAdminWithdraw && <AdminWithdrawModal onClose={() => setShowAdminWithdraw(false)} onSuccess={fetchAll} />}
+      {adjustMerchant && <AdjustBalanceModal merchant={adjustMerchant} onClose={() => setAdjustMerchant(null)} onDone={fetchAll} />}
     </div>
   );
 }

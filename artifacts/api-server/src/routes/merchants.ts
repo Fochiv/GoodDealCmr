@@ -127,6 +127,44 @@ router.post("/merchant/withdraw", async (req, res) => {
   return res.status(201).json(withdrawal);
 });
 
+// PATCH /admin/merchants/:id/balance — add or subtract from merchant balance
+router.patch("/admin/merchants/:id/balance", async (req, res) => {
+  if (!isAdminRequest(req)) return res.status(403).json({ error: "Accès refusé" });
+
+  const id = parseInt(req.params.id);
+  if (isNaN(id)) return res.status(400).json({ error: "ID invalide" });
+
+  const schema = z.object({
+    type: z.enum(["add", "subtract"]),
+    amount: z.number().int().positive(),
+    note: z.string().optional(),
+  });
+  const parsed = schema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: "Données invalides" });
+
+  const [merchant] = await db.select().from(merchantsTable).where(eq(merchantsTable.id, id)).limit(1);
+  if (!merchant) return res.status(404).json({ error: "Marchand introuvable" });
+
+  const newBalance = parsed.data.type === "add"
+    ? merchant.balance + parsed.data.amount
+    : Math.max(0, merchant.balance - parsed.data.amount);
+
+  const [updated] = await db.update(merchantsTable)
+    .set({ balance: newBalance })
+    .where(eq(merchantsTable.id, id))
+    .returning();
+
+  return res.json({
+    id: updated.id,
+    name: updated.name,
+    phone: updated.phone,
+    referralCode: updated.referralCode,
+    balance: updated.balance,
+    previousBalance: merchant.balance,
+    change: parsed.data.type === "add" ? parsed.data.amount : -(merchant.balance - newBalance),
+  });
+});
+
 // GET /admin/merchants
 router.get("/admin/merchants", async (req, res) => {
   if (!isAdminRequest(req)) return res.status(403).json({ error: "Accès refusé" });
