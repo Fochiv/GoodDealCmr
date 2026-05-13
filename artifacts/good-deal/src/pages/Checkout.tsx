@@ -14,6 +14,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { savePendingPayment, clearPendingPayment } from "@/components/PendingPaymentBar";
 import { saveDevicePhone } from "@/components/DevicePendingBar";
+import { getReferralCode, clearReferralCode } from "@/App";
 
 const API_BASE = import.meta.env.VITE_API_URL ?? "/api";
 
@@ -30,7 +31,8 @@ export default function Checkout() {
   const [, setLocation] = useLocation();
   const urlParams = new URLSearchParams(typeof window !== "undefined" ? window.location.search : "");
   const bundleId = parseInt(urlParams.get("bundleId") ?? "0");
-  const referralCode = urlParams.get("ref") ?? null;
+  // Lire le code parrain depuis l'URL ou, si absent, depuis localStorage (persisté à l'arrivée sur le site)
+  const referralCode = urlParams.get("ref") ?? getReferralCode();
 
   const [recipientPhone, setRecipientPhone] = useState("");
   const [paymentMethod, setPaymentMethod] = useState<"mtn_momo" | "orange_money">("mtn_momo");
@@ -167,6 +169,8 @@ export default function Checkout() {
       if (!orderRes.ok) throw new Error("Échec de création de commande");
       const order = await orderRes.json();
       const id: number = order.id;
+      // Effacer le code parrain stocké — il a été utilisé pour cette commande
+      clearReferralCode();
 
       const payRes = await fetch(`${API_BASE}/orders/${id}/pay`, {
         method: "POST",

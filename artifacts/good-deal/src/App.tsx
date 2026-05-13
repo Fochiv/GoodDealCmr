@@ -53,9 +53,27 @@ function Router() {
   );
 }
 
+const REFERRAL_KEY = "gd_referral_code";
+
+export function saveReferralCode(code: string) {
+  localStorage.setItem(REFERRAL_KEY, code);
+}
+export function getReferralCode(): string | null {
+  return localStorage.getItem(REFERRAL_KEY);
+}
+export function clearReferralCode() {
+  localStorage.removeItem(REFERRAL_KEY);
+}
+
 function AppLayout() {
   useEffect(() => {
     document.documentElement.classList.remove("dark");
+    // Capturer le code parrain dès l'arrivée sur le site, peu importe la page
+    const params = new URLSearchParams(window.location.search);
+    const ref = params.get("ref");
+    if (ref && ref.trim()) {
+      saveReferralCode(ref.trim());
+    }
   }, []);
 
   return (
