@@ -268,6 +268,26 @@ router.post("/admin/withdraw", async (req, res) => {
   const parsed = schema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: "Données invalides" });
 
+  // Calculer le solde disponible avant d'autoriser le retrait
+  const allOrders = await db.select().from(ordersTable);
+  const paidOrders = allOrders.filter(o => o.status === "paid");
+  const totalRevenue = paidOrders.reduce((sum, o) => sum + o.totalAmount, 0);
+  const merchantCommissionsTotal = paidOrders
+    .filter(o => o.merchantId !== null)
+    .reduce((sum, o) => sum + Math.floor(o.totalAmount * 0.5), 0);
+  const allWithdrawals = await db.select().from(withdrawalsTable);
+  const adminWithdrawalsTotal = allWithdrawals
+    .filter(w => w.isAdmin && w.status !== "rejected")
+    .reduce((sum, w) => sum + w.amount, 0);
+  const availableBalance = Math.max(0, totalRevenue - merchantCommissionsTotal - adminWithdrawalsTotal);
+
+  if (parsed.data.amount > availableBalance) {
+    return res.status(400).json({
+      error: `Solde insuffisant. Solde disponible : ${availableBalance} FCFA`,
+      availableBalance,
+    });
+  }
+
   const [withdrawal] = await db.insert(withdrawalsTable).values({
     merchantId: null,
     isAdmin: true,
