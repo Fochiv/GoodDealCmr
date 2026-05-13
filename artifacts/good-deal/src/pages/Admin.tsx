@@ -299,10 +299,33 @@ export default function Admin() {
           </div>
         </div>
 
+        {/* Solde disponible — carte principale */}
+        {revLoading ? (
+          <Skeleton className="h-24 rounded-2xl mb-4" />
+        ) : (
+          <div className="rounded-2xl p-5 mb-4 flex items-center justify-between shadow-sm border border-white/20"
+            style={{ background: "linear-gradient(135deg, #16a34a, #15803d)" }}>
+            <div>
+              <div className="text-xs font-bold text-white/70 uppercase tracking-wide mb-1">Solde disponible</div>
+              <div className="text-3xl font-black text-white">{revenue ? formatFCFA(revenue.availableBalance) : "—"}</div>
+              <div className="text-xs text-white/70 mt-1">
+                {revenue ? `${formatFCFA(revenue.totalRevenue)} brut − ${formatFCFA(revenue.merchantCommissionsTotal)} commissions − ${formatFCFA(revenue.adminWithdrawalsTotal)} retraits` : ""}
+              </div>
+            </div>
+            <Button
+              onClick={() => setShowAdminWithdraw(true)}
+              className="font-bold gap-2 flex-shrink-0"
+              style={{ background: "rgba(255,255,255,0.2)", color: "#fff", border: "1px solid rgba(255,255,255,0.3)" }}
+            >
+              <ArrowDownCircle className="w-4 h-4" /> Retrait
+            </Button>
+          </div>
+        )}
+
         {/* Stats */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
           {[
-            { label: "Revenus encaissés", value: revenue ? formatFCFA(revenue.totalRevenue) : "—", sub: `${revenue?.paidOrders ?? "—"} paiements`, icon: TrendingUp, color: "text-green-600", bg: "bg-green-50", loading: revLoading },
+            { label: "Revenus bruts", value: revenue ? formatFCFA(revenue.totalRevenue) : "—", sub: `${revenue?.paidOrders ?? "—"} paiements`, icon: TrendingUp, color: "text-green-600", bg: "bg-green-50", loading: revLoading },
             { label: "Paiements en attente", value: revenue ? formatFCFA(revenue.pendingRevenue) : "—", sub: `${orderStats?.pending ?? "—"} commandes`, icon: ShoppingBag, color: "text-yellow-600", bg: "bg-yellow-50", loading: revLoading || ordersLoading },
             { label: "Commandes totales", value: orderStats?.total ?? "—", sub: null, icon: Package, color: "text-blue-600", bg: "bg-blue-50", loading: ordersLoading },
             { label: "Échouées", value: orderStats?.failed ?? "—", sub: null, icon: ShoppingBag, color: "text-red-500", bg: "bg-red-50", loading: ordersLoading },

@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { db, ordersTable, bundlesTable, operatorsTable, usersTable } from "@workspace/db";
+import { db, ordersTable, bundlesTable, operatorsTable, usersTable, withdrawalsTable, merchantsTable } from "@workspace/db";
 import { eq, sql, desc } from "drizzle-orm";
 import { getUserIdFromToken } from "./auth";
 
@@ -49,7 +49,30 @@ router.get("/stats/revenue", async (req, res) => {
     };
   });
 
-  return res.json({ totalRevenue, pendingRevenue, totalOrders, paidOrders, revenueByOperator });
+  // Commissions versées aux marchands (50% de chaque commande payée avec merchantId)
+  const merchantCommissionsTotal = paidList
+    .filter(o => o.merchantId !== null)
+    .reduce((sum, o) => sum + Math.floor(o.totalAmount * 0.5), 0);
+
+  // Retraits admin (pending + paid, pas les refusés)
+  const allWithdrawals = await db.select().from(withdrawalsTable);
+  const adminWithdrawalsTotal = allWithdrawals
+    .filter(w => w.isAdmin && w.status !== "rejected")
+    .reduce((sum, w) => sum + w.amount, 0);
+
+  // Solde disponible = revenus bruts − commissions marchands − retraits admin
+  const availableBalance = Math.max(0, totalRevenue - merchantCommissionsTotal - adminWithdrawalsTotal);
+
+  return res.json({
+    totalRevenue,
+    pendingRevenue,
+    totalOrders,
+    paidOrders,
+    revenueByOperator,
+    merchantCommissionsTotal,
+    adminWithdrawalsTotal,
+    availableBalance,
+  });
 });
 
 router.get("/stats/orders", async (req, res) => {
