@@ -1,11 +1,13 @@
 import { useEffect, useState, useCallback } from "react";
 import { useLocation } from "wouter";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
-import { TrendingUp, ShoppingBag, Package, ArrowRight, LogOut, RefreshCw, Trophy, Wifi } from "lucide-react";
+import { TrendingUp, ShoppingBag, Package, ArrowRight, LogOut, RefreshCw, Trophy, Search, ChevronLeft, ChevronRight } from "lucide-react";
 import { formatFCFA, getStatusColor, getStatusLabel, formatDate } from "@/lib/api";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { isAdminAuthenticated, setAdminAuth } from "./Ashtech";
+
+const HIST_PAGE_SIZE = 15;
 
 function adminHeaders(): Record<string, string> {
   return { "X-Admin-Key": localStorage.getItem("gd_admin_pass") ?? "" };
@@ -22,25 +24,34 @@ export default function Admin() {
   const [popular, setPopular] = useState<any[]>([]);
   const [popLoading, setPopLoading] = useState(true);
 
+  // History (full orders list)
+  const [histOrders, setHistOrders] = useState<any[]>([]);
+  const [histLoading, setHistLoading] = useState(true);
+  const [histSearch, setHistSearch] = useState("");
+  const [histPage, setHistPage] = useState(1);
+
   useEffect(() => {
     if (!isAdmin) setLocation("/ashtech");
   }, [isAdmin]);
 
   const fetchAll = useCallback(async () => {
     if (!isAdmin) return;
-    setRevLoading(true); setOrdersLoading(true); setPopLoading(true);
+    setRevLoading(true); setOrdersLoading(true); setPopLoading(true); setHistLoading(true);
     const h = adminHeaders();
-    const [revRes, ordRes, popRes] = await Promise.all([
+    const [revRes, ordRes, popRes, histRes] = await Promise.all([
       fetch("/api/stats/revenue", { headers: h }),
       fetch("/api/stats/orders", { headers: h }),
       fetch("/api/stats/popular-bundles", { headers: h }),
+      fetch("/api/orders", { headers: h }),
     ]);
-    if (revRes.ok) { setRevenue(await revRes.json()); }
+    if (revRes.ok)  { setRevenue(await revRes.json()); }
     setRevLoading(false);
-    if (ordRes.ok) { setOrderStats(await ordRes.json()); }
+    if (ordRes.ok)  { setOrderStats(await ordRes.json()); }
     setOrdersLoading(false);
-    if (popRes.ok) { setPopular(await popRes.json()); }
+    if (popRes.ok)  { setPopular(await popRes.json()); }
     setPopLoading(false);
+    if (histRes.ok) { setHistOrders(await histRes.json()); }
+    setHistLoading(false);
   }, [isAdmin]);
 
   useEffect(() => { fetchAll(); }, [fetchAll]);
@@ -218,35 +229,126 @@ export default function Admin() {
           )}
         </div>
 
-        {/* Recent orders */}
-        <div className="bg-white border border-gray-100 rounded-xl p-5 shadow-sm">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="font-bold text-foreground">Commandes récentes</h2>
-            <Button variant="ghost" size="sm" onClick={() => setLocation("/ashtech/orders")} className="gap-1 text-xs">
-              Voir tout <ArrowRight className="w-3 h-3" />
-            </Button>
-          </div>
-          {ordersLoading ? (
-            <div className="space-y-3">{[1,2,3].map(i => <Skeleton key={i} className="h-14" />)}</div>
-          ) : (
-            <div className="space-y-2">
-              {orderStats?.recentOrders.map(order => (
-                <div key={order.id} className="flex items-center gap-3 py-2 border-b border-gray-100 last:border-0">
-                  <div className="flex-1 min-w-0">
-                    <div className="text-sm font-semibold">{order.bundle?.dataSize} — {order.bundle?.operatorName}</div>
-                    <div className="text-xs text-muted-foreground">{order.phoneNumber} · {formatDate(order.createdAt)}</div>
-                  </div>
-                  <div className="text-right flex-shrink-0">
-                    <div className="font-bold text-sm">{formatFCFA(order.totalAmount)}</div>
-                    <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${getStatusColor(order.status)}`}>
-                      {getStatusLabel(order.status)}
-                    </span>
-                  </div>
+        {/* Full order history */}
+        {(() => {
+          const q = histSearch.trim().toLowerCase();
+          const filtered = histOrders.filter(o =>
+            !q || o.phoneNumber?.includes(q) ||
+            (o.payerName ?? "").toLowerCase().includes(q) ||
+            (o.transactionId ?? "").toLowerCase().includes(q) ||
+            String(o.id).includes(q)
+          );
+          const totalPages = Math.max(1, Math.ceil(filtered.length / HIST_PAGE_SIZE));
+          const safePage   = Math.min(histPage, totalPages);
+          const paginated  = filtered.slice((safePage - 1) * HIST_PAGE_SIZE, safePage * HIST_PAGE_SIZE);
+
+          return (
+            <div className="bg-white border border-gray-100 rounded-xl p-5 shadow-sm">
+              {/* Header */}
+              <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-4">
+                <div className="flex items-center justify-between flex-1">
+                  <h2 className="font-bold text-foreground">Historique des commandes</h2>
+                  <Button variant="ghost" size="sm" onClick={() => setLocation("/ashtech/orders")} className="gap-1 text-xs">
+                    Gérer <ArrowRight className="w-3 h-3" />
+                  </Button>
                 </div>
-              ))}
+                {/* Search */}
+                <div className="relative sm:w-52 flex-shrink-0">
+                  <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                  <input
+                    value={histSearch}
+                    onChange={e => { setHistSearch(e.target.value); setHistPage(1); }}
+                    placeholder="Numéro, nom, ID…"
+                    className="w-full pl-8 pr-3 py-1.5 text-xs rounded-full border border-gray-200 bg-gray-50 focus:outline-none focus:border-primary"
+                  />
+                </div>
+              </div>
+
+              {/* List */}
+              {histLoading ? (
+                <div className="space-y-3">{[1,2,3,4,5].map(i => <Skeleton key={i} className="h-14" />)}</div>
+              ) : filtered.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-8">
+                  {q ? `Aucun résultat pour "${q}"` : "Aucune commande"}
+                </p>
+              ) : (
+                <>
+                  <div className="space-y-0 divide-y divide-gray-100">
+                    {paginated.map(order => (
+                      <div key={order.id} className="flex items-center gap-3 py-2.5">
+                        <div className="flex-1 min-w-0">
+                          <div className="text-sm font-semibold truncate">
+                            {order.bundle?.dataSize ?? "—"} — {order.bundle?.operatorName ?? "—"}
+                          </div>
+                          <div className="text-xs text-muted-foreground">
+                            📱 {order.phoneNumber}
+                            {order.payerName ? ` · ${order.payerName}` : ""}
+                            {" · "}{formatDate(order.createdAt)}
+                          </div>
+                        </div>
+                        <div className="text-right flex-shrink-0">
+                          <div className="font-bold text-sm">{formatFCFA(order.totalAmount)}</div>
+                          <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${getStatusColor(order.status)}`}>
+                            {getStatusLabel(order.status)}
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Pagination */}
+                  {filtered.length > HIST_PAGE_SIZE && (
+                    <div className="flex items-center justify-between mt-4 pt-3 border-t border-gray-100">
+                      <span className="text-xs text-muted-foreground">
+                        {(safePage - 1) * HIST_PAGE_SIZE + 1}–{Math.min(safePage * HIST_PAGE_SIZE, filtered.length)} sur {filtered.length}
+                      </span>
+                      <div className="flex items-center gap-1">
+                        <button
+                          onClick={() => setHistPage(p => Math.max(1, p - 1))}
+                          disabled={safePage === 1}
+                          className="w-7 h-7 rounded-lg flex items-center justify-center border border-gray-200 text-muted-foreground hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+                        >
+                          <ChevronLeft className="w-3.5 h-3.5" />
+                        </button>
+                        {Array.from({ length: totalPages }, (_, i) => i + 1)
+                          .filter(p => p === 1 || p === totalPages || Math.abs(p - safePage) <= 1)
+                          .reduce<(number | "…")[]>((acc, p, i, arr) => {
+                            if (i > 0 && (p as number) - (arr[i - 1] as number) > 1) acc.push("…");
+                            acc.push(p);
+                            return acc;
+                          }, [])
+                          .map((p, i) =>
+                            p === "…" ? (
+                              <span key={`e-${i}`} className="w-7 h-7 flex items-center justify-center text-xs text-muted-foreground">…</span>
+                            ) : (
+                              <button
+                                key={p}
+                                onClick={() => setHistPage(p as number)}
+                                className={`w-7 h-7 rounded-lg text-xs font-bold transition-all ${
+                                  safePage === p
+                                    ? "bg-gray-900 text-white"
+                                    : "border border-gray-200 text-muted-foreground hover:bg-gray-50"
+                                }`}
+                              >
+                                {p}
+                              </button>
+                            )
+                          )}
+                        <button
+                          onClick={() => setHistPage(p => Math.min(totalPages, p + 1))}
+                          disabled={safePage === totalPages}
+                          className="w-7 h-7 rounded-lg flex items-center justify-center border border-gray-200 text-muted-foreground hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+                        >
+                          <ChevronRight className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
             </div>
-          )}
-        </div>
+          );
+        })()}
       </div>
     </div>
   );
