@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { db, ordersTable, withdrawalsTable, merchantsTable } from "@workspace/db";
-import { eq } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
 import { logger } from "../lib/logger";
 import { emitOrderStatus } from "../lib/order-events";
 
@@ -87,11 +87,36 @@ router.post("/payments/ipn", async (req, res) => {
 
   try {
     if (isSuccessState(state)) {
+      // Fetch order before updating to credit merchant commission
+      const [order] = await db
+        .select()
+        .from(ordersTable)
+        .where(eq(ordersTable.id, orderId))
+        .limit(1);
+
       await db
         .update(ordersTable)
         .set({ status: "confirmed", transactionId: transaction_id ?? null })
         .where(eq(ordersTable.id, orderId));
       logger.info({ orderId, transaction_id }, "IPN: order confirmed (awaiting admin delivery)");
+
+      // Créditer immédiatement la commission marchand (50%) dès que le paiement est confirmé
+      if (order && order.merchantId && order.status !== "confirmed" && order.status !== "paid") {
+        const commission = Math.floor(order.totalAmount * 0.5);
+        const [merchant] = await db
+          .select()
+          .from(merchantsTable)
+          .where(eq(merchantsTable.id, order.merchantId))
+          .limit(1);
+        if (merchant) {
+          await db
+            .update(merchantsTable)
+            .set({ balance: merchant.balance + commission })
+            .where(eq(merchantsTable.id, merchant.id));
+          logger.info({ merchantId: merchant.id, commission }, "IPN: merchant commission credited on confirmation");
+        }
+      }
+
       emitOrderStatus(orderId, "confirmed", transaction_id);
     } else if (isFailedState(state)) {
       await db

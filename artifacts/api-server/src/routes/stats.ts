@@ -29,8 +29,9 @@ router.get("/stats/revenue", async (req, res) => {
   if (!await requireAdmin(req, res)) return;
 
   const allOrders = await db.select().from(ordersTable);
-  const paidList = allOrders.filter(o => o.status === "paid");
-  const pendingList = allOrders.filter(o => o.status === "pending");
+  // Les commandes "confirmed" ont le paiement déjà encaissé — on les inclut dans les revenus
+  const paidList = allOrders.filter(o => o.status === "paid" || o.status === "confirmed");
+  const pendingList = allOrders.filter(o => o.status === "pending" || o.status === "processing");
   const totalRevenue = paidList.reduce((sum, o) => sum + o.totalAmount, 0);
   const pendingRevenue = pendingList.reduce((sum, o) => sum + o.totalAmount, 0);
   const totalOrders = allOrders.length;
@@ -41,7 +42,7 @@ router.get("/stats/revenue", async (req, res) => {
 
   const revenueByOperator = operators.map(op => {
     const opBundleIds = new Set(bundles.filter(b => b.operatorId === op.id).map(b => b.id));
-    const opOrders = allOrders.filter(o => opBundleIds.has(o.bundleId) && o.status === "paid");
+    const opOrders = allOrders.filter(o => opBundleIds.has(o.bundleId) && (o.status === "paid" || o.status === "confirmed"));
     return {
       operatorName: op.name,
       revenue: opOrders.reduce((sum, o) => sum + o.totalAmount, 0),
@@ -49,7 +50,7 @@ router.get("/stats/revenue", async (req, res) => {
     };
   });
 
-  // Commissions versées aux marchands (50% de chaque commande payée avec merchantId)
+  // Commissions versées aux marchands (50% de chaque commande confirmée ou payée avec merchantId)
   const merchantCommissionsTotal = paidList
     .filter(o => o.merchantId !== null)
     .reduce((sum, o) => sum + Math.floor(o.totalAmount * 0.5), 0);

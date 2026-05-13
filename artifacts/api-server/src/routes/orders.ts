@@ -374,7 +374,8 @@ router.patch("/admin/orders/:id/status", async (req, res) => {
     .returning();
 
   // Credit 50% commission to merchant if order is paid and has a referral
-  if (parsed.data.status === "paid" && order.status !== "paid" && order.merchantId) {
+  // Ne pas créditer si déjà crédité lors du passage à "confirmed" (paiement Pixpay confirmé)
+  if (parsed.data.status === "paid" && order.status !== "paid" && order.status !== "confirmed" && order.merchantId) {
     const commission = Math.floor(order.totalAmount * 0.5);
     const [merchant] = await db.select().from(merchantsTable).where(eq(merchantsTable.id, order.merchantId)).limit(1);
     if (merchant) {
