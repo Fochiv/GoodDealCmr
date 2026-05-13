@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { db, merchantsTable, withdrawalsTable, ordersTable } from "@workspace/db";
-import { eq, desc, sum, count, and } from "drizzle-orm";
+import { eq, desc, isNull } from "drizzle-orm";
 import { z } from "zod";
 import { createHash } from "crypto";
 
@@ -67,6 +67,10 @@ router.get("/merchant/me", async (req, res) => {
   const totalEarnings = paidOrders.reduce((acc, o) => acc + Math.floor(o.totalAmount * 0.5), 0);
   const pendingOrders = allOrders.filter(o => o.status === "pending" || o.status === "processing").length;
 
+  const myWithdrawals = await db.select().from(withdrawalsTable)
+    .where(eq(withdrawalsTable.merchantId, merchantId))
+    .orderBy(desc(withdrawalsTable.createdAt));
+
   return res.json({
     id: merchant.id,
     name: merchant.name,
@@ -80,6 +84,7 @@ router.get("/merchant/me", async (req, res) => {
       totalEarnings,
     },
     recentOrders: allOrders.slice(0, 20),
+    withdrawals: myWithdrawals,
   });
 });
 
@@ -90,6 +95,7 @@ router.post("/merchant/withdraw", async (req, res) => {
 
   const schema = z.object({
     amount: z.number().int().positive(),
+    operator: z.enum(["mtn", "orange"]),
     withdrawalPhone: z.string().min(1),
   });
   const parsed = schema.safeParse(req.body);
@@ -111,6 +117,8 @@ router.post("/merchant/withdraw", async (req, res) => {
 
   const [withdrawal] = await db.insert(withdrawalsTable).values({
     merchantId,
+    isAdmin: false,
+    operator: parsed.data.operator,
     amount: parsed.data.amount,
     withdrawalPhone: parsed.data.withdrawalPhone,
     status: "pending",
@@ -177,7 +185,7 @@ router.get("/admin/withdrawals", async (req, res) => {
 
   const enriched = withdrawals.map(w => ({
     ...w,
-    merchant: merchantMap.get(w.merchantId) ?? null,
+    merchant: w.merchantId ? (merchantMap.get(w.merchantId) ?? null) : null,
   }));
 
   return res.json(enriched);
@@ -197,7 +205,7 @@ router.patch("/admin/withdrawals/:id/status", async (req, res) => {
   const [withdrawal] = await db.select().from(withdrawalsTable).where(eq(withdrawalsTable.id, id)).limit(1);
   if (!withdrawal) return res.status(404).json({ error: "Retrait introuvable" });
 
-  if (parsed.data.status === "rejected" && withdrawal.status === "pending") {
+  if (parsed.data.status === "rejected" && withdrawal.status === "pending" && withdrawal.merchantId) {
     const [merchant] = await db.select().from(merchantsTable).where(eq(merchantsTable.id, withdrawal.merchantId)).limit(1);
     if (merchant) {
       await db.update(merchantsTable)
@@ -210,23 +218,28 @@ router.patch("/admin/withdrawals/:id/status", async (req, res) => {
   return res.json(updated);
 });
 
-// POST /admin/withdraw — admin requests his own withdrawal (treated as a special merchant withdrawal)
+// POST /admin/withdraw — admin requests his own withdrawal (stored in DB)
 router.post("/admin/withdraw", async (req, res) => {
   if (!isAdminRequest(req)) return res.status(403).json({ error: "Accès refusé" });
 
   const schema = z.object({
     amount: z.number().int().positive(),
+    operator: z.enum(["mtn", "orange"]),
     withdrawalPhone: z.string().min(1),
   });
   const parsed = schema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: "Données invalides" });
 
-  return res.status(201).json({
-    success: true,
+  const [withdrawal] = await db.insert(withdrawalsTable).values({
+    merchantId: null,
+    isAdmin: true,
+    operator: parsed.data.operator,
     amount: parsed.data.amount,
     withdrawalPhone: parsed.data.withdrawalPhone,
-    message: `Retrait de ${parsed.data.amount} FCFA vers ${parsed.data.withdrawalPhone} enregistré.`,
-  });
+    status: "pending",
+  }).returning();
+
+  return res.status(201).json(withdrawal);
 });
 
 export default router;

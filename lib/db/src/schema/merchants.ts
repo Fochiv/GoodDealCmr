@@ -1,4 +1,4 @@
-import { pgTable, serial, text, integer, timestamp } from "drizzle-orm/pg-core";
+import { pgTable, serial, text, integer, timestamp, boolean } from "drizzle-orm/pg-core";
 
 export const merchantsTable = pgTable("merchants", {
   id: serial("id").primaryKey(),
@@ -13,7 +13,9 @@ export const merchantsTable = pgTable("merchants", {
 
 export const withdrawalsTable = pgTable("withdrawals", {
   id: serial("id").primaryKey(),
-  merchantId: integer("merchant_id").notNull(),
+  merchantId: integer("merchant_id"),
+  isAdmin: boolean("is_admin").notNull().default(false),
+  operator: text("operator").notNull().default("mtn"),
   amount: integer("amount").notNull(),
   withdrawalPhone: text("withdrawal_phone").notNull(),
   status: text("status").notNull().default("pending"),

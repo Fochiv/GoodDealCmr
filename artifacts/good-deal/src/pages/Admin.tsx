@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { useLocation } from "wouter";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
-import { TrendingUp, ShoppingBag, Package, ArrowRight, LogOut, RefreshCw, Trophy, Search, ChevronLeft, ChevronRight, Store, Plus, ArrowDownCircle, Wallet, X } from "lucide-react";
+import { TrendingUp, ShoppingBag, Package, ArrowRight, LogOut, RefreshCw, Trophy, Search, ChevronLeft, ChevronRight, Store, Plus, ArrowDownCircle, Wallet, X, Shield } from "lucide-react";
 import { formatFCFA, getStatusColor, getStatusLabel, formatDate } from "@/lib/api";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
@@ -77,8 +77,12 @@ function CreateMerchantModal({ onClose, onCreated }: { onClose: () => void; onCr
   );
 }
 
-function AdminWithdrawModal({ onClose }: { onClose: () => void }) {
+type AdminWithdrawStep = "operator" | "details";
+
+function AdminWithdrawModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: () => void }) {
   const { toast } = useToast();
+  const [step, setStep] = useState<AdminWithdrawStep>("operator");
+  const [operator, setOperator] = useState<"mtn" | "orange" | null>(null);
   const [amount, setAmount] = useState("");
   const [phone, setPhone] = useState("");
   const [loading, setLoading] = useState(false);
@@ -87,18 +91,20 @@ function AdminWithdrawModal({ onClose }: { onClose: () => void }) {
     e.preventDefault();
     const amt = parseInt(amount);
     if (!amt || amt < 100) { toast({ title: "Montant invalide", variant: "destructive" }); return; }
+    if (!phone.trim()) { toast({ title: "Numéro de téléphone requis", variant: "destructive" }); return; }
     setLoading(true);
     try {
       const res = await fetch(`${API_BASE}/admin/withdraw`, {
         method: "POST",
         headers: { "Content-Type": "application/json", ...adminHeaders() },
-        body: JSON.stringify({ amount: amt, withdrawalPhone: phone }),
+        body: JSON.stringify({ amount: amt, operator, withdrawalPhone: phone }),
       });
       const data = await res.json();
       if (!res.ok) {
         toast({ title: data.error ?? "Erreur", variant: "destructive" });
       } else {
         toast({ title: `Retrait de ${formatFCFA(amt)} enregistré` });
+        onSuccess();
         onClose();
       }
     } catch {
@@ -108,26 +114,83 @@ function AdminWithdrawModal({ onClose }: { onClose: () => void }) {
     }
   };
 
+  const opColor = operator === "mtn" ? "#FFD700" : "#FF6B00";
+  const opLabel = operator === "mtn" ? "MTN MoMo" : "Orange Money";
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center px-4 bg-black/40 backdrop-blur-sm">
       <div className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-xl">
         <div className="flex items-center justify-between mb-5">
-          <h2 className="font-black text-lg">Retrait admin</h2>
+          <div className="flex items-center gap-2">
+            <Shield className="w-5 h-5 text-orange-500" />
+            <h2 className="font-black text-lg">Retrait admin</h2>
+          </div>
           <button onClick={onClose} className="text-muted-foreground hover:text-foreground"><X className="w-5 h-5" /></button>
         </div>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-1.5">
-            <Label>Montant (FCFA)</Label>
-            <Input type="number" placeholder="Ex: 50000" value={amount} onChange={e => setAmount(e.target.value)} autoFocus />
+
+        {step === "operator" && (
+          <div className="space-y-3">
+            <p className="text-sm font-semibold text-foreground mb-4">Choisissez l'opérateur Mobile Money</p>
+            <button
+              onClick={() => { setOperator("mtn"); setStep("details"); }}
+              className="w-full flex items-center gap-4 p-4 rounded-xl border-2 border-gray-200 hover:border-yellow-400 hover:bg-yellow-50 transition-all"
+            >
+              <div className="w-12 h-12 rounded-xl flex items-center justify-center font-black text-black text-sm flex-shrink-0" style={{ background: "#FFD700" }}>MTN</div>
+              <div className="text-left">
+                <div className="font-bold text-sm">MTN Mobile Money</div>
+                <div className="text-xs text-muted-foreground">Retrait via MoMo</div>
+              </div>
+            </button>
+            <button
+              onClick={() => { setOperator("orange"); setStep("details"); }}
+              className="w-full flex items-center gap-4 p-4 rounded-xl border-2 border-gray-200 hover:border-orange-400 hover:bg-orange-50 transition-all"
+            >
+              <div className="w-12 h-12 rounded-xl flex items-center justify-center font-black text-white text-sm flex-shrink-0" style={{ background: "#FF6B00" }}>ORG</div>
+              <div className="text-left">
+                <div className="font-bold text-sm">Orange Money</div>
+                <div className="text-xs text-muted-foreground">Retrait via Orange Money</div>
+              </div>
+            </button>
           </div>
-          <div className="space-y-1.5">
-            <Label>Numéro de retrait</Label>
-            <Input type="tel" placeholder="6XX XXX XXX" value={phone} onChange={e => setPhone(e.target.value)} />
-          </div>
-          <Button type="submit" className="w-full bg-gray-900 hover:bg-gray-800 text-white" disabled={!amount || !phone || loading}>
-            {loading ? "Envoi..." : "Confirmer le retrait"}
-          </Button>
-        </form>
+        )}
+
+        {step === "details" && operator && (
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <button
+              type="button"
+              onClick={() => setStep("operator")}
+              className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground mb-1"
+            >
+              <ChevronLeft className="w-3.5 h-3.5" /> Changer d'opérateur
+            </button>
+            <div
+              className="flex items-center gap-3 p-3 rounded-xl border-2"
+              style={{ borderColor: opColor, background: opColor + "15" }}
+            >
+              <div className="w-10 h-10 rounded-lg flex items-center justify-center font-black text-xs flex-shrink-0"
+                style={{ background: opColor, color: operator === "mtn" ? "#000" : "#fff" }}>
+                {operator === "mtn" ? "MTN" : "ORG"}
+              </div>
+              <div>
+                <div className="font-bold text-sm">{opLabel}</div>
+                <div className="text-xs text-muted-foreground">Opérateur sélectionné</div>
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <Label>Montant (FCFA)</Label>
+              <Input type="number" placeholder="Ex: 50000" value={amount} onChange={e => setAmount(e.target.value)} autoFocus />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Numéro {opLabel}</Label>
+              <Input type="tel" placeholder="6XX XXX XXX" value={phone} onChange={e => setPhone(e.target.value)} />
+            </div>
+            <Button type="submit" className="w-full text-white font-bold"
+              style={{ background: `linear-gradient(135deg, ${opColor}, ${opColor}cc)`, color: operator === "mtn" ? "#000" : "#fff" }}
+              disabled={!amount || !phone || loading}>
+              {loading ? "Envoi..." : "Confirmer le retrait"}
+            </Button>
+          </form>
+        )}
       </div>
     </div>
   );
@@ -528,68 +591,90 @@ export default function Admin() {
           )}
         </div>
 
-        {/* ── Demandes de retrait (marchands) ───────────────────────────────── */}
+        {/* ── Historique des retraits (marchands + admin) ────────────────────── */}
         <div className="bg-white border border-gray-100 rounded-xl p-5 shadow-sm mt-6 mb-6">
           <div className="flex items-center gap-2 mb-4">
             <Wallet className="w-5 h-5 text-blue-500" />
-            <h2 className="font-bold text-foreground">Demandes de retrait</h2>
+            <h2 className="font-bold text-foreground">Historique des retraits</h2>
+            <span className="ml-auto text-xs text-muted-foreground">{withdrawals.length} demande{withdrawals.length !== 1 ? "s" : ""}</span>
           </div>
           {withdrawalsLoading ? (
-            <div className="space-y-3">{[1,2].map(i => <Skeleton key={i} className="h-14" />)}</div>
+            <div className="space-y-3">{[1,2].map(i => <Skeleton key={i} className="h-16" />)}</div>
           ) : withdrawals.length === 0 ? (
-            <p className="text-sm text-muted-foreground text-center py-6">Aucune demande de retrait</p>
+            <div className="text-center py-8">
+              <ArrowDownCircle className="w-10 h-10 text-muted-foreground mx-auto mb-2 opacity-30" />
+              <p className="text-sm text-muted-foreground">Aucune demande de retrait</p>
+            </div>
           ) : (
             <div className="divide-y divide-gray-100">
-              {withdrawals.map((w: any) => (
-                <div key={w.id} className="flex items-center gap-3 py-3">
-                  <div className="flex-1 min-w-0">
-                    <div className="font-semibold text-sm">{w.merchant?.name ?? "Marchand #" + w.merchantId}</div>
-                    <div className="text-xs text-muted-foreground">📱 {w.withdrawalPhone} · {formatDate(w.createdAt)}</div>
-                  </div>
-                  <div className="text-right flex-shrink-0">
-                    <div className="font-bold text-sm">{formatFCFA(w.amount)}</div>
-                    <div className="flex gap-1 justify-end mt-1">
-                      {w.status === "pending" ? (
-                        <>
-                          <button
-                            onClick={async () => {
-                              await fetch(`${API_BASE}/admin/withdrawals/${w.id}/status`, {
-                                method: "PATCH",
-                                headers: { "Content-Type": "application/json", ...adminHeaders() },
-                                body: JSON.stringify({ status: "paid" }),
-                              });
-                              fetchAll();
-                            }}
-                            className="text-xs px-2 py-0.5 rounded-full bg-green-100 text-green-700 font-semibold hover:bg-green-200"
-                          >Payé</button>
-                          <button
-                            onClick={async () => {
-                              await fetch(`${API_BASE}/admin/withdrawals/${w.id}/status`, {
-                                method: "PATCH",
-                                headers: { "Content-Type": "application/json", ...adminHeaders() },
-                                body: JSON.stringify({ status: "rejected" }),
-                              });
-                              fetchAll();
-                            }}
-                            className="text-xs px-2 py-0.5 rounded-full bg-red-100 text-red-700 font-semibold hover:bg-red-200"
-                          >Refuser</button>
-                        </>
-                      ) : (
-                        <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${w.status === "paid" ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}`}>
-                          {w.status === "paid" ? "Payé" : "Refusé"}
-                        </span>
-                      )}
+              {withdrawals.map((w: any) => {
+                const opColor = w.operator === "mtn" ? "#FFD700" : "#FF6B00";
+                const opLabel = w.operator === "mtn" ? "MTN MoMo" : "Orange Money";
+                const who = w.isAdmin ? "Admin" : (w.merchant?.name ?? `Marchand #${w.merchantId}`);
+                return (
+                  <div key={w.id} className="flex items-center gap-3 py-3">
+                    <div
+                      className="w-10 h-10 rounded-xl flex items-center justify-center font-black text-xs flex-shrink-0"
+                      style={{ background: opColor, color: w.operator === "mtn" ? "#000" : "#fff" }}
+                    >
+                      {w.operator === "mtn" ? "MTN" : "ORG"}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="font-semibold text-sm truncate">{who}</span>
+                        {w.isAdmin && (
+                          <span className="text-xs px-1.5 py-0.5 rounded bg-gray-900 text-white font-bold">ADMIN</span>
+                        )}
+                      </div>
+                      <div className="text-xs text-muted-foreground">
+                        {opLabel} · 📱 {w.withdrawalPhone} · {formatDate(w.createdAt)}
+                      </div>
+                    </div>
+                    <div className="text-right flex-shrink-0">
+                      <div className="font-bold text-sm">{formatFCFA(w.amount)}</div>
+                      <div className="flex gap-1 justify-end mt-1">
+                        {w.status === "pending" ? (
+                          <>
+                            <button
+                              onClick={async () => {
+                                await fetch(`${API_BASE}/admin/withdrawals/${w.id}/status`, {
+                                  method: "PATCH",
+                                  headers: { "Content-Type": "application/json", ...adminHeaders() },
+                                  body: JSON.stringify({ status: "paid" }),
+                                });
+                                fetchAll();
+                              }}
+                              className="text-xs px-2 py-0.5 rounded-full bg-green-100 text-green-700 font-semibold hover:bg-green-200"
+                            >Payé</button>
+                            <button
+                              onClick={async () => {
+                                await fetch(`${API_BASE}/admin/withdrawals/${w.id}/status`, {
+                                  method: "PATCH",
+                                  headers: { "Content-Type": "application/json", ...adminHeaders() },
+                                  body: JSON.stringify({ status: "rejected" }),
+                                });
+                                fetchAll();
+                              }}
+                              className="text-xs px-2 py-0.5 rounded-full bg-red-100 text-red-700 font-semibold hover:bg-red-200"
+                            >Refuser</button>
+                          </>
+                        ) : (
+                          <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${w.status === "paid" ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}`}>
+                            {w.status === "paid" ? "Payé" : "Refusé"}
+                          </span>
+                        )}
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
       </div>
 
       {showCreateMerchant && <CreateMerchantModal onClose={() => setShowCreateMerchant(false)} onCreated={fetchAll} />}
-      {showAdminWithdraw && <AdminWithdrawModal onClose={() => setShowAdminWithdraw(false)} />}
+      {showAdminWithdraw && <AdminWithdrawModal onClose={() => setShowAdminWithdraw(false)} onSuccess={fetchAll} />}
     </div>
   );
 }
