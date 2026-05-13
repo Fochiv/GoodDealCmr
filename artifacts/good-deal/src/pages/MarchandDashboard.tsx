@@ -281,7 +281,7 @@ export default function MarchandDashboard() {
               onClick={() => setShowWithdraw(true)}
               className="text-white font-bold gap-2"
               style={{ background: "linear-gradient(135deg, #FF6B00, #FF3D00)" }}
-              disabled={loading || (data?.balance ?? 0) < 500}
+              disabled={loading || (data?.balance ?? 0) < 100}
             >
               <ArrowDownCircle className="w-4 h-4" />
               Retrait

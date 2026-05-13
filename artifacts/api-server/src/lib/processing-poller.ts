@@ -71,8 +71,16 @@ async function failStuckProcessingOrders() {
       }
 
       if (isSuccessState(finalState)) {
-        await db.update(ordersTable).set({ status: "confirmed" }).where(eq(ordersTable.id, order.id));
-        // Créditer la commission marchand (50%) immédiatement dès confirmation
+        // Mise à jour atomique — évite le double crédit si IPN arrive au même moment
+        const updated = await db.update(ordersTable).set({ status: "confirmed" })
+          .where(and(eq(ordersTable.id, order.id), eq(ordersTable.status, "processing")))
+          .returning();
+        if (updated.length === 0) {
+          logger.info({ orderId: order.id }, "Poller(stuck): order already transitioned — skipping");
+          emitOrderStatus(order.id, "confirmed", order.transactionId);
+          continue;
+        }
+        // Créditer la commission marchand uniquement si on a bien transitionné
         if (order.merchantId) {
           try {
             const [merchant] = await db.select().from(merchantsTable).where(eq(merchantsTable.id, order.merchantId)).limit(1);
@@ -124,9 +132,17 @@ async function checkProcessingOrders() {
       logger.debug({ orderId: order.id, transactionId: order.transactionId, state }, "Poller: Pixpay status");
 
       if (isSuccessState(state)) {
-        await db.update(ordersTable).set({ status: "confirmed" }).where(eq(ordersTable.id, order.id));
+        // Mise à jour atomique — évite le double crédit si IPN arrive au même moment
+        const updated = await db.update(ordersTable).set({ status: "confirmed" })
+          .where(and(eq(ordersTable.id, order.id), eq(ordersTable.status, "processing")))
+          .returning();
+        if (updated.length === 0) {
+          logger.info({ orderId: order.id }, "Poller: order already transitioned — skipping");
+          emitOrderStatus(order.id, "confirmed", order.transactionId);
+          continue;
+        }
         logger.info({ orderId: order.id, transactionId: order.transactionId, state }, "Poller: order confirmed (awaiting admin)");
-        // Créditer la commission marchand (50%) immédiatement dès confirmation
+        // Créditer la commission marchand uniquement si on a bien transitionné
         if (order.merchantId) {
           try {
             const [merchant] = await db.select().from(merchantsTable).where(eq(merchantsTable.id, order.merchantId)).limit(1);

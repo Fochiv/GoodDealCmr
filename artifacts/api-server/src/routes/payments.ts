@@ -87,21 +87,25 @@ router.post("/payments/ipn", async (req, res) => {
 
   try {
     if (isSuccessState(state)) {
-      // Fetch order before updating to credit merchant commission
-      const [order] = await db
-        .select()
-        .from(ordersTable)
-        .where(eq(ordersTable.id, orderId))
-        .limit(1);
-
-      await db
+      // Mise à jour atomique : seulement si le statut est encore "processing"
+      // Cela évite le double crédit si IPN + poller arrivent en même temps
+      const updated = await db
         .update(ordersTable)
         .set({ status: "confirmed", transactionId: transaction_id ?? null })
-        .where(eq(ordersTable.id, orderId));
+        .where(and(eq(ordersTable.id, orderId), eq(ordersTable.status, "processing")))
+        .returning();
+
+      if (updated.length === 0) {
+        logger.info({ orderId }, "IPN: order already confirmed or not in processing state — skipping");
+        emitOrderStatus(orderId, "confirmed", transaction_id);
+        return;
+      }
+
+      const order = updated[0];
       logger.info({ orderId, transaction_id }, "IPN: order confirmed (awaiting admin delivery)");
 
-      // Créditer immédiatement la commission marchand (50%) dès que le paiement est confirmé
-      if (order && order.merchantId && order.status !== "confirmed" && order.status !== "paid") {
+      // Créditer la commission marchand (50%) — uniquement si on a bien transitionné
+      if (order.merchantId) {
         const commission = Math.floor(order.totalAmount * 0.5);
         const [merchant] = await db
           .select()
