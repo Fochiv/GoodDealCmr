@@ -19,6 +19,7 @@ export const withdrawalsTable = pgTable("withdrawals", {
   amount: integer("amount").notNull(),
   withdrawalPhone: text("withdrawal_phone").notNull(),
   status: text("status").notNull().default("pending"),
+  transactionId: text("transaction_id"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 

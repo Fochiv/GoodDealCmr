@@ -3,6 +3,8 @@ import { db, merchantsTable, withdrawalsTable, ordersTable } from "@workspace/db
 import { eq, desc, isNull } from "drizzle-orm";
 import { z } from "zod";
 import { createHash } from "crypto";
+import { initiatePixpayCashin } from "../lib/pixpay";
+import { logger } from "../lib/logger";
 
 const router = Router();
 
@@ -124,7 +126,30 @@ router.post("/merchant/withdraw", async (req, res) => {
     status: "pending",
   }).returning();
 
-  return res.status(201).json(withdrawal);
+  // Déclencher le cashin Pixpay automatiquement
+  try {
+    const pixpay = await initiatePixpayCashin({
+      amount: parsed.data.amount,
+      destination: parsed.data.withdrawalPhone,
+      operator: parsed.data.operator,
+      withdrawalId: withdrawal.id,
+    });
+    await db.update(withdrawalsTable)
+      .set({ status: "processing", transactionId: pixpay.data.transaction_id })
+      .where(eq(withdrawalsTable.id, withdrawal.id));
+    logger.info({ withdrawalId: withdrawal.id, transactionId: pixpay.data.transaction_id }, "Merchant cashin initiated");
+    return res.status(201).json({ ...withdrawal, status: "processing", transactionId: pixpay.data.transaction_id });
+  } catch (err: any) {
+    // Le cashin a échoué : rembourser le marchand et marquer le retrait en échec
+    await db.update(merchantsTable)
+      .set({ balance: merchant.balance })
+      .where(eq(merchantsTable.id, merchantId));
+    await db.update(withdrawalsTable)
+      .set({ status: "failed" })
+      .where(eq(withdrawalsTable.id, withdrawal.id));
+    logger.error({ withdrawalId: withdrawal.id, err: err?.message }, "Merchant cashin failed, balance refunded");
+    return res.status(502).json({ error: `Erreur lors du virement : ${err.message}` });
+  }
 });
 
 // PATCH /admin/merchants/:id/balance — add or subtract from merchant balance
@@ -297,7 +322,27 @@ router.post("/admin/withdraw", async (req, res) => {
     status: "pending",
   }).returning();
 
-  return res.status(201).json(withdrawal);
+  // Déclencher le cashin Pixpay automatiquement
+  try {
+    const pixpay = await initiatePixpayCashin({
+      amount: parsed.data.amount,
+      destination: parsed.data.withdrawalPhone,
+      operator: parsed.data.operator,
+      withdrawalId: withdrawal.id,
+    });
+    await db.update(withdrawalsTable)
+      .set({ status: "processing", transactionId: pixpay.data.transaction_id })
+      .where(eq(withdrawalsTable.id, withdrawal.id));
+    logger.info({ withdrawalId: withdrawal.id, transactionId: pixpay.data.transaction_id }, "Admin cashin initiated");
+    return res.status(201).json({ ...withdrawal, status: "processing", transactionId: pixpay.data.transaction_id });
+  } catch (err: any) {
+    // Cashin échoué — marquer en échec (pas de solde stocké à rembourser pour l'admin)
+    await db.update(withdrawalsTable)
+      .set({ status: "failed" })
+      .where(eq(withdrawalsTable.id, withdrawal.id));
+    logger.error({ withdrawalId: withdrawal.id, err: err?.message }, "Admin cashin failed");
+    return res.status(502).json({ error: `Erreur lors du virement : ${err.message}` });
+  }
 });
 
 export default router;
