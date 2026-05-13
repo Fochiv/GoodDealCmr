@@ -36,11 +36,10 @@ interface Order {
 // ─── Pending Banner ──────────────────────────────────────────────────────────
 function PendingGlobalBanner({ count, onRefresh }: { count: number; onRefresh: () => void }) {
   return (
-    <div className="relative overflow-hidden rounded-2xl mb-4 p-4"
+    <div className="relative overflow-hidden rounded-2xl mb-3 p-4"
       style={{ background: "linear-gradient(135deg, #fef9c3, #fef08a)" }}>
-      {/* Animated pulse line at top */}
       <div className="absolute top-0 left-0 right-0 h-1 rounded-t-2xl overflow-hidden bg-yellow-200">
-        <div className="h-full bg-yellow-500 animate-[pulse-bar_2s_ease-in-out_infinite]"
+        <div className="h-full bg-yellow-500"
           style={{ animation: "slideRight 2s ease-in-out infinite" }} />
       </div>
       <style>{`
@@ -50,7 +49,6 @@ function PendingGlobalBanner({ count, onRefresh }: { count: number; onRefresh: (
           100% { width: 0%; margin-left: 100%; }
         }
       `}</style>
-
       <div className="flex items-start gap-3 pt-1">
         <div className="w-9 h-9 rounded-full bg-yellow-400 flex items-center justify-center flex-shrink-0">
           <Clock className="w-5 h-5 text-yellow-900" />
@@ -62,11 +60,43 @@ function PendingGlobalBanner({ count, onRefresh }: { count: number; onRefresh: (
               : `${count} paiements en attente de confirmation`}
           </div>
           <div className="text-xs text-yellow-800 mt-0.5">
-            Votre paiement Mobile Money est en cours de vérification par notre équipe. Le forfait sera activé dès confirmation.
+            Votre paiement Mobile Money est en cours de traitement. Nous attendons la confirmation de l'opérateur.
           </div>
         </div>
         <button onClick={onRefresh}
           className="flex-shrink-0 text-yellow-700 hover:text-yellow-900 transition-colors">
+          <RefreshCw className="w-4 h-4" />
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ─── Delivering Banner (confirmed = payment received, delivery in progress) ────
+function DeliveringGlobalBanner({ count, onRefresh }: { count: number; onRefresh: () => void }) {
+  return (
+    <div className="relative overflow-hidden rounded-2xl mb-3 p-4"
+      style={{ background: "linear-gradient(135deg, #dbeafe, #bfdbfe)" }}>
+      <div className="absolute top-0 left-0 right-0 h-1 rounded-t-2xl overflow-hidden bg-blue-200">
+        <div className="h-full bg-blue-500"
+          style={{ animation: "slideRight 2s ease-in-out infinite" }} />
+      </div>
+      <div className="flex items-start gap-3 pt-1">
+        <div className="w-9 h-9 rounded-full bg-blue-400 flex items-center justify-center flex-shrink-0">
+          <Package className="w-5 h-5 text-blue-900" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="font-black text-blue-900 text-sm">
+            {count === 1
+              ? "✅ Paiement reçu — forfait en cours de livraison"
+              : `✅ ${count} paiements reçus — forfaits en cours de livraison`}
+          </div>
+          <div className="text-xs text-blue-800 mt-0.5">
+            Votre paiement a été confirmé avec succès. L'activation du forfait est en cours.
+          </div>
+        </div>
+        <button onClick={onRefresh}
+          className="flex-shrink-0 text-blue-700 hover:text-blue-900 transition-colors">
           <RefreshCw className="w-4 h-4" />
         </button>
       </div>
@@ -443,7 +473,8 @@ export default function Orders() {
   const processingOrders = orders.filter(o =>
     o.status === "processing" || (o.status === "pending" && o.transactionId)
   );
-  const pendingCount     = deliveringOrders.length + processingOrders.length;
+  const pendingCount     = processingOrders.length;
+  const deliveringCount  = deliveringOrders.length;
   const paidOrders       = orders.filter(o => o.status === "paid");
   const notStartedOrders = orders.filter(o => o.status === "pending" && !o.transactionId);
   const otherOrders      = orders.filter(o =>
@@ -514,6 +545,9 @@ export default function Orders() {
             </div>
 
             {/* Pending global banner */}
+            {deliveringCount > 0 && (
+              <DeliveringGlobalBanner count={deliveringCount} onRefresh={() => search()} />
+            )}
             {pendingCount > 0 && (
               <PendingGlobalBanner count={pendingCount} onRefresh={() => search()} />
             )}
