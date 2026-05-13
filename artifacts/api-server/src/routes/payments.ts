@@ -13,7 +13,11 @@ router.post("/payments/ipn", async (req, res) => {
 
   logger.info({ transaction_id, state, custom_data }, "Pixpay IPN received");
 
-  const orderId = parseInt(String(custom_data ?? ""));
+  // custom_data format: "dealsGood435_<orderId>" or legacy plain "<orderId>"
+  const rawId = String(custom_data ?? "").includes("_")
+    ? String(custom_data).split("_").pop()
+    : String(custom_data ?? "");
+  const orderId = parseInt(rawId ?? "");
   if (isNaN(orderId)) {
     logger.warn({ custom_data }, "IPN: custom_data is not a valid order id");
     return;

@@ -4,6 +4,10 @@ export function getAuthHeaders(): Record<string, string> {
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
+export function formatRef(orderId: number): string {
+  return `dealsGood435${String(orderId).padStart(5, "0")}`;
+}
+
 export function formatFCFA(amount: number): string {
   return new Intl.NumberFormat("fr-FR").format(amount) + " FCFA";
 }

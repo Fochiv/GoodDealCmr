@@ -4,7 +4,7 @@ import {
   Loader2, RefreshCw, User, HeadphonesIcon, X,
   CircleDot, AlertCircle,
 } from "lucide-react";
-import { formatFCFA, formatDate } from "@/lib/api";
+import { formatFCFA, formatDate, formatRef } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -295,14 +295,12 @@ function OrderCard({ order }: { order: Order }) {
           </div>
         )}
 
-        {/* Transaction ID */}
-        {order.transactionId && (
-          <div className="mt-3 pt-3 border-t border-black/5">
-            <div className="text-xs text-muted-foreground font-mono">
-              Réf : {order.transactionId}
-            </div>
+        {/* Reference */}
+        <div className="mt-3 pt-3 border-t border-black/5">
+          <div className="text-xs text-muted-foreground font-mono">
+            Réf : {formatRef(order.id)}
           </div>
-        )}
+        </div>
       </div>
     </div>
   );

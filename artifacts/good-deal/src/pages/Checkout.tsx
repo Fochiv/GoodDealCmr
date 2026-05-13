@@ -6,7 +6,7 @@ import {
   PartyPopper, XCircle, RefreshCw,
 } from "lucide-react";
 import { useGetBundle, getGetBundleQueryKey } from "@workspace/api-client-react";
-import { formatFCFA } from "@/lib/api";
+import { formatFCFA, formatRef } from "@/lib/api";
 import { useAuth } from "@/contexts/auth-context";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
@@ -597,7 +597,7 @@ export default function Checkout() {
               <div className="font-bold text-foreground mb-2">Récapitulatif</div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Référence</span>
-                <span className="font-mono font-semibold">#{orderId}</span>
+                <span className="font-mono font-semibold">{orderId ? formatRef(orderId) : "—"}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Forfait</span>

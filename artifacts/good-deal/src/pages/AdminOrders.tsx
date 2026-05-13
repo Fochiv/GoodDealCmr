@@ -4,7 +4,7 @@ import {
   ArrowLeft, Check, X, RefreshCw, Wifi,
   TrendingUp, Clock, CheckCircle, XCircle, Search
 } from "lucide-react";
-import { formatFCFA, formatDate, getStatusColor, getStatusLabel } from "@/lib/api";
+import { formatFCFA, formatDate, getStatusColor, getStatusLabel, formatRef } from "@/lib/api";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
@@ -243,9 +243,7 @@ export default function AdminOrders() {
                       )}
                       <div>💳 {order.paymentMethod === "mtn_momo" ? "MTN MoMo" : "Orange Money"}</div>
                       <div>🕐 {formatDate(order.createdAt)}</div>
-                      {order.transactionId && (
-                        <div className="font-mono text-xs text-muted-foreground/70">{order.transactionId}</div>
-                      )}
+                      <div className="font-mono text-xs text-muted-foreground/70">{formatRef(order.id)}</div>
                     </div>
                   </div>
 

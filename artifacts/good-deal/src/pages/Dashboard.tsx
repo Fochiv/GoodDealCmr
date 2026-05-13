@@ -2,7 +2,7 @@ import { useLocation } from "wouter";
 import { ShoppingBag, Wifi, Calendar, Clock, User } from "lucide-react";
 import { useListOrders, getListOrdersQueryKey } from "@workspace/api-client-react";
 import { useAuth } from "@/contexts/auth-context";
-import { formatFCFA, formatDate, getStatusColor, getStatusLabel } from "@/lib/api";
+import { formatFCFA, formatDate, getStatusColor, getStatusLabel, formatRef } from "@/lib/api";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 
@@ -110,9 +110,7 @@ export default function Dashboard() {
                       <span className="text-xs text-muted-foreground">{order.bundle?.operatorName}</span>
                     </div>
                     <div className="text-xs text-muted-foreground mt-0.5">{formatDate(order.createdAt)}</div>
-                    {order.transactionId && (
-                      <div className="text-xs text-muted-foreground font-mono truncate">#{order.transactionId}</div>
-                    )}
+                    <div className="text-xs text-muted-foreground font-mono truncate">{formatRef(order.id)}</div>
                   </div>
                   <div className="text-right flex-shrink-0">
                     <div className="font-black text-sm text-foreground">{formatFCFA(order.totalAmount)}</div>
