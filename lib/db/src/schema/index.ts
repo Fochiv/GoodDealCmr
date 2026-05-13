@@ -4,3 +4,4 @@ export * from "./bundles";
 export * from "./orders";
 export * from "./reviews";
 export * from "./settings";
+export * from "./merchants";

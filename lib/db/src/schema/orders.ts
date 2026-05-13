@@ -14,6 +14,7 @@ export const ordersTable = pgTable("orders", {
   totalAmount: integer("total_amount").notNull(),
   transactionId: text("transaction_id"),
   ipAddress: text("ip_address"),
+  merchantId: integer("merchant_id"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 

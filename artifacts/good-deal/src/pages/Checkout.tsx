@@ -30,6 +30,7 @@ export default function Checkout() {
   const [, setLocation] = useLocation();
   const urlParams = new URLSearchParams(typeof window !== "undefined" ? window.location.search : "");
   const bundleId = parseInt(urlParams.get("bundleId") ?? "0");
+  const referralCode = urlParams.get("ref") ?? null;
 
   const [recipientPhone, setRecipientPhone] = useState("");
   const [paymentMethod, setPaymentMethod] = useState<"mtn_momo" | "orange_money">("mtn_momo");
@@ -159,6 +160,7 @@ export default function Checkout() {
           paymentMethod,
           payerPhone: payerPhone.replace(/\s/g, ""),
           payerName: payerName.trim(),
+          ...(referralCode ? { referralCode } : {}),
         }),
       });
 

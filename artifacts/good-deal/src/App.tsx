@@ -20,6 +20,8 @@ import AdminOrders from "@/pages/AdminOrders";
 import AdminUsers from "@/pages/AdminUsers";
 import AdminReviews from "@/pages/AdminReviews";
 import AdminSettings from "@/pages/AdminSettings";
+import MarchandLogin from "@/pages/MarchandLogin";
+import MarchandDashboard from "@/pages/MarchandDashboard";
 import NotFound from "@/pages/not-found";
 
 const queryClient = new QueryClient({
@@ -44,6 +46,8 @@ function Router() {
       <Route path="/ashtech/users" component={AdminUsers} />
       <Route path="/ashtech/reviews" component={AdminReviews} />
       <Route path="/ashtech/settings" component={AdminSettings} />
+      <Route path="/marchand" component={MarchandLogin} />
+      <Route path="/marchand/dashboard" component={MarchandDashboard} />
       <Route component={NotFound} />
     </Switch>
   );

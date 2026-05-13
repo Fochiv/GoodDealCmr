@@ -9,6 +9,7 @@ import statsRouter from "./stats";
 import reviewsRouter from "./reviews";
 import settingsRouter from "./settings";
 import paymentsRouter from "./payments";
+import merchantsRouter from "./merchants";
 
 const router: IRouter = Router();
 
@@ -22,5 +23,6 @@ router.use(statsRouter);
 router.use(reviewsRouter);
 router.use(settingsRouter);
 router.use(paymentsRouter);
+router.use(merchantsRouter);
 
 export default router;

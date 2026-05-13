@@ -1,20 +1,141 @@
 import { useEffect, useState, useCallback } from "react";
 import { useLocation } from "wouter";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
-import { TrendingUp, ShoppingBag, Package, ArrowRight, LogOut, RefreshCw, Trophy, Search, ChevronLeft, ChevronRight } from "lucide-react";
+import { TrendingUp, ShoppingBag, Package, ArrowRight, LogOut, RefreshCw, Trophy, Search, ChevronLeft, ChevronRight, Store, Plus, ArrowDownCircle, Wallet, X } from "lucide-react";
 import { formatFCFA, getStatusColor, getStatusLabel, formatDate } from "@/lib/api";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { useToast } from "@/hooks/use-toast";
 import { isAdminAuthenticated, setAdminAuth } from "./Ashtech";
 
 const HIST_PAGE_SIZE = 15;
+const API_BASE = "/api";
 
 function adminHeaders(): Record<string, string> {
   return { "X-Admin-Key": localStorage.getItem("gd_admin_pass") ?? "" };
 }
 
+function CreateMerchantModal({ onClose, onCreated }: { onClose: () => void; onCreated: () => void }) {
+  const { toast } = useToast();
+  const [name, setName] = useState("");
+  const [phone, setPhone] = useState("");
+  const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    try {
+      const res = await fetch(`${API_BASE}/admin/merchants`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...adminHeaders() },
+        body: JSON.stringify({ name, phone, password }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        toast({ title: data.error ?? "Erreur", variant: "destructive" });
+      } else {
+        toast({ title: `Marchand créé — Code: ${data.referralCode}` });
+        onCreated();
+        onClose();
+      }
+    } catch {
+      toast({ title: "Erreur réseau", variant: "destructive" });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center px-4 bg-black/40 backdrop-blur-sm">
+      <div className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-xl">
+        <div className="flex items-center justify-between mb-5">
+          <h2 className="font-black text-lg">Créer un marchand</h2>
+          <button onClick={onClose} className="text-muted-foreground hover:text-foreground"><X className="w-5 h-5" /></button>
+        </div>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="space-y-1.5">
+            <Label>Nom du marchand</Label>
+            <Input placeholder="Jean Dupont" value={name} onChange={e => setName(e.target.value)} autoFocus />
+          </div>
+          <div className="space-y-1.5">
+            <Label>Numéro de téléphone</Label>
+            <Input type="tel" placeholder="6XX XXX XXX" value={phone} onChange={e => setPhone(e.target.value)} />
+          </div>
+          <div className="space-y-1.5">
+            <Label>Mot de passe</Label>
+            <Input type="text" placeholder="Mot de passe du compte" value={password} onChange={e => setPassword(e.target.value)} />
+          </div>
+          <Button type="submit" className="w-full bg-gray-900 hover:bg-gray-800 text-white" disabled={!name || !phone || !password || loading}>
+            {loading ? "Création..." : "Créer le compte"}
+          </Button>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+function AdminWithdrawModal({ onClose }: { onClose: () => void }) {
+  const { toast } = useToast();
+  const [amount, setAmount] = useState("");
+  const [phone, setPhone] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const amt = parseInt(amount);
+    if (!amt || amt < 100) { toast({ title: "Montant invalide", variant: "destructive" }); return; }
+    setLoading(true);
+    try {
+      const res = await fetch(`${API_BASE}/admin/withdraw`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...adminHeaders() },
+        body: JSON.stringify({ amount: amt, withdrawalPhone: phone }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        toast({ title: data.error ?? "Erreur", variant: "destructive" });
+      } else {
+        toast({ title: `Retrait de ${formatFCFA(amt)} enregistré` });
+        onClose();
+      }
+    } catch {
+      toast({ title: "Erreur réseau", variant: "destructive" });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center px-4 bg-black/40 backdrop-blur-sm">
+      <div className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-xl">
+        <div className="flex items-center justify-between mb-5">
+          <h2 className="font-black text-lg">Retrait admin</h2>
+          <button onClick={onClose} className="text-muted-foreground hover:text-foreground"><X className="w-5 h-5" /></button>
+        </div>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="space-y-1.5">
+            <Label>Montant (FCFA)</Label>
+            <Input type="number" placeholder="Ex: 50000" value={amount} onChange={e => setAmount(e.target.value)} autoFocus />
+          </div>
+          <div className="space-y-1.5">
+            <Label>Numéro de retrait</Label>
+            <Input type="tel" placeholder="6XX XXX XXX" value={phone} onChange={e => setPhone(e.target.value)} />
+          </div>
+          <Button type="submit" className="w-full bg-gray-900 hover:bg-gray-800 text-white" disabled={!amount || !phone || loading}>
+            {loading ? "Envoi..." : "Confirmer le retrait"}
+          </Button>
+        </form>
+      </div>
+    </div>
+  );
+}
+
 export default function Admin() {
   const [, setLocation] = useLocation();
+  const { toast } = useToast();
   const isAdmin = isAdminAuthenticated();
 
   const [revenue, setRevenue] = useState<any>(null);
@@ -30,6 +151,14 @@ export default function Admin() {
   const [histSearch, setHistSearch] = useState("");
   const [histPage, setHistPage] = useState(1);
 
+  // Merchants
+  const [merchants, setMerchants] = useState<any[]>([]);
+  const [merchantsLoading, setMerchantsLoading] = useState(true);
+  const [withdrawals, setWithdrawals] = useState<any[]>([]);
+  const [withdrawalsLoading, setWithdrawalsLoading] = useState(true);
+  const [showCreateMerchant, setShowCreateMerchant] = useState(false);
+  const [showAdminWithdraw, setShowAdminWithdraw] = useState(false);
+
   useEffect(() => {
     if (!isAdmin) setLocation("/ashtech");
   }, [isAdmin]);
@@ -37,12 +166,15 @@ export default function Admin() {
   const fetchAll = useCallback(async () => {
     if (!isAdmin) return;
     setRevLoading(true); setOrdersLoading(true); setPopLoading(true); setHistLoading(true);
+    setMerchantsLoading(true); setWithdrawalsLoading(true);
     const h = adminHeaders();
-    const [revRes, ordRes, popRes, histRes] = await Promise.all([
+    const [revRes, ordRes, popRes, histRes, merchantsRes, withdrawalsRes] = await Promise.all([
       fetch("/api/stats/revenue", { headers: h }),
       fetch("/api/stats/orders", { headers: h }),
       fetch("/api/stats/popular-bundles", { headers: h }),
       fetch("/api/orders", { headers: h }),
+      fetch("/api/admin/merchants", { headers: h }),
+      fetch("/api/admin/withdrawals", { headers: h }),
     ]);
     if (revRes.ok)  { setRevenue(await revRes.json()); }
     setRevLoading(false);
@@ -52,6 +184,10 @@ export default function Admin() {
     setPopLoading(false);
     if (histRes.ok) { setHistOrders(await histRes.json()); }
     setHistLoading(false);
+    if (merchantsRes.ok) { setMerchants(await merchantsRes.json()); }
+    setMerchantsLoading(false);
+    if (withdrawalsRes.ok) { setWithdrawals(await withdrawalsRes.json()); }
+    setWithdrawalsLoading(false);
   }, [isAdmin]);
 
   useEffect(() => { fetchAll(); }, [fetchAll]);
@@ -94,6 +230,9 @@ export default function Admin() {
             <Button variant="outline" size="sm" onClick={() => setLocation("/ashtech/users")} className="justify-start sm:justify-center">👥 Utilisateurs</Button>
             <Button variant="outline" size="sm" onClick={() => setLocation("/ashtech/reviews")} className="justify-start sm:justify-center">⭐ Avis</Button>
             <Button variant="outline" size="sm" onClick={() => setLocation("/ashtech/settings")} className="justify-start sm:justify-center">⚙️ Paramètres</Button>
+            <Button variant="outline" size="sm" onClick={() => setShowAdminWithdraw(true)} className="justify-start sm:justify-center text-orange-600 border-orange-200 hover:bg-orange-50">
+              <ArrowDownCircle className="w-4 h-4 mr-1" /> Retrait
+            </Button>
           </div>
         </div>
 
@@ -349,7 +488,108 @@ export default function Admin() {
             </div>
           );
         })()}
+
+        {/* ── Marchands ─────────────────────────────────────────────────────── */}
+        <div className="bg-white border border-gray-100 rounded-xl p-5 shadow-sm mt-6">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <Store className="w-5 h-5 text-orange-500" />
+              <h2 className="font-bold text-foreground">Marchands</h2>
+            </div>
+            <Button size="sm" onClick={() => setShowCreateMerchant(true)} className="bg-gray-900 hover:bg-gray-800 text-white gap-1 text-xs">
+              <Plus className="w-3.5 h-3.5" /> Créer
+            </Button>
+          </div>
+          {merchantsLoading ? (
+            <div className="space-y-3">{[1,2,3].map(i => <Skeleton key={i} className="h-14" />)}</div>
+          ) : merchants.length === 0 ? (
+            <div className="text-center py-8">
+              <Store className="w-10 h-10 text-muted-foreground mx-auto mb-2 opacity-30" />
+              <p className="text-sm text-muted-foreground">Aucun marchand — créez le premier</p>
+            </div>
+          ) : (
+            <div className="divide-y divide-gray-100">
+              {merchants.map((m: any) => (
+                <div key={m.id} className="flex items-center gap-3 py-3">
+                  <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: "linear-gradient(135deg, #FF6B00, #FF3D00)" }}>
+                    <Store className="w-4 h-4 text-white" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="font-semibold text-sm">{m.name}</div>
+                    <div className="text-xs text-muted-foreground">📱 {m.phone} · Code: <span className="font-mono font-bold text-orange-600">{m.referralCode}</span></div>
+                  </div>
+                  <div className="text-right flex-shrink-0">
+                    <div className="font-bold text-sm text-green-600">{formatFCFA(m.balance)}</div>
+                    <div className="text-xs text-muted-foreground">solde</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* ── Demandes de retrait (marchands) ───────────────────────────────── */}
+        <div className="bg-white border border-gray-100 rounded-xl p-5 shadow-sm mt-6 mb-6">
+          <div className="flex items-center gap-2 mb-4">
+            <Wallet className="w-5 h-5 text-blue-500" />
+            <h2 className="font-bold text-foreground">Demandes de retrait</h2>
+          </div>
+          {withdrawalsLoading ? (
+            <div className="space-y-3">{[1,2].map(i => <Skeleton key={i} className="h-14" />)}</div>
+          ) : withdrawals.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-6">Aucune demande de retrait</p>
+          ) : (
+            <div className="divide-y divide-gray-100">
+              {withdrawals.map((w: any) => (
+                <div key={w.id} className="flex items-center gap-3 py-3">
+                  <div className="flex-1 min-w-0">
+                    <div className="font-semibold text-sm">{w.merchant?.name ?? "Marchand #" + w.merchantId}</div>
+                    <div className="text-xs text-muted-foreground">📱 {w.withdrawalPhone} · {formatDate(w.createdAt)}</div>
+                  </div>
+                  <div className="text-right flex-shrink-0">
+                    <div className="font-bold text-sm">{formatFCFA(w.amount)}</div>
+                    <div className="flex gap-1 justify-end mt-1">
+                      {w.status === "pending" ? (
+                        <>
+                          <button
+                            onClick={async () => {
+                              await fetch(`${API_BASE}/admin/withdrawals/${w.id}/status`, {
+                                method: "PATCH",
+                                headers: { "Content-Type": "application/json", ...adminHeaders() },
+                                body: JSON.stringify({ status: "paid" }),
+                              });
+                              fetchAll();
+                            }}
+                            className="text-xs px-2 py-0.5 rounded-full bg-green-100 text-green-700 font-semibold hover:bg-green-200"
+                          >Payé</button>
+                          <button
+                            onClick={async () => {
+                              await fetch(`${API_BASE}/admin/withdrawals/${w.id}/status`, {
+                                method: "PATCH",
+                                headers: { "Content-Type": "application/json", ...adminHeaders() },
+                                body: JSON.stringify({ status: "rejected" }),
+                              });
+                              fetchAll();
+                            }}
+                            className="text-xs px-2 py-0.5 rounded-full bg-red-100 text-red-700 font-semibold hover:bg-red-200"
+                          >Refuser</button>
+                        </>
+                      ) : (
+                        <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${w.status === "paid" ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}`}>
+                          {w.status === "paid" ? "Payé" : "Refusé"}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
+
+      {showCreateMerchant && <CreateMerchantModal onClose={() => setShowCreateMerchant(false)} onCreated={fetchAll} />}
+      {showAdminWithdraw && <AdminWithdrawModal onClose={() => setShowAdminWithdraw(false)} />}
     </div>
   );
 }

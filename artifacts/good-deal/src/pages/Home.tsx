@@ -1,6 +1,6 @@
 import { useState, useRef } from "react";
 import { useLocation } from "wouter";
-import { Wifi, Zap, Phone, ChevronRight, Check, Star, CheckCircle, MessageCircle, X, Send, HeadphonesIcon } from "lucide-react";
+import { Wifi, Zap, Phone, ChevronRight, Check, Star, CheckCircle, MessageCircle, X, Send, HeadphonesIcon, Shield, Store } from "lucide-react";
 import { useListOperators, useListBundles } from "@workspace/api-client-react";
 import { useQuery } from "@tanstack/react-query";
 import { formatFCFA } from "@/lib/api";
@@ -305,15 +305,17 @@ export default function Home() {
   const mtnOp = operators?.find(o => o.slug === "mtn");
   const orangeOp = operators?.find(o => o.slug === "orange");
 
-  // ── Secret admin shortcut: 5 taps on Étape 3 ────────────────────────────────
+  // ── Secret shortcut: 5 taps on Étape 3 → show access modal ─────────────────
   const step3Clicks = useRef(0);
   const step3Timer  = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [showAccessModal, setShowAccessModal] = useState(false);
+
   function handleStep3Click() {
     step3Clicks.current += 1;
     if (step3Timer.current) clearTimeout(step3Timer.current);
     if (step3Clicks.current >= 5) {
       step3Clicks.current = 0;
-      setLocation("/ashtech");
+      setShowAccessModal(true);
       return;
     }
     step3Timer.current = setTimeout(() => { step3Clicks.current = 0; }, 2000);
@@ -321,6 +323,44 @@ export default function Home() {
 
   return (
     <div className="min-h-screen">
+      {/* ── Access modal (admin or merchant) ─────────────────────────────── */}
+      {showAccessModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center px-4 bg-black/40 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-xs shadow-xl">
+            <div className="flex items-center justify-between mb-5">
+              <h2 className="font-black text-base text-foreground">Accès restreint</h2>
+              <button onClick={() => setShowAccessModal(false)} className="text-muted-foreground hover:text-foreground text-xl leading-none">×</button>
+            </div>
+            <div className="flex flex-col gap-3">
+              <button
+                onClick={() => { setShowAccessModal(false); setLocation("/ashtech"); }}
+                className="flex items-center gap-4 p-4 rounded-xl border border-gray-200 hover:bg-gray-50 transition-colors text-left"
+              >
+                <div className="w-10 h-10 rounded-xl bg-gray-900 flex items-center justify-center flex-shrink-0">
+                  <Shield className="w-5 h-5 text-white" />
+                </div>
+                <div>
+                  <div className="font-bold text-sm text-foreground">Administrateur</div>
+                  <div className="text-xs text-muted-foreground">Accès au panneau admin</div>
+                </div>
+              </button>
+              <button
+                onClick={() => { setShowAccessModal(false); setLocation("/marchand"); }}
+                className="flex items-center gap-4 p-4 rounded-xl border border-orange-200 hover:bg-orange-50 transition-colors text-left"
+              >
+                <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: "linear-gradient(135deg, #FF6B00, #FF3D00)" }}>
+                  <Store className="w-5 h-5 text-white" />
+                </div>
+                <div>
+                  <div className="font-bold text-sm text-foreground">Espace marchand</div>
+                  <div className="text-xs text-muted-foreground">Gérer mon compte marchand</div>
+                </div>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Hero */}
       <section className="relative pt-28 pb-20 px-4 overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-br from-orange-50 via-white to-yellow-50" />

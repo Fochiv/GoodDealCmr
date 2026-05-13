@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { db, ordersTable, bundlesTable, operatorsTable, usersTable } from "@workspace/db";
+import { db, ordersTable, bundlesTable, operatorsTable, usersTable, merchantsTable } from "@workspace/db";
 import { eq, desc, inArray, or, and } from "drizzle-orm";
 import { z } from "zod";
 import { getUserIdFromToken } from "./auth";
@@ -137,6 +137,7 @@ router.post("/orders", async (req, res) => {
     paymentMethod: z.enum(["mtn_momo", "orange_money"]),
     payerPhone: z.string().optional(),
     payerName: z.string().optional(),
+    referralCode: z.string().optional(),
   });
 
   const parsed = schema.safeParse(req.body);
@@ -147,6 +148,17 @@ router.post("/orders", async (req, res) => {
   if (!bundle.active) return res.status(400).json({ error: "Ce forfait n'est pas disponible" });
 
   const userId = getCurrentUserId(req);
+
+  // Resolve referral code to merchant ID
+  let merchantId: number | null = null;
+  if (parsed.data.referralCode) {
+    const [merchant] = await db
+      .select({ id: merchantsTable.id })
+      .from(merchantsTable)
+      .where(eq(merchantsTable.referralCode, parsed.data.referralCode))
+      .limit(1);
+    if (merchant) merchantId = merchant.id;
+  }
 
   // Capture client IP for floating-bar detection (no phone required)
   const clientIp = (req.headers["x-forwarded-for"] as string)?.split(",")[0]?.trim() || req.ip || null;
@@ -163,6 +175,7 @@ router.post("/orders", async (req, res) => {
       status: "pending",
       totalAmount: bundle.price,
       ipAddress: clientIp,
+      merchantId,
     })
     .returning();
 
@@ -359,6 +372,17 @@ router.patch("/admin/orders/:id/status", async (req, res) => {
     .set(updateData)
     .where(eq(ordersTable.id, id))
     .returning();
+
+  // Credit 50% commission to merchant if order is paid and has a referral
+  if (parsed.data.status === "paid" && order.status !== "paid" && order.merchantId) {
+    const commission = Math.floor(order.totalAmount * 0.5);
+    const [merchant] = await db.select().from(merchantsTable).where(eq(merchantsTable.id, order.merchantId)).limit(1);
+    if (merchant) {
+      await db.update(merchantsTable)
+        .set({ balance: merchant.balance + commission })
+        .where(eq(merchantsTable.id, merchant.id));
+    }
+  }
 
   // Push real-time update to any listening client
   emitOrderStatus(updated.id, updated.status, updated.transactionId ?? undefined);
