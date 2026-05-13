@@ -13,6 +13,7 @@ export const ordersTable = pgTable("orders", {
   status: text("status").notNull().default("pending"),
   totalAmount: integer("total_amount").notNull(),
   transactionId: text("transaction_id"),
+  ipAddress: text("ip_address"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 

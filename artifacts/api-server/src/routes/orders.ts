@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { db, ordersTable, bundlesTable, operatorsTable, usersTable } from "@workspace/db";
-import { eq, desc } from "drizzle-orm";
+import { eq, desc, inArray, or, and } from "drizzle-orm";
 import { z } from "zod";
 import { getUserIdFromToken } from "./auth";
 import { initiatePixpayPayment } from "../lib/pixpay";
@@ -41,6 +41,43 @@ async function isAdmin(userId: number | null): Promise<boolean> {
   const [user] = await db.select().from(usersTable).where(eq(usersTable.id, userId)).limit(1);
   return user?.role === "admin";
 }
+
+// Public: returns all active (processing/confirmed) orders linked to the requesting IP
+// Used by the floating DevicePendingBar to detect in-progress orders without a phone number
+router.get("/orders/active-for-ip", async (req, res) => {
+  // Get the real IP (trust proxy is set in app.ts)
+  const ip = (req.headers["x-forwarded-for"] as string)?.split(",")[0]?.trim() || req.ip || "";
+
+  if (!ip) return res.json([]);
+
+  try {
+    // Find all orders from this IP that are currently active
+    const activeRows = await db
+      .select()
+      .from(ordersTable)
+      .where(
+        and(
+          eq(ordersTable.ipAddress, ip),
+          or(
+            eq(ordersTable.status, "processing"),
+            eq(ordersTable.status, "confirmed")
+          )
+        )
+      )
+      .orderBy(desc(ordersTable.createdAt));
+
+    const enriched = await Promise.all(
+      activeRows.map(async (order) => {
+        const bundle = await getBundleWithOperator(order.bundleId);
+        return { ...order, bundle };
+      })
+    );
+
+    return res.json(enriched);
+  } catch {
+    return res.json([]);
+  }
+});
 
 // Public: track orders by phone number — MUST be before /:id
 router.get("/orders/track", async (req, res) => {
@@ -111,6 +148,9 @@ router.post("/orders", async (req, res) => {
 
   const userId = getCurrentUserId(req);
 
+  // Capture client IP for floating-bar detection (no phone required)
+  const clientIp = (req.headers["x-forwarded-for"] as string)?.split(",")[0]?.trim() || req.ip || null;
+
   const [order] = await db
     .insert(ordersTable)
     .values({
@@ -122,6 +162,7 @@ router.post("/orders", async (req, res) => {
       paymentMethod: parsed.data.paymentMethod,
       status: "pending",
       totalAmount: bundle.price,
+      ipAddress: clientIp,
     })
     .returning();
 
