@@ -353,6 +353,57 @@ router.post("/admin/withdraw", async (req, res) => {
   }
 });
 
+// POST /admin/manual-withdraw — retrait manuel admin (soustraction directe, sans Mobile Money)
+router.post("/admin/manual-withdraw", async (req, res) => {
+  if (!isAdminRequest(req)) return res.status(403).json({ error: "Accès refusé" });
+
+  const schema = z.object({
+    amount: z.number().int().positive(),
+    note: z.string().optional(),
+  });
+  const parsed = schema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: "Données invalides" });
+
+  if (parsed.data.amount < 100) {
+    return res.status(400).json({ error: "Montant minimum : 100 FCFA" });
+  }
+
+  // Vérifier le solde disponible
+  const allOrders = await db.select().from(ordersTable);
+  const paidOrders = allOrders.filter(o => o.status === "paid" || o.status === "confirmed");
+  const totalRevenue = paidOrders.reduce((sum, o) => sum + o.totalAmount, 0);
+  const merchantCommissionsTotal = paidOrders
+    .filter(o => o.merchantId !== null)
+    .reduce((sum, o) => sum + Math.floor(o.totalAmount * 0.5), 0);
+  const allWithdrawals = await db.select().from(withdrawalsTable);
+  const adminWithdrawalsTotal = allWithdrawals
+    .filter(w => w.isAdmin && w.status !== "rejected" && w.status !== "failed")
+    .reduce((sum, w) => sum + w.amount, 0);
+  const allDeposits = await db.select().from(adminDepositsTable);
+  const adminDepositsTotal = allDeposits.reduce((sum, d) => sum + d.amount, 0);
+  const availableBalance = Math.max(0, totalRevenue + adminDepositsTotal + merchantCommissionsTotal - adminWithdrawalsTotal);
+
+  if (parsed.data.amount > availableBalance) {
+    return res.status(400).json({
+      error: `Solde insuffisant. Solde disponible : ${availableBalance} FCFA`,
+      availableBalance,
+    });
+  }
+
+  // Enregistrer le retrait directement comme payé (retrait manuel, pas via MoMo)
+  const [withdrawal] = await db.insert(withdrawalsTable).values({
+    merchantId: null,
+    isAdmin: true,
+    operator: "mtn",
+    amount: parsed.data.amount,
+    withdrawalPhone: parsed.data.note ?? "retrait-manuel",
+    status: "paid",
+  }).returning();
+
+  logger.info({ withdrawalId: withdrawal.id, amount: withdrawal.amount }, "Admin manual withdrawal");
+  return res.status(201).json(withdrawal);
+});
+
 // POST /admin/deposit — ajouter des fonds au solde disponible de l'admin
 router.post("/admin/deposit", async (req, res) => {
   if (!isAdminRequest(req)) return res.status(403).json({ error: "Accès refusé" });

@@ -278,6 +278,102 @@ function AdminDepositModal({ onClose, onSuccess }: { onClose: () => void; onSucc
   );
 }
 
+function AdminManualWithdrawModal({ onClose, onSuccess, availableBalance }: { onClose: () => void; onSuccess: () => void; availableBalance: number }) {
+  const { toast } = useToast();
+  const [amount, setAmount] = useState("");
+  const [note, setNote] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const amt = parseInt(amount);
+    if (!amt || amt < 100) { toast({ title: "Montant minimum : 100 FCFA", variant: "destructive" }); return; }
+    if (amt > availableBalance) { toast({ title: `Solde insuffisant (${formatFCFA(availableBalance)} disponible)`, variant: "destructive" }); return; }
+    setLoading(true);
+    try {
+      const res = await fetch(`${API_BASE}/admin/manual-withdraw`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...adminHeaders() },
+        body: JSON.stringify({ amount: amt, note: note.trim() || undefined }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        toast({ title: data.error ?? "Erreur", variant: "destructive" });
+      } else {
+        toast({ title: `${formatFCFA(amt)} retirés du solde` });
+        onSuccess();
+        onClose();
+      }
+    } catch {
+      toast({ title: "Erreur réseau", variant: "destructive" });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const amt = parseInt(amount) || 0;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center px-4 bg-black/40 backdrop-blur-sm">
+      <div className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-xl">
+        <div className="flex items-center justify-between mb-5">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-lg bg-red-100 flex items-center justify-center">
+              <ArrowDownCircle className="w-4 h-4 text-red-600" />
+            </div>
+            <h2 className="font-black text-lg">Retirer des fonds</h2>
+          </div>
+          <button onClick={onClose} className="text-muted-foreground hover:text-foreground"><X className="w-5 h-5" /></button>
+        </div>
+        <div className="text-xs text-muted-foreground mb-4 flex items-center justify-between">
+          <span>Soustraction directe du solde admin</span>
+          <span className="font-bold text-foreground">Dispo : {formatFCFA(availableBalance)}</span>
+        </div>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="space-y-1.5">
+            <Label>Montant (FCFA)</Label>
+            <Input
+              type="number"
+              placeholder="Ex: 20 000"
+              value={amount}
+              onChange={e => setAmount(e.target.value)}
+              min={100}
+              max={availableBalance}
+              autoFocus
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label>Note (optionnel)</Label>
+            <Input
+              type="text"
+              placeholder="Ex: Retrait espèces, paiement fournisseur..."
+              value={note}
+              onChange={e => setNote(e.target.value)}
+            />
+          </div>
+          {amt >= 100 && amt <= availableBalance && (
+            <div className="text-sm font-semibold p-3 rounded-xl bg-red-50 text-red-700">
+              -{formatFCFA(amt)} seront déduits · Solde restant : {formatFCFA(availableBalance - amt)}
+            </div>
+          )}
+          {amt > availableBalance && (
+            <div className="text-sm font-semibold p-3 rounded-xl bg-orange-50 text-orange-700">
+              Montant supérieur au solde disponible ({formatFCFA(availableBalance)})
+            </div>
+          )}
+          <Button
+            type="submit"
+            className="w-full bg-red-600 hover:bg-red-700 text-white font-bold"
+            disabled={!amount || amt < 100 || amt > availableBalance || loading}
+          >
+            {loading ? "En cours..." : `Retirer ${amt >= 100 ? formatFCFA(amt) : ""}`}
+          </Button>
+        </form>
+      </div>
+    </div>
+  );
+}
+
 type AdminWithdrawStep = "operator" | "details";
 
 function AdminWithdrawModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: () => void }) {
@@ -423,6 +519,7 @@ export default function Admin() {
   const [showCreateMerchant, setShowCreateMerchant] = useState(false);
   const [showAdminWithdraw, setShowAdminWithdraw] = useState(false);
   const [showAdminDeposit, setShowAdminDeposit] = useState(false);
+  const [showAdminManualWithdraw, setShowAdminManualWithdraw] = useState(false);
   const [adjustMerchant, setAdjustMerchant] = useState<any | null>(null);
 
   useEffect(() => {
@@ -526,11 +623,11 @@ export default function Admin() {
                 <PlusCircle className="w-4 h-4" /> Ajouter des fonds
               </Button>
               <Button
-                onClick={() => setShowAdminWithdraw(true)}
+                onClick={() => setShowAdminManualWithdraw(true)}
                 className="flex-1 font-bold gap-2"
                 style={{ background: "rgba(255,255,255,0.15)", color: "#fff", border: "1px solid rgba(255,255,255,0.3)" }}
               >
-                <ArrowDownCircle className="w-4 h-4" /> Retrait
+                <ArrowDownCircle className="w-4 h-4" /> Retirer
               </Button>
             </div>
           </div>
@@ -964,6 +1061,13 @@ export default function Admin() {
       {showCreateMerchant && <CreateMerchantModal onClose={() => setShowCreateMerchant(false)} onCreated={fetchAll} />}
       {showAdminWithdraw && <AdminWithdrawModal onClose={() => setShowAdminWithdraw(false)} onSuccess={fetchAll} />}
       {showAdminDeposit && <AdminDepositModal onClose={() => setShowAdminDeposit(false)} onSuccess={fetchAll} />}
+      {showAdminManualWithdraw && (
+        <AdminManualWithdrawModal
+          onClose={() => setShowAdminManualWithdraw(false)}
+          onSuccess={fetchAll}
+          availableBalance={revenue?.availableBalance ?? 0}
+        />
+      )}
       {adjustMerchant && <AdjustBalanceModal merchant={adjustMerchant} onClose={() => setAdjustMerchant(null)} onDone={fetchAll} />}
     </div>
   );
