@@ -192,11 +192,15 @@ function OrderCard({ order }: { order: Order }) {
   const opText = isMtn ? "#1a1a1a" : "white";
 
   const isPaid = order.status === "paid";
-  const isPending = order.status === "pending" || order.status === "processing";
+  // "processing" = sent to Pixpay, waiting for confirmation
+  const isProcessing = order.status === "processing" || (order.status === "pending" && !!order.transactionId);
+  // "notStarted" = order created but never paid (no USSD sent)
+  const isNotStarted = order.status === "pending" && !order.transactionId;
+  const isPending = isProcessing; // keep alias for stripe/badge
   const isFailed = order.status === "failed" || order.status === "cancelled";
 
-  const borderColor = isPaid ? "#bbf7d0" : isPending ? "#fde68a" : isFailed ? "#fecaca" : "#e5e7eb";
-  const bgColor = isPaid ? "#f0fdf4" : isPending ? "#fefce8" : isFailed ? "#fff1f2" : "#ffffff";
+  const borderColor = isPaid ? "#bbf7d0" : isProcessing ? "#fde68a" : isNotStarted ? "#e5e7eb" : isFailed ? "#fecaca" : "#e5e7eb";
+  const bgColor = isPaid ? "#f0fdf4" : isProcessing ? "#fefce8" : isNotStarted ? "#fafafa" : isFailed ? "#fff1f2" : "#ffffff";
 
   return (
     <div
@@ -204,9 +208,9 @@ function OrderCard({ order }: { order: Order }) {
       style={{ borderColor, background: bgColor }}
     >
       {/* Status stripe at top */}
-      {isPending && (
+      {isProcessing && (
         <div className="h-1.5 w-full overflow-hidden bg-yellow-200">
-          <div className="h-full animate-[moveStripe_1.5s_ease-in-out_infinite]"
+          <div className="h-full"
             style={{
               background: "linear-gradient(90deg, transparent, #f59e0b, transparent)",
               animation: "moveStripe 1.5s ease-in-out infinite",
@@ -216,6 +220,7 @@ function OrderCard({ order }: { order: Order }) {
           <style>{`@keyframes moveStripe { 0%{margin-left:-50%} 100%{margin-left:150%} }`}</style>
         </div>
       )}
+      {isNotStarted && <div className="h-1.5 w-full bg-gray-200" />}
       {isPaid && <div className="h-1.5 w-full bg-green-500" />}
       {isFailed && <div className="h-1.5 w-full bg-red-400" />}
 
@@ -268,21 +273,34 @@ function OrderCard({ order }: { order: Order }) {
             <div className="font-black text-foreground">{formatFCFA(order.totalAmount)}</div>
             <div className="text-xs text-muted-foreground">{formatDate(order.createdAt)}</div>
             <div className={`inline-flex items-center gap-1 mt-1 px-2 py-0.5 rounded-full text-xs font-bold ${
-              isPaid    ? "bg-green-100 text-green-700"  :
-              isPending ? "bg-yellow-100 text-yellow-700" :
-              isFailed  ? "bg-red-100 text-red-600"      :
+              isPaid        ? "bg-green-100 text-green-700"  :
+              isProcessing  ? "bg-yellow-100 text-yellow-700" :
+              isNotStarted  ? "bg-gray-100 text-gray-500"    :
+              isFailed      ? "bg-red-100 text-red-600"      :
               "bg-gray-100 text-gray-600"
             }`}>
-              {isPaid    && <CheckCircle className="w-3 h-3" />}
-              {isPending && <Clock className="w-3 h-3" />}
-              {isFailed  && <XCircle className="w-3 h-3" />}
-              {isPaid ? "Livré" : isPending ? "En attente" : isFailed ? "Échoué" : order.status}
+              {isPaid       && <CheckCircle className="w-3 h-3" />}
+              {isProcessing && <Clock className="w-3 h-3" />}
+              {isNotStarted && <Clock className="w-3 h-3" />}
+              {isFailed     && <XCircle className="w-3 h-3" />}
+              {isPaid ? "Livré" : isProcessing ? "En attente" : isNotStarted ? "Non payé" : isFailed ? "Échoué" : order.status}
             </div>
           </div>
         </div>
 
         {/* Progress section */}
-        {isPending && <PendingProgress />}
+        {isProcessing  && <PendingProgress />}
+        {isNotStarted  && (
+          <div className="mt-3">
+            <div className="w-full bg-gray-200 rounded-full h-2">
+              <div className="h-2 rounded-full bg-gray-300" style={{ width: "5%" }} />
+            </div>
+            <div className="flex items-center gap-1.5 mt-2 text-xs text-gray-500">
+              <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" />
+              Paiement non initié — aucun montant débité.
+            </div>
+          </div>
+        )}
         {isPaid    && <DeliveryProgress validatedAt={order.createdAt} />}
         {isFailed  && (
           <div className="mt-3">
@@ -379,13 +397,19 @@ export default function Orders() {
 
   const handleSubmit = (e: React.FormEvent) => { e.preventDefault(); search(); };
 
-  const pendingCount = orders.filter(o => o.status === "pending" || o.status === "processing").length;
-  const paidOrders   = orders.filter(o => o.status === "paid");
-  const pendingOrders = orders.filter(o => o.status === "pending" || o.status === "processing");
-  const otherOrders  = orders.filter(o => o.status !== "paid" && o.status !== "pending" && o.status !== "processing");
+  // Only real Pixpay-initiated orders count as "en attente de confirmation"
+  const pendingCount  = orders.filter(o =>
+    o.status === "processing" || (o.status === "pending" && o.transactionId)
+  ).length;
+  const paidOrders    = orders.filter(o => o.status === "paid");
+  const pendingOrders = orders.filter(o =>
+    o.status === "processing" || (o.status === "pending" && o.transactionId)
+  );
+  const notStartedOrders = orders.filter(o => o.status === "pending" && !o.transactionId);
+  const otherOrders   = orders.filter(o => o.status !== "paid" && o.status !== "pending" && o.status !== "processing");
 
-  // Sorted: pending first, then paid, then others
-  const sorted = [...pendingOrders, ...paidOrders, ...otherOrders];
+  // Sorted: processing first, then paid, then not-started, then failed/cancelled
+  const sorted = [...pendingOrders, ...paidOrders, ...notStartedOrders, ...otherOrders];
 
   return (
     <div className="min-h-screen pt-20 pb-24 md:pb-8 bg-gray-50">

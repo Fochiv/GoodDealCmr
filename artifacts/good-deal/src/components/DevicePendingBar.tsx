@@ -55,7 +55,10 @@ export function DevicePendingBar() {
       const r = await fetch(`/api/orders/track?phone=${encodeURIComponent(ph)}`);
       if (!r.ok) return;
       const data: Order[] = await r.json();
-      const inProgress = data.filter(o => o.status === "pending" || o.status === "processing");
+      // Only count real Pixpay-initiated orders (not "pending" without transactionId)
+      const inProgress = data.filter(o =>
+        o.status === "processing" || (o.status === "pending" && (o as any).transactionId)
+      );
       setPending(inProgress);
     } catch {}
   }, []);
