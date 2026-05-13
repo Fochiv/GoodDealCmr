@@ -275,11 +275,7 @@ router.post("/admin/withdraw", async (req, res) => {
   const merchantCommissionsTotal = paidOrders
     .filter(o => o.merchantId !== null)
     .reduce((sum, o) => sum + Math.floor(o.totalAmount * 0.5), 0);
-  const allWithdrawals = await db.select().from(withdrawalsTable);
-  const adminWithdrawalsTotal = allWithdrawals
-    .filter(w => w.isAdmin && w.status !== "rejected")
-    .reduce((sum, w) => sum + w.amount, 0);
-  const availableBalance = Math.max(0, totalRevenue + merchantCommissionsTotal - adminWithdrawalsTotal);
+  const availableBalance = totalRevenue + merchantCommissionsTotal;
 
   if (parsed.data.amount > availableBalance) {
     return res.status(400).json({
