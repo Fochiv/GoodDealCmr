@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { db, ordersTable, bundlesTable, operatorsTable, usersTable, withdrawalsTable, merchantsTable } from "@workspace/db";
+import { db, ordersTable, bundlesTable, operatorsTable, usersTable, withdrawalsTable, merchantsTable, adminDepositsTable } from "@workspace/db";
 import { eq, sql, desc } from "drizzle-orm";
 import { getUserIdFromToken } from "./auth";
 
@@ -54,14 +54,18 @@ router.get("/stats/revenue", async (req, res) => {
     .filter(o => o.merchantId !== null)
     .reduce((sum, o) => sum + Math.floor(o.totalAmount * 0.5), 0);
 
-  // Retraits admin (pending + paid, pas les refusés)
+  // Retraits admin (pending + paid, pas les refusés ni les failed)
   const allWithdrawals = await db.select().from(withdrawalsTable);
   const adminWithdrawalsTotal = allWithdrawals
-    .filter(w => w.isAdmin && w.status !== "rejected")
+    .filter(w => w.isAdmin && w.status !== "rejected" && w.status !== "failed")
     .reduce((sum, w) => sum + w.amount, 0);
 
-  // Solde disponible = revenus bruts + commissions marchands − retraits admin déjà effectués
-  const availableBalance = Math.max(0, totalRevenue + merchantCommissionsTotal - adminWithdrawalsTotal);
+  // Dépôts admin manuels (crédits externes)
+  const allDeposits = await db.select().from(adminDepositsTable);
+  const adminDepositsTotal = allDeposits.reduce((sum, d) => sum + d.amount, 0);
+
+  // Solde disponible = revenus + dépôts externes + commissions marchands − retraits admin
+  const availableBalance = Math.max(0, totalRevenue + adminDepositsTotal + merchantCommissionsTotal - adminWithdrawalsTotal);
 
   return res.json({
     totalRevenue,
@@ -71,6 +75,7 @@ router.get("/stats/revenue", async (req, res) => {
     revenueByOperator,
     merchantCommissionsTotal,
     adminWithdrawalsTotal,
+    adminDepositsTotal,
     availableBalance,
   });
 });

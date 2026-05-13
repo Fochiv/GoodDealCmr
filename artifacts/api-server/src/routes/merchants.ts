@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { db, merchantsTable, withdrawalsTable, ordersTable } from "@workspace/db";
+import { db, merchantsTable, withdrawalsTable, ordersTable, adminDepositsTable } from "@workspace/db";
 import { eq, desc, isNull } from "drizzle-orm";
 import { z } from "zod";
 import { createHash } from "crypto";
@@ -109,8 +109,8 @@ router.post("/merchant/withdraw", async (req, res) => {
   if (parsed.data.amount > merchant.balance) {
     return res.status(400).json({ error: "Solde insuffisant" });
   }
-  if (parsed.data.amount < 500) {
-    return res.status(400).json({ error: "Montant minimum de retrait: 500 FCFA" });
+  if (parsed.data.amount < 100) {
+    return res.status(400).json({ error: "Montant minimum de retrait: 100 FCFA" });
   }
 
   await db.update(merchantsTable)
@@ -293,6 +293,10 @@ router.post("/admin/withdraw", async (req, res) => {
   const parsed = schema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: "Données invalides" });
 
+  if (parsed.data.amount < 100) {
+    return res.status(400).json({ error: "Montant minimum de retrait: 100 FCFA" });
+  }
+
   // Calculer le solde disponible avant d'autoriser le retrait
   const allOrders = await db.select().from(ordersTable);
   const paidOrders = allOrders.filter(o => o.status === "paid");
@@ -302,9 +306,11 @@ router.post("/admin/withdraw", async (req, res) => {
     .reduce((sum, o) => sum + Math.floor(o.totalAmount * 0.5), 0);
   const allWithdrawals = await db.select().from(withdrawalsTable);
   const adminWithdrawalsTotal = allWithdrawals
-    .filter(w => w.isAdmin && w.status !== "rejected")
+    .filter(w => w.isAdmin && w.status !== "rejected" && w.status !== "failed")
     .reduce((sum, w) => sum + w.amount, 0);
-  const availableBalance = Math.max(0, totalRevenue + merchantCommissionsTotal - adminWithdrawalsTotal);
+  const allDeposits = await db.select().from(adminDepositsTable);
+  const adminDepositsTotal = allDeposits.reduce((sum, d) => sum + d.amount, 0);
+  const availableBalance = Math.max(0, totalRevenue + adminDepositsTotal + merchantCommissionsTotal - adminWithdrawalsTotal);
 
   if (parsed.data.amount > availableBalance) {
     return res.status(400).json({
@@ -343,6 +349,33 @@ router.post("/admin/withdraw", async (req, res) => {
     logger.error({ withdrawalId: withdrawal.id, err: err?.message }, "Admin cashin failed");
     return res.status(502).json({ error: `Erreur lors du virement : ${err.message}` });
   }
+});
+
+// POST /admin/deposit — ajouter des fonds au solde disponible de l'admin
+router.post("/admin/deposit", async (req, res) => {
+  if (!isAdminRequest(req)) return res.status(403).json({ error: "Accès refusé" });
+
+  const schema = z.object({
+    amount: z.number().int().positive(),
+    note: z.string().optional(),
+  });
+  const parsed = schema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: "Données invalides" });
+
+  const [deposit] = await db.insert(adminDepositsTable).values({
+    amount: parsed.data.amount,
+    note: parsed.data.note ?? null,
+  }).returning();
+
+  logger.info({ depositId: deposit.id, amount: deposit.amount }, "Admin deposit created");
+  return res.status(201).json(deposit);
+});
+
+// GET /admin/deposits — liste des dépôts admin
+router.get("/admin/deposits", async (req, res) => {
+  if (!isAdminRequest(req)) return res.status(403).json({ error: "Accès refusé" });
+  const deposits = await db.select().from(adminDepositsTable).orderBy(desc(adminDepositsTable.createdAt));
+  return res.json(deposits);
 });
 
 export default router;

@@ -23,5 +23,13 @@ export const withdrawalsTable = pgTable("withdrawals", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
+export const adminDepositsTable = pgTable("admin_deposits", {
+  id: serial("id").primaryKey(),
+  amount: integer("amount").notNull(),
+  note: text("note"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
 export type Merchant = typeof merchantsTable.$inferSelect;
 export type Withdrawal = typeof withdrawalsTable.$inferSelect;
+export type AdminDeposit = typeof adminDepositsTable.$inferSelect;
