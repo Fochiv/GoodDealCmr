@@ -2,7 +2,8 @@ import { useEffect, useState, useCallback } from "react";
 import { useLocation } from "wouter";
 import {
   ArrowLeft, Check, X, RefreshCw, Wifi,
-  TrendingUp, Clock, CheckCircle, XCircle, Search, Package, Pause
+  TrendingUp, Clock, CheckCircle, XCircle, Search, Package, Pause,
+  ChevronLeft, ChevronRight
 } from "lucide-react";
 import { formatFCFA, formatDate, getStatusColor, getStatusLabel, formatRef } from "@/lib/api";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -61,6 +62,8 @@ export default function AdminOrders() {
   const [actionLoading, setActionLoading] = useState<number | null>(null);
   const [tab, setTab] = useState<TabKey>("confirmed");
   const [search, setSearch] = useState("");
+  const [page, setPage] = useState(1);
+  const PAGE_SIZE = 15;
   // Track "laisser en attente" dismissals locally (just hides action buttons for that card)
   const [snoozed, setSnoozed] = useState<Set<number>>(new Set());
 
@@ -129,6 +132,11 @@ export default function AdminOrders() {
       String(o.id).includes(q) ||
       (o.bundle?.dataSize ?? "").toLowerCase().includes(q));
 
+  // Pagination
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const safePage   = Math.min(page, totalPages);
+  const paginated  = filtered.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
+
   return (
     <div className="min-h-screen pt-20 pb-10 px-4 bg-gray-50">
       <div className="max-w-4xl mx-auto">
@@ -174,7 +182,7 @@ export default function AdminOrders() {
             {TABS.map(t => (
               <button
                 key={t.key}
-                onClick={() => setTab(t.key)}
+                onClick={() => { setTab(t.key); setPage(1); }}
                 className={`flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-bold border transition-all ${
                   tab === t.key ? TAB_ACTIVE[t.color] : "bg-white text-muted-foreground border-gray-200 hover:border-gray-300"
                 }`}
@@ -197,7 +205,7 @@ export default function AdminOrders() {
             <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
             <input
               value={search}
-              onChange={e => setSearch(e.target.value)}
+              onChange={e => { setSearch(e.target.value); setPage(1); }}
               placeholder="Numéro, nom, ID…"
               className="w-full pl-8 pr-3 py-1.5 text-xs rounded-full border border-gray-200 bg-white focus:outline-none focus:border-primary"
             />
@@ -218,7 +226,7 @@ export default function AdminOrders() {
           </div>
         ) : (
           <div className="space-y-3">
-            {filtered.map(order => {
+            {paginated.map(order => {
               const isConfirmed = order.status === "confirmed";
               const isSnoozed   = snoozed.has(order.id);
 
@@ -343,6 +351,60 @@ export default function AdminOrders() {
                 </div>
               );
             })}
+          </div>
+        )}
+
+        {/* Pagination controls */}
+        {!loading && filtered.length > PAGE_SIZE && (
+          <div className="flex items-center justify-between mt-5 bg-white border border-gray-100 rounded-2xl px-4 py-3 shadow-sm">
+            {/* Info */}
+            <span className="text-xs text-muted-foreground">
+              {(safePage - 1) * PAGE_SIZE + 1}–{Math.min(safePage * PAGE_SIZE, filtered.length)} sur {filtered.length}
+            </span>
+
+            {/* Numéros de pages */}
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => setPage(p => Math.max(1, p - 1))}
+                disabled={safePage === 1}
+                className="w-8 h-8 rounded-lg flex items-center justify-center border border-gray-200 text-muted-foreground hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </button>
+
+              {Array.from({ length: totalPages }, (_, i) => i + 1)
+                .filter(p => p === 1 || p === totalPages || Math.abs(p - safePage) <= 1)
+                .reduce<(number | "…")[]>((acc, p, i, arr) => {
+                  if (i > 0 && (p as number) - (arr[i - 1] as number) > 1) acc.push("…");
+                  acc.push(p);
+                  return acc;
+                }, [])
+                .map((p, i) =>
+                  p === "…" ? (
+                    <span key={`ellipsis-${i}`} className="w-8 h-8 flex items-center justify-center text-xs text-muted-foreground">…</span>
+                  ) : (
+                    <button
+                      key={p}
+                      onClick={() => setPage(p as number)}
+                      className={`w-8 h-8 rounded-lg text-xs font-bold transition-all ${
+                        safePage === p
+                          ? "bg-gray-900 text-white"
+                          : "border border-gray-200 text-muted-foreground hover:bg-gray-50"
+                      }`}
+                    >
+                      {p}
+                    </button>
+                  )
+                )}
+
+              <button
+                onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                disabled={safePage === totalPages}
+                className="w-8 h-8 rounded-lg flex items-center justify-center border border-gray-200 text-muted-foreground hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+              >
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            </div>
           </div>
         )}
       </div>
