@@ -20,7 +20,34 @@ function useSettings() {
   });
 }
 
-const TESTIMONIALS = [
+type DisplayTestimonial = {
+  id?: number;
+  phone: string;
+  bundle?: string;
+  amount?: string;
+  msg: string;
+  stars: number;
+};
+
+function useApprovedReviews() {
+  return useQuery<DisplayTestimonial[]>({
+    queryKey: ["approved-reviews"],
+    queryFn: async () => {
+      const res = await fetch(`${API_BASE}/reviews`);
+      if (!res.ok) return [];
+      const rows: { id: number; name: string; phone: string; stars: number; message: string }[] = await res.json();
+      return rows.map(r => ({
+        id: r.id,
+        phone: r.name || r.phone,
+        msg: r.message,
+        stars: r.stars,
+      }));
+    },
+    staleTime: 30000,
+  });
+}
+
+const TESTIMONIALS: DisplayTestimonial[] = [
   { phone: "690***432", bundle: "2 Go MTN", amount: "500 FCFA", msg: "Reçu en moins d'une minute, incroyable 🔥", stars: 5 },
   { phone: "677***891", bundle: "6 Go MTN", amount: "1 000 FCFA", msg: "Meilleur service internet du Cameroun !", stars: 5 },
   { phone: "655***204", bundle: "10 Go Orange", amount: "1 500 FCFA", msg: "Ça marche bien mais parfois un peu lent 👌", stars: 3 },
@@ -55,29 +82,34 @@ const TESTIMONIALS = [
   { phone: "687***328", bundle: "10 Go Orange", amount: "1 500 FCFA", msg: "Service sérieux, je recommande sans hésiter ! 👍", stars: 5 },
 ];
 
-const ROW1 = TESTIMONIALS.slice(0, 11);
-const ROW2 = TESTIMONIALS.slice(11, 22);
-const ROW3 = TESTIMONIALS.slice(22);
-
-function TestimonialCard({ t }: { t: typeof TESTIMONIALS[0] }) {
-  const isMtn = t.bundle.includes("MTN");
+function TestimonialCard({ t }: { t: DisplayTestimonial }) {
+  const isMtn = t.bundle ? t.bundle.includes("MTN") : Math.random() > 0.5;
+  const initial = t.phone.charAt(0).toUpperCase();
   return (
     <div className="flex-shrink-0 w-72 bg-white rounded-2xl border border-gray-100 shadow-sm p-4 mx-2">
       <div className="flex items-start justify-between mb-2">
         <div className="flex items-center gap-2">
-          <div
-            className="w-9 h-9 rounded-full flex-shrink-0 overflow-hidden border border-black/10"
-            style={{ background: isMtn ? "#FFD700" : "#FF6B00" }}
-          >
-            <img
-              src={isMtn ? "/logo-mtn.png" : "/logo-orange.jpg"}
-              alt={isMtn ? "MTN" : "Orange"}
-              className="w-full h-full object-cover"
-            />
-          </div>
+          {t.bundle ? (
+            <div
+              className="w-9 h-9 rounded-full flex-shrink-0 overflow-hidden border border-black/10"
+              style={{ background: isMtn ? "#FFD700" : "#FF6B00" }}
+            >
+              <img
+                src={isMtn ? "/logo-mtn.png" : "/logo-orange.jpg"}
+                alt={isMtn ? "MTN" : "Orange"}
+                className="w-full h-full object-cover"
+              />
+            </div>
+          ) : (
+            <div className="w-9 h-9 rounded-full flex-shrink-0 bg-gradient-to-br from-orange-400 to-yellow-400 flex items-center justify-center text-white font-black text-sm border border-black/10">
+              {initial}
+            </div>
+          )}
           <div>
             <div className="font-bold text-sm text-foreground">{t.phone}</div>
-            <div className="text-xs text-muted-foreground">{t.bundle} · {t.amount}</div>
+            {t.bundle && t.amount && (
+              <div className="text-xs text-muted-foreground">{t.bundle} · {t.amount}</div>
+            )}
           </div>
         </div>
         <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0 mt-0.5" />
@@ -86,13 +118,16 @@ function TestimonialCard({ t }: { t: typeof TESTIMONIALS[0] }) {
         {Array.from({ length: t.stars }).map((_, i) => (
           <Star key={i} className="w-3 h-3 fill-yellow-400 text-yellow-400" />
         ))}
+        {Array.from({ length: 5 - t.stars }).map((_, i) => (
+          <Star key={i} className="w-3 h-3 text-gray-200" />
+        ))}
       </div>
       <p className="text-sm text-gray-700 leading-snug">{t.msg}</p>
     </div>
   );
 }
 
-function MarqueeRow({ items, reverse = false }: { items: typeof TESTIMONIALS; reverse?: boolean }) {
+function MarqueeRow({ items, reverse = false }: { items: DisplayTestimonial[]; reverse?: boolean }) {
   const doubled = [...items, ...items];
   return (
     <div className="overflow-hidden relative">
@@ -295,7 +330,15 @@ export default function Home() {
   const { data: operators, isLoading: opsLoading } = useListOperators();
   const { data: bundles } = useListBundles({ active: true });
   const { data: settings } = useSettings();
+  const { data: dbReviews = [] } = useApprovedReviews();
   const whatsappNumber = settings?.whatsapp_number ?? DEFAULT_WHATSAPP;
+
+  // Fusionner les avis approuvés (BDD en premier) avec les témoignages hardcodés
+  const allTestimonials: DisplayTestimonial[] = [...dbReviews, ...TESTIMONIALS];
+  const chunkSize = Math.ceil(allTestimonials.length / 3);
+  const ROW1 = allTestimonials.slice(0, chunkSize);
+  const ROW2 = allTestimonials.slice(chunkSize, chunkSize * 2);
+  const ROW3 = allTestimonials.slice(chunkSize * 2);
 
   const allMtnBundles = bundles?.filter(b => b.operatorSlug === "mtn") ?? [];
   const allOrangeBundles = bundles?.filter(b => b.operatorSlug === "orange") ?? [];
