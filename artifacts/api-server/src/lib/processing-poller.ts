@@ -5,8 +5,8 @@ import { emitOrderStatus } from "./order-events";
 import { logger } from "./logger";
 
 const POLL_INTERVAL_MS = 3000;
-// Pending orders with no transactionId: auto-cancel after 15 min
-const UNPAID_EXPIRY_MS = 15 * 60 * 1000;
+// Pending orders with no transactionId: auto-cancel after 3 min
+const UNPAID_EXPIRY_MS = 3 * 60 * 1000;
 // Processing orders stuck with no IPN: auto-fail after 30 min
 const STUCK_PROCESSING_EXPIRY_MS = 30 * 60 * 1000;
 

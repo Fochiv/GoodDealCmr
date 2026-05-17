@@ -57750,7 +57750,7 @@ var app_default = app;
 
 // src/lib/processing-poller.ts
 var POLL_INTERVAL_MS = 3e3;
-var UNPAID_EXPIRY_MS = 15 * 60 * 1e3;
+var UNPAID_EXPIRY_MS = 3 * 60 * 1e3;
 var STUCK_PROCESSING_EXPIRY_MS = 30 * 60 * 1e3;
 function isSuccessState2(state) {
   return ["SUCCESS", "SUCCESSFULL", "SUCCESSFUL"].includes(state.toUpperCase());

@@ -98,9 +98,13 @@ export default function AdminOrders() {
       toast({
         title: status === "paid"
           ? "✅ Forfait livré"
+          : status === "cancelled"
+          ? "🚫 Commande annulée"
           : "❌ Commande rejetée",
         description: status === "paid"
           ? `${updated.bundle?.dataSize} activé pour ${updated.phoneNumber}`
+          : status === "cancelled"
+          ? `Commande ${formatRef(id)} annulée avec succès`
           : `Commande ${formatRef(id)} marquée comme échouée`,
       });
     } catch {
@@ -227,7 +231,8 @@ export default function AdminOrders() {
         ) : (
           <div className="space-y-3">
             {paginated.map(order => {
-              const isConfirmed = order.status === "confirmed";
+              const isConfirmed  = order.status === "confirmed";
+              const isCancellable = order.status === "pending" || order.status === "processing";
               const isSnoozed   = snoozed.has(order.id);
 
               return (
@@ -298,6 +303,22 @@ export default function AdminOrders() {
                         <div className="text-xs text-muted-foreground font-mono">#{order.id}</div>
                       </div>
                     </div>
+
+                    {/* Cancel button — pending or processing orders */}
+                    {isCancellable && (
+                      <div className="flex gap-2 mt-3 pt-3 border-t border-gray-100">
+                        <button
+                          onClick={() => handleStatus(order.id, "cancelled")}
+                          disabled={actionLoading === order.id}
+                          className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-sm font-bold border border-orange-200 text-orange-600 bg-orange-50 hover:bg-orange-100 active:scale-95 transition-all disabled:opacity-50"
+                        >
+                          {actionLoading === order.id
+                            ? <RefreshCw className="w-4 h-4 animate-spin" />
+                            : <X className="w-4 h-4" />}
+                          Annuler la commande
+                        </button>
+                      </div>
+                    )}
 
                     {/* Action buttons — confirmed only, unless snoozed */}
                     {isConfirmed && !isSnoozed && (
