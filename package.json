@@ -4,9 +4,11 @@
   "license": "MIT",
   "scripts": {
     "preinstall": "sh -c 'rm -f package-lock.json yarn.lock; case \"$npm_config_user_agent\" in pnpm/*) ;; *) echo \"Use pnpm instead\" >&2; exit 1 ;; esac'",
-    "build": "pnpm run typecheck && pnpm -r --if-present run build",
+    "build": "node scripts/build-plesk.mjs",
+    "build:replit": "pnpm run typecheck && pnpm -r --if-present run build",
     "build:prod": "pnpm --filter @workspace/api-server --filter @workspace/good-deal -r --if-present run build",
-    "start": "PORT=${PORT:-3000} NODE_ENV=production node --enable-source-maps artifacts/api-server/dist/index.mjs",
+    "start": "PORT=${PORT:-3000} NODE_ENV=production STATIC_DIR=dist/public node dist/index.cjs",
+    "dev": "pnpm --filter @workspace/api-server run dev & pnpm --filter @workspace/good-deal run dev",
     "typecheck:libs": "tsc --build",
     "typecheck": "pnpm run typecheck:libs && pnpm -r --filter \"./artifacts/**\" --filter \"./scripts\" --if-present run typecheck"
   },
