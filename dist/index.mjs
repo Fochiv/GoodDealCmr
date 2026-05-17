@@ -57740,7 +57740,7 @@ app.use(import_express13.default.json());
 app.use(import_express13.default.urlencoded({ extended: true }));
 app.use("/api", routes_default);
 if (process.env.NODE_ENV === "production") {
-  const staticDir = process.env.STATIC_DIR ? path.resolve(process.cwd(), process.env.STATIC_DIR) : path.resolve(__dirname2, "../../good-deal/dist/public");
+  const staticDir = process.env.STATIC_DIR ? path.resolve(process.cwd(), process.env.STATIC_DIR) : path.resolve(process.cwd(), "dist/public");
   app.use(import_express13.default.static(staticDir));
   app.get("/{*path}", (_req, res) => {
     res.sendFile(path.join(staticDir, "index.html"));
@@ -57950,12 +57950,7 @@ function startWithdrawalPoller() {
 }
 
 // src/index.ts
-var rawPort = process.env["PORT"];
-if (!rawPort) {
-  throw new Error(
-    "PORT environment variable is required but was not provided."
-  );
-}
+var rawPort = process.env["PORT"] ?? "3000";
 var port = Number(rawPort);
 if (Number.isNaN(port) || port <= 0) {
   throw new Error(`Invalid PORT value: "${rawPort}"`);

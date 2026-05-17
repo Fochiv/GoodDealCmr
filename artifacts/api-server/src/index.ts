@@ -3,14 +3,8 @@ import { logger } from "./lib/logger";
 import { startProcessingPoller } from "./lib/processing-poller";
 import { startWithdrawalPoller } from "./lib/withdrawal-poller";
 
-const rawPort = process.env["PORT"];
-
-if (!rawPort) {
-  throw new Error(
-    "PORT environment variable is required but was not provided.",
-  );
-}
-
+// Default to 3000 if PORT is not set (Phusion Passenger / Plesk compatibility)
+const rawPort = process.env["PORT"] ?? "3000";
 const port = Number(rawPort);
 
 if (Number.isNaN(port) || port <= 0) {

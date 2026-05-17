@@ -37,11 +37,11 @@ app.use(express.urlencoded({ extended: true }));
 app.use("/api", router);
 
 if (process.env.NODE_ENV === "production") {
-  // STATIC_DIR can be set explicitly (e.g. for Plesk: dist/public).
-  // Falls back to the monorepo path when running via the standard Replit build.
+  // STATIC_DIR can be set explicitly.
+  // Default: dist/public relative to cwd() — works for Plesk/Passenger out of the box.
   const staticDir = process.env.STATIC_DIR
     ? path.resolve(process.cwd(), process.env.STATIC_DIR)
-    : path.resolve(__dirname, "../../good-deal/dist/public");
+    : path.resolve(process.cwd(), "dist/public");
   app.use(express.static(staticDir));
   app.get("/{*path}", (_req, res) => {
     res.sendFile(path.join(staticDir, "index.html"));
