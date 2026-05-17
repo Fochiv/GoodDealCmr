@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "license": "MIT",
   "scripts": {
-    "preinstall": "sh -c 'rm -f package-lock.json yarn.lock; case \"$npm_config_user_agent\" in pnpm/*) ;; *) echo \"Use pnpm instead\" >&2; exit 1 ;; esac'",
+    "preinstall": "sh -c 'rm -f package-lock.json yarn.lock'",
     "build": "node scripts/build-plesk.mjs",
     "build:replit": "pnpm run typecheck && pnpm -r --if-present run build",
     "build:prod": "pnpm --filter @workspace/api-server --filter @workspace/good-deal -r --if-present run build",
