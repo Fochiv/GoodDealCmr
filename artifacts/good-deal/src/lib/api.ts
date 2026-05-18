@@ -5,7 +5,7 @@ export function getAuthHeaders(): Record<string, string> {
 }
 
 export function formatRef(orderId: number): string {
-  return `dealsGood435${String(orderId).padStart(5, "0")}`;
+  return `GD${String(orderId).padStart(10, "0")}`;
 }
 
 export function formatFCFA(amount: number): string {

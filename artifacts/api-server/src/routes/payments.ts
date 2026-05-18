@@ -85,7 +85,7 @@ router.post("/payments/ipn", async (req, res) => {
     return;
   }
 
-  // Order cashout IPN: custom_data = "dealsGood435_<orderId>" or legacy "<orderId>"
+  // Order cashout IPN: custom_data = "GD_<orderId>" or legacy "<orderId>"
   const rawId = customStr.includes("_") ? customStr.split("_").pop() : customStr;
   const orderId = parseInt(rawId ?? "");
   if (isNaN(orderId)) {

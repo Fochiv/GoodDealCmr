@@ -56620,7 +56620,7 @@ async function initiatePixpayPayment(params) {
     api_key: apiKey,
     ipn_url: getIpnUrl(),
     service_id: serviceId,
-    custom_data: `dealsGood435_${params.orderId}`
+    custom_data: `GD_${params.orderId}`
   };
   const response = await fetch(`${PIXPAY_BASE_URL}/transaction/airtime`, {
     method: "POST",
