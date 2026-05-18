@@ -2,6 +2,8 @@
 
 # compiled output
 # dist/ is intentionally tracked — Plesk pulls pre-built files from git
+# Source maps are excluded (large, not needed in production)
+dist/*.map
 tmp
 out-tsc
 *.tsbuildinfo
