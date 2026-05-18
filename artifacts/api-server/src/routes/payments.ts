@@ -131,12 +131,22 @@ router.post("/payments/ipn", async (req, res) => {
 
       emitOrderStatus(orderId, "confirmed", transaction_id);
     } else if (isFailedState(state)) {
-      await db
-        .update(ordersTable)
-        .set({ status: "failed", transactionId: transaction_id ?? null })
-        .where(eq(ordersTable.id, orderId));
-      logger.info({ orderId, state }, "IPN: order marked failed");
-      emitOrderStatus(orderId, "failed", transaction_id);
+      // Never downgrade an order that is already confirmed or paid
+      const [current] = await db
+        .select({ status: ordersTable.status })
+        .from(ordersTable)
+        .where(eq(ordersTable.id, orderId))
+        .limit(1);
+      if (current?.status === "confirmed" || current?.status === "paid") {
+        logger.warn({ orderId, state }, "IPN: received failed state but order already confirmed/paid — ignoring");
+      } else {
+        await db
+          .update(ordersTable)
+          .set({ status: "failed", transactionId: transaction_id ?? null })
+          .where(eq(ordersTable.id, orderId));
+        logger.info({ orderId, state }, "IPN: order marked failed");
+        emitOrderStatus(orderId, "failed", transaction_id);
+      }
     } else {
       logger.info({ orderId, state }, "IPN: unhandled state, no update");
     }

@@ -1,5 +1,5 @@
 import { db, ordersTable, merchantsTable } from "@workspace/db";
-import { eq, and, isNull, lt, sql } from "drizzle-orm";
+import { eq, and, isNull, lt } from "drizzle-orm";
 import { checkPixpayStatus } from "./pixpay";
 import { emitOrderStatus } from "./order-events";
 import { logger } from "./logger";
@@ -9,6 +9,10 @@ const POLL_INTERVAL_MS = 3000;
 const UNPAID_EXPIRY_MS = 3 * 60 * 1000;
 // Processing orders stuck with no IPN: auto-fail after 30 min
 const STUCK_PROCESSING_EXPIRY_MS = 30 * 60 * 1000;
+// How long to wait before trusting a "failed" status from Pixpay.
+// Cashouts (collecting from customer mobile) can briefly return FAILED on the
+// status API even when the customer has confirmed — the IPN is authoritative.
+const FAIL_GRACE_MS = 10 * 60 * 1000; // 10 minutes
 
 function isSuccessState(state: string): boolean {
   return ["SUCCESS", "SUCCESSFULL", "SUCCESSFUL"].includes(state.toUpperCase());
@@ -16,6 +20,27 @@ function isSuccessState(state: string): boolean {
 
 function isFailedState(state: string): boolean {
   return ["FAILED", "REJECTED", "CANCELLED", "FAILURE", "TIMEOUT"].includes(state.toUpperCase());
+}
+
+async function creditMerchantCommission(order: typeof ordersTable.$inferSelect) {
+  if (!order.merchantId) return;
+  try {
+    const [merchant] = await db
+      .select()
+      .from(merchantsTable)
+      .where(eq(merchantsTable.id, order.merchantId))
+      .limit(1);
+    if (merchant) {
+      const commission = Math.floor(order.totalAmount * 0.5);
+      await db
+        .update(merchantsTable)
+        .set({ balance: merchant.balance + commission })
+        .where(eq(merchantsTable.id, merchant.id));
+      logger.info({ merchantId: merchant.id, commission }, "Poller: merchant commission credited on confirmation");
+    }
+  } catch (e: any) {
+    logger.warn({ orderId: order.id, err: e?.message }, "Poller: failed to credit merchant commission");
+  }
 }
 
 // Cancel old `pending` orders that were never paid (no transactionId)
@@ -71,8 +96,10 @@ async function failStuckProcessingOrders() {
       }
 
       if (isSuccessState(finalState)) {
-        // Mise à jour atomique — évite le double crédit si IPN arrive au même moment
-        const updated = await db.update(ordersTable).set({ status: "confirmed" })
+        // Atomic update — avoid double credit if IPN arrives at the same time
+        const updated = await db
+          .update(ordersTable)
+          .set({ status: "confirmed" })
           .where(and(eq(ordersTable.id, order.id), eq(ordersTable.status, "processing")))
           .returning();
         if (updated.length === 0) {
@@ -80,25 +107,16 @@ async function failStuckProcessingOrders() {
           emitOrderStatus(order.id, "confirmed", order.transactionId);
           continue;
         }
-        // Créditer la commission marchand uniquement si on a bien transitionné
-        if (order.merchantId) {
-          try {
-            const [merchant] = await db.select().from(merchantsTable).where(eq(merchantsTable.id, order.merchantId)).limit(1);
-            if (merchant) {
-              const commission = Math.floor(order.totalAmount * 0.5);
-              await db.update(merchantsTable).set({ balance: merchant.balance + commission }).where(eq(merchantsTable.id, merchant.id));
-              logger.info({ merchantId: merchant.id, commission }, "Poller: merchant commission credited (stuck order)");
-            }
-          } catch (e: any) {
-            logger.warn({ orderId: order.id, err: e?.message }, "Poller: failed to credit merchant commission (stuck)");
-          }
-        }
+        await creditMerchantCommission(order);
         emitOrderStatus(order.id, "confirmed", order.transactionId);
         logger.info({ orderId: order.id, finalState }, "Poller: stuck order confirmed (awaiting admin)");
       } else {
-        await db.update(ordersTable).set({ status: "failed" }).where(eq(ordersTable.id, order.id));
+        await db
+          .update(ordersTable)
+          .set({ status: "failed" })
+          .where(eq(ordersTable.id, order.id));
         emitOrderStatus(order.id, "failed", order.transactionId);
-        logger.info({ orderId: order.id, finalState }, "Poller: stuck processing order auto-failed");
+        logger.warn({ orderId: order.id, finalState }, "Poller: stuck processing order auto-failed after 30 min");
       }
     }
   } catch (err: any) {
@@ -121,19 +139,23 @@ async function checkProcessingOrders() {
   for (const order of rows) {
     if (!order.transactionId) continue;
 
-    // Skip orders still within the stuck threshold — they'll be handled by failStuckProcessingOrders
     const ageMs = Date.now() - new Date(order.createdAt).getTime();
-    if (ageMs >= STUCK_PROCESSING_EXPIRY_MS) continue; // handled separately
+    // Skip orders past the stuck threshold — handled by failStuckProcessingOrders
+    if (ageMs >= STUCK_PROCESSING_EXPIRY_MS) continue;
+
+    const pastGracePeriod = ageMs >= FAIL_GRACE_MS;
 
     try {
       const result = await checkPixpayStatus(order.transactionId);
       const state: string = result?.data?.state ?? "";
 
-      logger.debug({ orderId: order.id, transactionId: order.transactionId, state }, "Poller: Pixpay status");
+      logger.debug({ orderId: order.id, transactionId: order.transactionId, state, ageMs }, "Poller: Pixpay status");
 
       if (isSuccessState(state)) {
-        // Mise à jour atomique — évite le double crédit si IPN arrive au même moment
-        const updated = await db.update(ordersTable).set({ status: "confirmed" })
+        // Atomic update — avoid double credit if IPN arrives at the same time
+        const updated = await db
+          .update(ordersTable)
+          .set({ status: "confirmed" })
           .where(and(eq(ordersTable.id, order.id), eq(ordersTable.status, "processing")))
           .returning();
         if (updated.length === 0) {
@@ -141,25 +163,23 @@ async function checkProcessingOrders() {
           emitOrderStatus(order.id, "confirmed", order.transactionId);
           continue;
         }
-        logger.info({ orderId: order.id, transactionId: order.transactionId, state }, "Poller: order confirmed (awaiting admin)");
-        // Créditer la commission marchand uniquement si on a bien transitionné
-        if (order.merchantId) {
-          try {
-            const [merchant] = await db.select().from(merchantsTable).where(eq(merchantsTable.id, order.merchantId)).limit(1);
-            if (merchant) {
-              const commission = Math.floor(order.totalAmount * 0.5);
-              await db.update(merchantsTable).set({ balance: merchant.balance + commission }).where(eq(merchantsTable.id, merchant.id));
-              logger.info({ merchantId: merchant.id, commission }, "Poller: merchant commission credited on confirmation");
-            }
-          } catch (e: any) {
-            logger.warn({ orderId: order.id, err: e?.message }, "Poller: failed to credit merchant commission");
-          }
-        }
+        await creditMerchantCommission(order);
         emitOrderStatus(order.id, "confirmed", order.transactionId);
-      } else if (isFailedState(state)) {
-        await db.update(ordersTable).set({ status: "failed" }).where(eq(ordersTable.id, order.id));
-        logger.info({ orderId: order.id, transactionId: order.transactionId, state }, "Poller: order marked failed");
+        logger.info({ orderId: order.id, transactionId: order.transactionId, state }, "Poller: order confirmed (awaiting admin)");
+      } else if (isFailedState(state) && pastGracePeriod) {
+        // Only trust "failed" from Pixpay after the grace period.
+        // In the first 10 min, the IPN may still arrive with the real SUCCESS result.
+        await db
+          .update(ordersTable)
+          .set({ status: "failed" })
+          .where(eq(ordersTable.id, order.id));
         emitOrderStatus(order.id, "failed", order.transactionId);
+        logger.info({ orderId: order.id, transactionId: order.transactionId, state, ageMs }, "Poller: order marked failed after grace period");
+      } else if (isFailedState(state)) {
+        logger.info(
+          { orderId: order.id, state, ageMs, gracePeriodMs: FAIL_GRACE_MS },
+          "Poller: Pixpay reports failed but still within grace period — waiting for IPN"
+        );
       }
       // Still in-flight → check again next cycle
     } catch (err: any) {

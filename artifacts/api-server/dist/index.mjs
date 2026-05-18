@@ -38573,10 +38573,10 @@ function pgEnumObjectWithSchema(enumName, values, schema) {
 // ../../node_modules/.pnpm/drizzle-orm@0.45.2_@types+pg@8.18.0_pg@8.20.0/node_modules/drizzle-orm/subquery.js
 var Subquery = class {
   static [entityKind] = "Subquery";
-  constructor(sql4, fields, alias, isWith = false, usedTables = []) {
+  constructor(sql3, fields, alias, isWith = false, usedTables = []) {
     this._ = {
       brand: "Subquery",
-      sql: sql4,
+      sql: sql3,
       selectedFields: fields,
       alias,
       isWith,
@@ -44074,10 +44074,10 @@ var PgRelationalQuery = class extends QueryPromise {
 
 // ../../node_modules/.pnpm/drizzle-orm@0.45.2_@types+pg@8.18.0_pg@8.20.0/node_modules/drizzle-orm/pg-core/query-builders/raw.js
 var PgRaw = class extends QueryPromise {
-  constructor(execute, sql4, query, mapBatchResult) {
+  constructor(execute, sql3, query, mapBatchResult) {
     super();
     this.execute = execute;
-    this.sql = sql4;
+    this.sql = sql3;
     this.query = query;
     this.mapBatchResult = mapBatchResult;
   }
@@ -44397,8 +44397,8 @@ var NoopCache = class extends Cache {
   async onMutate(_params) {
   }
 };
-async function hashQuery(sql4, params) {
-  const dataToHash = `${sql4}-${JSON.stringify(params)}`;
+async function hashQuery(sql3, params) {
+  const dataToHash = `${sql3}-${JSON.stringify(params)}`;
   const encoder = new TextEncoder();
   const data = encoder.encode(dataToHash);
   const hashBuffer = await crypto.subtle.digest("SHA-256", data);
@@ -57375,9 +57375,14 @@ router10.post("/payments/ipn", async (req, res) => {
       }
       emitOrderStatus(orderId, "confirmed", transaction_id);
     } else if (isFailedState(state)) {
-      await db.update(ordersTable).set({ status: "failed", transactionId: transaction_id ?? null }).where(eq(ordersTable.id, orderId));
-      logger.info({ orderId, state }, "IPN: order marked failed");
-      emitOrderStatus(orderId, "failed", transaction_id);
+      const [current] = await db.select({ status: ordersTable.status }).from(ordersTable).where(eq(ordersTable.id, orderId)).limit(1);
+      if (current?.status === "confirmed" || current?.status === "paid") {
+        logger.warn({ orderId, state }, "IPN: received failed state but order already confirmed/paid \u2014 ignoring");
+      } else {
+        await db.update(ordersTable).set({ status: "failed", transactionId: transaction_id ?? null }).where(eq(ordersTable.id, orderId));
+        logger.info({ orderId, state }, "IPN: order marked failed");
+        emitOrderStatus(orderId, "failed", transaction_id);
+      }
     } else {
       logger.info({ orderId, state }, "IPN: unhandled state, no update");
     }
@@ -57756,11 +57761,25 @@ var app_default = app;
 var POLL_INTERVAL_MS = 3e3;
 var UNPAID_EXPIRY_MS = 3 * 60 * 1e3;
 var STUCK_PROCESSING_EXPIRY_MS = 30 * 60 * 1e3;
+var FAIL_GRACE_MS = 10 * 60 * 1e3;
 function isSuccessState2(state) {
   return ["SUCCESS", "SUCCESSFULL", "SUCCESSFUL"].includes(state.toUpperCase());
 }
 function isFailedState2(state) {
   return ["FAILED", "REJECTED", "CANCELLED", "FAILURE", "TIMEOUT"].includes(state.toUpperCase());
+}
+async function creditMerchantCommission(order) {
+  if (!order.merchantId) return;
+  try {
+    const [merchant] = await db.select().from(merchantsTable).where(eq(merchantsTable.id, order.merchantId)).limit(1);
+    if (merchant) {
+      const commission = Math.floor(order.totalAmount * 0.5);
+      await db.update(merchantsTable).set({ balance: merchant.balance + commission }).where(eq(merchantsTable.id, merchant.id));
+      logger.info({ merchantId: merchant.id, commission }, "Poller: merchant commission credited on confirmation");
+    }
+  } catch (e) {
+    logger.warn({ orderId: order.id, err: e?.message }, "Poller: failed to credit merchant commission");
+  }
 }
 async function cancelOldUnpaidOrders() {
   const cutoff = new Date(Date.now() - UNPAID_EXPIRY_MS);
@@ -57806,24 +57825,13 @@ async function failStuckProcessingOrders() {
           emitOrderStatus(order.id, "confirmed", order.transactionId);
           continue;
         }
-        if (order.merchantId) {
-          try {
-            const [merchant] = await db.select().from(merchantsTable).where(eq(merchantsTable.id, order.merchantId)).limit(1);
-            if (merchant) {
-              const commission = Math.floor(order.totalAmount * 0.5);
-              await db.update(merchantsTable).set({ balance: merchant.balance + commission }).where(eq(merchantsTable.id, merchant.id));
-              logger.info({ merchantId: merchant.id, commission }, "Poller: merchant commission credited (stuck order)");
-            }
-          } catch (e) {
-            logger.warn({ orderId: order.id, err: e?.message }, "Poller: failed to credit merchant commission (stuck)");
-          }
-        }
+        await creditMerchantCommission(order);
         emitOrderStatus(order.id, "confirmed", order.transactionId);
         logger.info({ orderId: order.id, finalState }, "Poller: stuck order confirmed (awaiting admin)");
       } else {
         await db.update(ordersTable).set({ status: "failed" }).where(eq(ordersTable.id, order.id));
         emitOrderStatus(order.id, "failed", order.transactionId);
-        logger.info({ orderId: order.id, finalState }, "Poller: stuck processing order auto-failed");
+        logger.warn({ orderId: order.id, finalState }, "Poller: stuck processing order auto-failed after 30 min");
       }
     }
   } catch (err) {
@@ -57841,10 +57849,11 @@ async function checkProcessingOrders() {
     if (!order.transactionId) continue;
     const ageMs = Date.now() - new Date(order.createdAt).getTime();
     if (ageMs >= STUCK_PROCESSING_EXPIRY_MS) continue;
+    const pastGracePeriod = ageMs >= FAIL_GRACE_MS;
     try {
       const result = await checkPixpayStatus(order.transactionId);
       const state = result?.data?.state ?? "";
-      logger.debug({ orderId: order.id, transactionId: order.transactionId, state }, "Poller: Pixpay status");
+      logger.debug({ orderId: order.id, transactionId: order.transactionId, state, ageMs }, "Poller: Pixpay status");
       if (isSuccessState2(state)) {
         const updated = await db.update(ordersTable).set({ status: "confirmed" }).where(and(eq(ordersTable.id, order.id), eq(ordersTable.status, "processing"))).returning();
         if (updated.length === 0) {
@@ -57852,24 +57861,18 @@ async function checkProcessingOrders() {
           emitOrderStatus(order.id, "confirmed", order.transactionId);
           continue;
         }
-        logger.info({ orderId: order.id, transactionId: order.transactionId, state }, "Poller: order confirmed (awaiting admin)");
-        if (order.merchantId) {
-          try {
-            const [merchant] = await db.select().from(merchantsTable).where(eq(merchantsTable.id, order.merchantId)).limit(1);
-            if (merchant) {
-              const commission = Math.floor(order.totalAmount * 0.5);
-              await db.update(merchantsTable).set({ balance: merchant.balance + commission }).where(eq(merchantsTable.id, merchant.id));
-              logger.info({ merchantId: merchant.id, commission }, "Poller: merchant commission credited on confirmation");
-            }
-          } catch (e) {
-            logger.warn({ orderId: order.id, err: e?.message }, "Poller: failed to credit merchant commission");
-          }
-        }
+        await creditMerchantCommission(order);
         emitOrderStatus(order.id, "confirmed", order.transactionId);
-      } else if (isFailedState2(state)) {
+        logger.info({ orderId: order.id, transactionId: order.transactionId, state }, "Poller: order confirmed (awaiting admin)");
+      } else if (isFailedState2(state) && pastGracePeriod) {
         await db.update(ordersTable).set({ status: "failed" }).where(eq(ordersTable.id, order.id));
-        logger.info({ orderId: order.id, transactionId: order.transactionId, state }, "Poller: order marked failed");
         emitOrderStatus(order.id, "failed", order.transactionId);
+        logger.info({ orderId: order.id, transactionId: order.transactionId, state, ageMs }, "Poller: order marked failed after grace period");
+      } else if (isFailedState2(state)) {
+        logger.info(
+          { orderId: order.id, state, ageMs, gracePeriodMs: FAIL_GRACE_MS },
+          "Poller: Pixpay reports failed but still within grace period \u2014 waiting for IPN"
+        );
       }
     } catch (err) {
       logger.warn({ orderId: order.id, err: err?.message }, "Poller: error checking Pixpay status");
@@ -57893,7 +57896,7 @@ function startProcessingPoller() {
 
 // src/lib/withdrawal-poller.ts
 var POLL_INTERVAL_MS2 = 5e3;
-var FAIL_GRACE_MS = 10 * 60 * 1e3;
+var FAIL_GRACE_MS2 = 10 * 60 * 1e3;
 var STUCK_EXPIRY_MS = 30 * 60 * 1e3;
 function isSuccessState3(state) {
   return ["SUCCESS", "SUCCESSFULL", "SUCCESSFUL"].includes(state.toUpperCase());
@@ -57921,7 +57924,7 @@ async function checkProcessingWithdrawals() {
     if (!withdrawal.transactionId) continue;
     const ageMs = Date.now() - new Date(withdrawal.createdAt).getTime();
     const isStuck = ageMs >= STUCK_EXPIRY_MS;
-    const pastGracePeriod = ageMs >= FAIL_GRACE_MS;
+    const pastGracePeriod = ageMs >= FAIL_GRACE_MS2;
     try {
       const result = await checkPixpayStatus(withdrawal.transactionId);
       const state = result?.data?.state ?? "";
@@ -57942,7 +57945,7 @@ async function checkProcessingWithdrawals() {
         logger.info({ withdrawalId: withdrawal.id, state, ageMs }, "Withdrawal poller: withdrawal failed after grace period, refunded");
       } else if (isFailedState3(state)) {
         logger.info(
-          { withdrawalId: withdrawal.id, state, ageMs, gracePeriodMs: FAIL_GRACE_MS },
+          { withdrawalId: withdrawal.id, state, ageMs, gracePeriodMs: FAIL_GRACE_MS2 },
           "Withdrawal poller: Pixpay reports failed but still within grace period \u2014 waiting for IPN"
         );
       }
