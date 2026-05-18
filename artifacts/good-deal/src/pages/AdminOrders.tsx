@@ -3,7 +3,7 @@ import { useLocation } from "wouter";
 import {
   ArrowLeft, Check, X, RefreshCw, Wifi,
   TrendingUp, Clock, CheckCircle, XCircle, Search, Package, Pause,
-  ChevronLeft, ChevronRight
+  ChevronLeft, ChevronRight, Loader2
 } from "lucide-react";
 import { formatFCFA, formatDate, getStatusColor, getStatusLabel, formatRef } from "@/lib/api";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -34,17 +34,19 @@ type Order = {
 };
 
 const TABS = [
-  { key: "all",       label: "Tout",             color: "gray"   },
-  { key: "confirmed", label: "À livrer",          color: "blue"   },
-  { key: "paid",      label: "Livrées",           color: "green"  },
-  { key: "failed",    label: "Échouées",          color: "red"    },
-  { key: "cancelled", label: "Annulées",          color: "slate"  },
+  { key: "all",        label: "Tout",       color: "gray"   },
+  { key: "inprogress", label: "En cours",   color: "orange" },
+  { key: "confirmed",  label: "À livrer",   color: "blue"   },
+  { key: "paid",       label: "Livrées",    color: "green"  },
+  { key: "failed",     label: "Échouées",   color: "red"    },
+  { key: "cancelled",  label: "Annulées",   color: "slate"  },
 ] as const;
 
 type TabKey = typeof TABS[number]["key"];
 
 const TAB_ACTIVE: Record<string, string> = {
   gray:   "bg-gray-900 text-white border-gray-900",
+  orange: "bg-orange-50 text-orange-700 border-orange-300",
   blue:   "bg-blue-50 text-blue-700 border-blue-300",
   yellow: "bg-yellow-50 text-yellow-700 border-yellow-300",
   green:  "bg-green-50 text-green-700 border-green-300",
@@ -84,7 +86,7 @@ export default function AdminOrders() {
 
   if (!isAdmin) return null;
 
-  async function handleStatus(id: number, status: "paid" | "failed") {
+  async function handleStatus(id: number, status: "paid" | "failed" | "cancelled") {
     setActionLoading(id);
     try {
       const res = await fetch(`/api/admin/orders/${id}/status`, {
@@ -97,7 +99,7 @@ export default function AdminOrders() {
       setOrders(prev => prev.map(o => o.id === id ? { ...o, ...updated } : o));
       toast({
         title: status === "paid"
-          ? "✅ Forfait livré"
+          ? "✅ Paiement validé"
           : status === "cancelled"
           ? "🚫 Commande annulée"
           : "❌ Commande rejetée",
@@ -120,16 +122,21 @@ export default function AdminOrders() {
   }
 
   // Stats
-  const total          = orders.length;
-  const totalPaid      = orders.filter(o => o.status === "paid").reduce((s, o) => s + o.totalAmount, 0);
+  const total           = orders.length;
+  const totalPaid       = orders.filter(o => o.status === "paid").reduce((s, o) => s + o.totalAmount, 0);
   const confirmedOrders = orders.filter(o => o.status === "confirmed");
-  const confirmedAmt   = confirmedOrders.reduce((s, o) => s + o.totalAmount, 0);
-  const failed         = orders.filter(o => o.status === "failed").length;
+  const confirmedAmt    = confirmedOrders.reduce((s, o) => s + o.totalAmount, 0);
+  const failed          = orders.filter(o => o.status === "failed").length;
+  const inProgressOrders = orders.filter(o => o.status === "pending" || o.status === "processing");
 
   // Filter
   const q = search.trim().toLowerCase();
   const filtered = orders
-    .filter(o => tab === "all" || o.status === tab)
+    .filter(o => {
+      if (tab === "all") return true;
+      if (tab === "inprogress") return o.status === "pending" || o.status === "processing";
+      return o.status === tab;
+    })
     .filter(o => !q || o.phoneNumber.includes(q) ||
       (o.payerName ?? "").toLowerCase().includes(q) ||
       (o.transactionId ?? "").toLowerCase().includes(q) ||
@@ -197,7 +204,12 @@ export default function AdminOrders() {
                     {confirmedOrders.length}
                   </span>
                 )}
-                {t.key !== "confirmed" && (
+                {t.key === "inprogress" && inProgressOrders.length > 0 && (
+                  <span className="ml-1.5 bg-orange-500 text-white text-xs font-black px-1.5 py-0.5 rounded-full">
+                    {inProgressOrders.length}
+                  </span>
+                )}
+                {t.key !== "confirmed" && t.key !== "inprogress" && (
                   <span className="ml-1.5 opacity-50">
                     {t.key === "all" ? total : orders.filter(o => o.status === t.key).length}
                   </span>
@@ -225,23 +237,28 @@ export default function AdminOrders() {
           <div className="bg-white border border-gray-100 rounded-2xl p-12 text-center shadow-sm">
             <Package className="w-10 h-10 mx-auto mb-3 text-muted-foreground opacity-30" />
             <p className="text-muted-foreground text-sm">
-              {search ? `Aucun résultat pour "${search}"` : tab === "confirmed" ? "Aucune commande à livrer" : "Aucune commande"}
+              {search
+                ? `Aucun résultat pour "${search}"`
+                : tab === "confirmed"   ? "Aucune commande à livrer"
+                : tab === "inprogress" ? "Aucun paiement en cours"
+                : "Aucune commande"}
             </p>
           </div>
         ) : (
           <div className="space-y-3">
             {paginated.map(order => {
-              const isConfirmed  = order.status === "confirmed";
-              const isCancellable = order.status === "pending" || order.status === "processing";
-              const isSnoozed   = snoozed.has(order.id);
+              const isConfirmed   = order.status === "confirmed";
+              const isInProgress  = order.status === "pending" || order.status === "processing";
+              const isSnoozed     = snoozed.has(order.id);
 
               return (
                 <div
                   key={order.id}
                   className={`bg-white border-2 rounded-2xl overflow-hidden shadow-sm transition-all ${
-                    isConfirmed        ? "border-blue-200"   :
-                    order.status === "paid"    ? "border-green-100"  :
-                    order.status === "failed"  ? "border-red-100"    :
+                    isConfirmed              ? "border-blue-200"   :
+                    isInProgress             ? "border-orange-200" :
+                    order.status === "paid"  ? "border-green-100"  :
+                    order.status === "failed"? "border-red-100"    :
                     "border-gray-100"
                   }`}
                 >
@@ -256,6 +273,17 @@ export default function AdminOrders() {
                         }}
                       />
                       <style>{`@keyframes moveStripe { 0%{margin-left:-50%} 100%{margin-left:150%} }`}</style>
+                    </div>
+                  )}
+                  {isInProgress && (
+                    <div className="h-1 w-full overflow-hidden bg-orange-100">
+                      <div className="h-full"
+                        style={{
+                          background: "linear-gradient(90deg, transparent, #f97316, transparent)",
+                          animation: "moveStripe 2s ease-in-out infinite",
+                          width: "50%",
+                        }}
+                      />
                     </div>
                   )}
 
@@ -304,18 +332,36 @@ export default function AdminOrders() {
                       </div>
                     </div>
 
-                    {/* Cancel button — pending or processing orders */}
-                    {isCancellable && (
-                      <div className="flex gap-2 mt-3 pt-3 border-t border-gray-100">
+                    {/* Action buttons — pending / processing orders */}
+                    {isInProgress && (
+                      <div className="flex gap-2 mt-3 pt-3 border-t border-orange-100">
+                        {/* Annuler */}
                         <button
                           onClick={() => handleStatus(order.id, "cancelled")}
                           disabled={actionLoading === order.id}
-                          className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-sm font-bold border border-orange-200 text-orange-600 bg-orange-50 hover:bg-orange-100 active:scale-95 transition-all disabled:opacity-50"
+                          className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-sm font-bold border border-gray-200 text-gray-600 bg-gray-50 hover:bg-gray-100 active:scale-95 transition-all disabled:opacity-50"
                         >
-                          {actionLoading === order.id
-                            ? <RefreshCw className="w-4 h-4 animate-spin" />
-                            : <X className="w-4 h-4" />}
-                          Annuler la commande
+                          {actionLoading === order.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <X className="w-4 h-4" />}
+                          Annuler
+                        </button>
+                        {/* Rejeter */}
+                        <button
+                          onClick={() => handleStatus(order.id, "failed")}
+                          disabled={actionLoading === order.id}
+                          className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-sm font-bold border border-red-200 text-red-600 bg-red-50 hover:bg-red-100 active:scale-95 transition-all disabled:opacity-50"
+                        >
+                          {actionLoading === order.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <XCircle className="w-4 h-4" />}
+                          Rejeter
+                        </button>
+                        {/* Valider manuellement */}
+                        <button
+                          onClick={() => handleStatus(order.id, "paid")}
+                          disabled={actionLoading === order.id}
+                          className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-sm font-bold text-white active:scale-95 transition-all disabled:opacity-50"
+                          style={{ background: "linear-gradient(135deg,#22c55e,#16a34a)", boxShadow: "0 4px 12px rgba(34,197,94,.3)" }}
+                        >
+                          {actionLoading === order.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
+                          Valider
                         </button>
                       </div>
                     )}
