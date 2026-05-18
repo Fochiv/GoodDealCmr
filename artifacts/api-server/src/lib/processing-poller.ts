@@ -4,15 +4,18 @@ import { checkPixpayStatus } from "./pixpay";
 import { emitOrderStatus } from "./order-events";
 import { logger } from "./logger";
 
-const POLL_INTERVAL_MS = 3000;
+const POLL_INTERVAL_MS = 5000;
 // Pending orders with no transactionId: auto-cancel after 3 min
 const UNPAID_EXPIRY_MS = 3 * 60 * 1000;
-// Processing orders stuck with no IPN: auto-fail after 30 min
+// Processing orders stuck with no resolution: auto-fail after 30 min
 const STUCK_PROCESSING_EXPIRY_MS = 30 * 60 * 1000;
-// How long to wait before trusting a "failed" status from Pixpay.
-// Cashouts (collecting from customer mobile) can briefly return FAILED on the
-// status API even when the customer has confirmed — the IPN is authoritative.
-const FAIL_GRACE_MS = 10 * 60 * 1000; // 10 minutes
+// How many consecutive FAILED responses before we trust it.
+// Pixpay can return FAILED briefly on cashouts even when the customer is
+// still confirming. 6 checks × 5 s = ~30 s of confirmed failures needed.
+const MAX_FAIL_COUNT = 6;
+
+// In-memory counters: transactionId → number of consecutive FAILED checks
+const failedCounts = new Map<string, number>();
 
 function isSuccessState(state: string): boolean {
   return ["SUCCESS", "SUCCESSFULL", "SUCCESSFUL"].includes(state.toUpperCase());
@@ -36,7 +39,7 @@ async function creditMerchantCommission(order: typeof ordersTable.$inferSelect) 
         .update(merchantsTable)
         .set({ balance: merchant.balance + commission })
         .where(eq(merchantsTable.id, merchant.id));
-      logger.info({ merchantId: merchant.id, commission }, "Poller: merchant commission credited on confirmation");
+      logger.info({ merchantId: merchant.id, commission }, "Poller: merchant commission credited");
     }
   } catch (e: any) {
     logger.warn({ orderId: order.id, err: e?.message }, "Poller: failed to credit merchant commission");
@@ -57,12 +60,8 @@ async function cancelOldUnpaidOrders() {
           lt(ordersTable.createdAt, cutoff)
         )
       );
-
     for (const row of rows) {
-      await db
-        .update(ordersTable)
-        .set({ status: "cancelled" })
-        .where(eq(ordersTable.id, row.id));
+      await db.update(ordersTable).set({ status: "cancelled" }).where(eq(ordersTable.id, row.id));
       emitOrderStatus(row.id, "cancelled");
       logger.info({ orderId: row.id }, "Poller: auto-cancelled unpaid order (expired)");
     }
@@ -78,15 +77,9 @@ async function failStuckProcessingOrders() {
     const rows = await db
       .select()
       .from(ordersTable)
-      .where(
-        and(
-          eq(ordersTable.status, "processing"),
-          lt(ordersTable.createdAt, cutoff)
-        )
-      );
+      .where(and(eq(ordersTable.status, "processing"), lt(ordersTable.createdAt, cutoff)));
 
     for (const order of rows) {
-      // Try Pixpay one last time before giving up
       let finalState = "TIMEOUT";
       if (order.transactionId) {
         try {
@@ -96,27 +89,23 @@ async function failStuckProcessingOrders() {
       }
 
       if (isSuccessState(finalState)) {
-        // Atomic update — avoid double credit if IPN arrives at the same time
         const updated = await db
           .update(ordersTable)
           .set({ status: "confirmed" })
           .where(and(eq(ordersTable.id, order.id), eq(ordersTable.status, "processing")))
           .returning();
         if (updated.length === 0) {
-          logger.info({ orderId: order.id }, "Poller(stuck): order already transitioned — skipping");
           emitOrderStatus(order.id, "confirmed", order.transactionId);
           continue;
         }
         await creditMerchantCommission(order);
         emitOrderStatus(order.id, "confirmed", order.transactionId);
-        logger.info({ orderId: order.id, finalState }, "Poller: stuck order confirmed (awaiting admin)");
+        logger.info({ orderId: order.id }, "Poller(stuck): order confirmed");
       } else {
-        await db
-          .update(ordersTable)
-          .set({ status: "failed" })
-          .where(eq(ordersTable.id, order.id));
+        if (order.transactionId) failedCounts.delete(order.transactionId);
+        await db.update(ordersTable).set({ status: "failed" }).where(eq(ordersTable.id, order.id));
         emitOrderStatus(order.id, "failed", order.transactionId);
-        logger.warn({ orderId: order.id, finalState }, "Poller: stuck processing order auto-failed after 30 min");
+        logger.warn({ orderId: order.id, finalState }, "Poller: stuck order auto-failed after 30 min");
       }
     }
   } catch (err: any) {
@@ -124,14 +113,11 @@ async function failStuckProcessingOrders() {
   }
 }
 
-// Check all active `processing` orders against Pixpay API
+// Check all active `processing` orders against Pixpay every 5 s
 async function checkProcessingOrders() {
   let rows: typeof ordersTable.$inferSelect[] = [];
   try {
-    rows = await db
-      .select()
-      .from(ordersTable)
-      .where(eq(ordersTable.status, "processing"));
+    rows = await db.select().from(ordersTable).where(eq(ordersTable.status, "processing"));
   } catch {
     return;
   }
@@ -140,48 +126,51 @@ async function checkProcessingOrders() {
     if (!order.transactionId) continue;
 
     const ageMs = Date.now() - new Date(order.createdAt).getTime();
-    // Skip orders past the stuck threshold — handled by failStuckProcessingOrders
-    if (ageMs >= STUCK_PROCESSING_EXPIRY_MS) continue;
-
-    const pastGracePeriod = ageMs >= FAIL_GRACE_MS;
+    if (ageMs >= STUCK_PROCESSING_EXPIRY_MS) continue; // handled separately
 
     try {
       const result = await checkPixpayStatus(order.transactionId);
       const state: string = result?.data?.state ?? "";
 
-      logger.debug({ orderId: order.id, transactionId: order.transactionId, state, ageMs }, "Poller: Pixpay status");
+      logger.debug({ orderId: order.id, transactionId: order.transactionId, state }, "Poller: Pixpay status");
 
       if (isSuccessState(state)) {
-        // Atomic update — avoid double credit if IPN arrives at the same time
+        // Immediate — reset counter and mark confirmed
+        failedCounts.delete(order.transactionId);
         const updated = await db
           .update(ordersTable)
           .set({ status: "confirmed" })
           .where(and(eq(ordersTable.id, order.id), eq(ordersTable.status, "processing")))
           .returning();
         if (updated.length === 0) {
-          logger.info({ orderId: order.id }, "Poller: order already transitioned — skipping");
           emitOrderStatus(order.id, "confirmed", order.transactionId);
           continue;
         }
         await creditMerchantCommission(order);
         emitOrderStatus(order.id, "confirmed", order.transactionId);
-        logger.info({ orderId: order.id, transactionId: order.transactionId, state }, "Poller: order confirmed (awaiting admin)");
-      } else if (isFailedState(state) && pastGracePeriod) {
-        // Only trust "failed" from Pixpay after the grace period.
-        // In the first 10 min, the IPN may still arrive with the real SUCCESS result.
-        await db
-          .update(ordersTable)
-          .set({ status: "failed" })
-          .where(eq(ordersTable.id, order.id));
-        emitOrderStatus(order.id, "failed", order.transactionId);
-        logger.info({ orderId: order.id, transactionId: order.transactionId, state, ageMs }, "Poller: order marked failed after grace period");
+        logger.info({ orderId: order.id, state }, "Poller: order confirmed");
+
       } else if (isFailedState(state)) {
+        // Increment consecutive-failure counter
+        const count = (failedCounts.get(order.transactionId) ?? 0) + 1;
+        failedCounts.set(order.transactionId, count);
+
         logger.info(
-          { orderId: order.id, state, ageMs, gracePeriodMs: FAIL_GRACE_MS },
-          "Poller: Pixpay reports failed but still within grace period — waiting for IPN"
+          { orderId: order.id, state, failCount: count, maxFailCount: MAX_FAIL_COUNT },
+          "Poller: FAILED state received — waiting for confirmation"
         );
+
+        if (count >= MAX_FAIL_COUNT) {
+          // Confirmed failure after MAX_FAIL_COUNT × 5 s ≈ 30 s of consecutive FAILED
+          failedCounts.delete(order.transactionId);
+          await db.update(ordersTable).set({ status: "failed" }).where(eq(ordersTable.id, order.id));
+          emitOrderStatus(order.id, "failed", order.transactionId);
+          logger.info({ orderId: order.id, state }, "Poller: order marked failed after consecutive checks");
+        }
+      } else {
+        // In-flight (PENDING / PROCESSING / unknown) — reset failure streak
+        failedCounts.delete(order.transactionId);
       }
-      // Still in-flight → check again next cycle
     } catch (err: any) {
       logger.warn({ orderId: order.id, err: err?.message }, "Poller: error checking Pixpay status");
     }
@@ -195,7 +184,7 @@ async function runCycle() {
 }
 
 export function startProcessingPoller() {
-  logger.info("Starting Pixpay processing-order poller (every 3s)");
+  logger.info("Starting Pixpay processing-order poller (every 5s)");
   runCycle().catch(() => {});
   setInterval(() => { runCycle().catch(() => {}); }, POLL_INTERVAL_MS);
 }
