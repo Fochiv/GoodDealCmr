@@ -9,8 +9,22 @@ import { saveDevicePhone } from "@/components/DevicePendingBar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useQuery } from "@tanstack/react-query";
 
-const WHATSAPP_NUMBER = "237650000000";
+const DEFAULT_WHATSAPP = "237650000000";
+const API_BASE = import.meta.env.VITE_API_URL ?? "/api";
+
+function useSettings() {
+  return useQuery<Record<string, string>>({
+    queryKey: ["settings"],
+    queryFn: async () => {
+      const res = await fetch(`${API_BASE}/settings`);
+      if (!res.ok) throw new Error("settings fetch failed");
+      return res.json();
+    },
+    staleTime: 60000,
+  });
+}
 
 interface OrderBundle {
   dataSize: string;
@@ -399,7 +413,9 @@ function OrderCard({ order }: { order: Order }) {
 // ─── WhatsApp FAB ─────────────────────────────────────────────────────────────
 function WhatsAppFab() {
   const [open, setOpen] = useState(false);
-  const url = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent("Bonjour Good Deal, j'ai besoin d'aide avec ma commande 👋")}`;
+  const { data: settings } = useSettings();
+  const whatsappNumber = settings?.whatsapp_number ?? DEFAULT_WHATSAPP;
+  const url = `https://wa.me/${whatsappNumber}?text=${encodeURIComponent("Bonjour Good Deal, j'ai besoin d'aide avec ma commande 👋")}`;
 
   return (
     <div className="fixed bottom-24 right-4 md:bottom-8 z-40 flex flex-col items-end gap-3">

@@ -5,8 +5,22 @@ import { useGetOrder, getGetOrderQueryKey } from "@workspace/api-client-react";
 import { formatFCFA } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
+import { useQuery } from "@tanstack/react-query";
 
-const WHATSAPP_NUMBER = "237650000000";
+const DEFAULT_WHATSAPP = "237650000000";
+const API_BASE = import.meta.env.VITE_API_URL ?? "/api";
+
+function useSettings() {
+  return useQuery<Record<string, string>>({
+    queryKey: ["settings"],
+    queryFn: async () => {
+      const res = await fetch(`${API_BASE}/settings`);
+      if (!res.ok) throw new Error("settings fetch failed");
+      return res.json();
+    },
+    staleTime: 60000,
+  });
+}
 const DELIVERY_SECONDS = 180;
 
 function DeliveryCountdown({ bundleName, phone }: { bundleName: string; phone: string }) {
@@ -84,7 +98,9 @@ function DeliveryCountdown({ bundleName, phone }: { bundleName: string; phone: s
 
 function WhatsAppFab() {
   const [open, setOpen] = useState(false);
-  const url = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent("Bonjour Good Deal, j'ai besoin d'aide avec ma commande 👋")}`;
+  const { data: settings } = useSettings();
+  const whatsappNumber = settings?.whatsapp_number ?? DEFAULT_WHATSAPP;
+  const url = `https://wa.me/${whatsappNumber}?text=${encodeURIComponent("Bonjour Good Deal, j'ai besoin d'aide avec ma commande 👋")}`;
 
   return (
     <div className="fixed bottom-24 right-4 md:bottom-8 z-40 flex flex-col items-end gap-3">
