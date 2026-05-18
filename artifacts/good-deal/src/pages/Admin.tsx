@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { useLocation } from "wouter";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
-import { TrendingUp, ShoppingBag, Package, ArrowRight, LogOut, RefreshCw, Trophy, Search, ChevronLeft, ChevronRight, Store, Plus, ArrowDownCircle, Wallet, X, Shield, PlusCircle, MinusCircle } from "lucide-react";
+import { TrendingUp, ShoppingBag, Package, ArrowRight, LogOut, RefreshCw, Trophy, Search, ChevronLeft, ChevronRight, Store, Plus, ArrowDownCircle, Wallet, X, Shield, PlusCircle, MinusCircle, Eye } from "lucide-react";
 import { formatFCFA, getStatusColor, getStatusLabel, formatDate } from "@/lib/api";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
@@ -962,6 +962,13 @@ export default function Admin() {
                       <div className="font-bold text-sm text-green-600">{formatFCFA(m.balance)}</div>
                       <div className="text-xs text-muted-foreground">solde</div>
                     </div>
+                    <button
+                      onClick={() => setLocation(`/ashtech/marchands/${m.id}`)}
+                      className="w-8 h-8 rounded-lg bg-gray-100 hover:bg-blue-100 hover:text-blue-600 flex items-center justify-center transition-all"
+                      title="Voir les transactions"
+                    >
+                      <Eye className="w-4 h-4" />
+                    </button>
                     <button
                       onClick={() => setAdjustMerchant(m)}
                       className="w-8 h-8 rounded-lg bg-gray-100 hover:bg-orange-100 hover:text-orange-600 flex items-center justify-center transition-all"

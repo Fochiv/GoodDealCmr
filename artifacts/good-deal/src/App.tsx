@@ -20,6 +20,7 @@ import AdminOrders from "@/pages/AdminOrders";
 import AdminUsers from "@/pages/AdminUsers";
 import AdminReviews from "@/pages/AdminReviews";
 import AdminSettings from "@/pages/AdminSettings";
+import AdminMerchantDetail from "@/pages/AdminMerchantDetail";
 import MarchandLogin from "@/pages/MarchandLogin";
 import MarchandDashboard from "@/pages/MarchandDashboard";
 import NotFound from "@/pages/not-found";
@@ -46,6 +47,7 @@ function Router() {
       <Route path="/ashtech/users" component={AdminUsers} />
       <Route path="/ashtech/reviews" component={AdminReviews} />
       <Route path="/ashtech/settings" component={AdminSettings} />
+      <Route path="/ashtech/marchands/:id" component={AdminMerchantDetail} />
       <Route path="/marchand" component={MarchandLogin} />
       <Route path="/marchand/dashboard" component={MarchandDashboard} />
       <Route component={NotFound} />

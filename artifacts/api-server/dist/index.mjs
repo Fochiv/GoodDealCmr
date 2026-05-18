@@ -57534,6 +57534,38 @@ router11.get("/admin/merchants", async (req, res) => {
   const merchants = await db.select().from(merchantsTable).orderBy(desc(merchantsTable.createdAt));
   return res.json(merchants);
 });
+router11.get("/admin/merchants/:id", async (req, res) => {
+  if (!isAdminRequest2(req)) return res.status(403).json({ error: "Acc\xE8s refus\xE9" });
+  const id = parseInt(req.params.id);
+  if (isNaN(id)) return res.status(400).json({ error: "ID invalide" });
+  const [merchant] = await db.select().from(merchantsTable).where(eq(merchantsTable.id, id)).limit(1);
+  if (!merchant) return res.status(404).json({ error: "Marchand introuvable" });
+  const [orders, withdrawals] = await Promise.all([
+    db.select().from(ordersTable).where(eq(ordersTable.merchantId, id)).orderBy(desc(ordersTable.createdAt)),
+    db.select().from(withdrawalsTable).where(eq(withdrawalsTable.merchantId, id)).orderBy(desc(withdrawalsTable.createdAt))
+  ]);
+  const paidOrders = orders.filter((o) => o.status === "paid" || o.status === "confirmed");
+  const totalEarnings = paidOrders.reduce((acc, o) => acc + Math.floor(o.totalAmount * 0.5), 0);
+  const totalWithdrawn = withdrawals.filter((w) => w.status === "paid" || w.status === "processing").reduce((acc, w) => acc + w.amount, 0);
+  return res.json({
+    merchant: {
+      id: merchant.id,
+      name: merchant.name,
+      phone: merchant.phone,
+      referralCode: merchant.referralCode,
+      balance: merchant.balance,
+      createdAt: merchant.createdAt
+    },
+    stats: {
+      totalOrders: orders.length,
+      paidOrders: paidOrders.length,
+      totalEarnings,
+      totalWithdrawn
+    },
+    orders,
+    withdrawals
+  });
+});
 router11.post("/admin/merchants", async (req, res) => {
   if (!isAdminRequest2(req)) return res.status(403).json({ error: "Acc\xE8s refus\xE9" });
   const schema = external_exports.object({
@@ -58283,3 +58315,4 @@ object-assign/index.js:
   @license MIT
   *)
 */
+//# sourceMappingURL=index.mjs.map
