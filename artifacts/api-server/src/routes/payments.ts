@@ -43,12 +43,20 @@ router.post("/payments/ipn", async (req, res) => {
       }
 
       if (isSuccessState(state)) {
+        // Mark paid regardless of current status — IPN is authoritative for success
         await db
           .update(withdrawalsTable)
           .set({ status: "paid", transactionId: transaction_id ?? null })
           .where(eq(withdrawalsTable.id, withdrawalId));
         logger.info({ withdrawalId, transaction_id }, "IPN: withdrawal marked paid");
       } else if (isFailedState(state)) {
+        // Only apply failed if the withdrawal hasn't already been marked paid.
+        // The money may have arrived on the mobile before the IPN fired.
+        if (withdrawal.status === "paid") {
+          logger.warn({ withdrawalId, state }, "IPN: received failed state but withdrawal already paid — ignoring");
+          return;
+        }
+
         await db
           .update(withdrawalsTable)
           .set({ status: "failed", transactionId: transaction_id ?? null })

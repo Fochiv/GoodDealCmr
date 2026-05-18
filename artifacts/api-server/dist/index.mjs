@@ -57330,6 +57330,10 @@ router10.post("/payments/ipn", async (req, res) => {
         await db.update(withdrawalsTable).set({ status: "paid", transactionId: transaction_id ?? null }).where(eq(withdrawalsTable.id, withdrawalId));
         logger.info({ withdrawalId, transaction_id }, "IPN: withdrawal marked paid");
       } else if (isFailedState(state)) {
+        if (withdrawal.status === "paid") {
+          logger.warn({ withdrawalId, state }, "IPN: received failed state but withdrawal already paid \u2014 ignoring");
+          return;
+        }
         await db.update(withdrawalsTable).set({ status: "failed", transactionId: transaction_id ?? null }).where(eq(withdrawalsTable.id, withdrawalId));
         if (!withdrawal.isAdmin && withdrawal.merchantId) {
           const [merchant] = await db.select().from(merchantsTable).where(eq(merchantsTable.id, withdrawal.merchantId)).limit(1);
@@ -57889,6 +57893,7 @@ function startProcessingPoller() {
 
 // src/lib/withdrawal-poller.ts
 var POLL_INTERVAL_MS2 = 5e3;
+var FAIL_GRACE_MS = 10 * 60 * 1e3;
 var STUCK_EXPIRY_MS = 30 * 60 * 1e3;
 function isSuccessState3(state) {
   return ["SUCCESS", "SUCCESSFULL", "SUCCESSFUL"].includes(state.toUpperCase());
@@ -57916,20 +57921,30 @@ async function checkProcessingWithdrawals() {
     if (!withdrawal.transactionId) continue;
     const ageMs = Date.now() - new Date(withdrawal.createdAt).getTime();
     const isStuck = ageMs >= STUCK_EXPIRY_MS;
+    const pastGracePeriod = ageMs >= FAIL_GRACE_MS;
     try {
       const result = await checkPixpayStatus(withdrawal.transactionId);
       const state = result?.data?.state ?? "";
       logger.debug(
-        { withdrawalId: withdrawal.id, transactionId: withdrawal.transactionId, state },
+        { withdrawalId: withdrawal.id, transactionId: withdrawal.transactionId, state, ageMs },
         "Withdrawal poller: Pixpay status"
       );
       if (isSuccessState3(state)) {
         await db.update(withdrawalsTable).set({ status: "paid" }).where(eq(withdrawalsTable.id, withdrawal.id));
         logger.info({ withdrawalId: withdrawal.id, state }, "Withdrawal poller: withdrawal marked paid");
-      } else if (isFailedState3(state) || isStuck) {
+      } else if (isStuck) {
         await db.update(withdrawalsTable).set({ status: "failed" }).where(eq(withdrawalsTable.id, withdrawal.id));
         await refundMerchantIfNeeded(withdrawal);
-        logger.info({ withdrawalId: withdrawal.id, state, isStuck }, "Withdrawal poller: withdrawal failed, merchant refunded if applicable");
+        logger.warn({ withdrawalId: withdrawal.id, ageMs }, "Withdrawal poller: withdrawal stuck, marked failed and refunded");
+      } else if (isFailedState3(state) && pastGracePeriod) {
+        await db.update(withdrawalsTable).set({ status: "failed" }).where(eq(withdrawalsTable.id, withdrawal.id));
+        await refundMerchantIfNeeded(withdrawal);
+        logger.info({ withdrawalId: withdrawal.id, state, ageMs }, "Withdrawal poller: withdrawal failed after grace period, refunded");
+      } else if (isFailedState3(state)) {
+        logger.info(
+          { withdrawalId: withdrawal.id, state, ageMs, gracePeriodMs: FAIL_GRACE_MS },
+          "Withdrawal poller: Pixpay reports failed but still within grace period \u2014 waiting for IPN"
+        );
       }
     } catch (err) {
       logger.warn({ withdrawalId: withdrawal.id, err: err?.message }, "Withdrawal poller: error checking Pixpay status");
