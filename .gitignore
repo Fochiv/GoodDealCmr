@@ -1,9 +1,11 @@
 # See https://docs.github.com/en/get-started/getting-started-with-git/ignoring-files for more about ignoring files.
 
 # compiled output
-# dist/ is intentionally tracked — Plesk pulls pre-built files from git
-# Source maps are excluded (large, not needed in production)
+# dist/ (racine) est intentionnellement tracké — Plesk tire les fichiers pré-buildés depuis git
+# Les dists intermédiaires des artifacts ne sont PAS trackés
 dist/*.map
+artifacts/good-deal/dist/
+artifacts/api-server/dist/
 tmp
 out-tsc
 *.tsbuildinfo
