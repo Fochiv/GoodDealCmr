@@ -25,7 +25,7 @@ function formatPhoneDisplay(raw: string): string {
   return d.slice(0, 3) + " " + d.slice(3, 6) + " " + d.slice(6, 9);
 }
 
-type OrderStatus = "pending" | "processing" | "paid" | "failed" | "cancelled";
+type OrderStatus = "pending" | "processing" | "confirmed" | "paid" | "failed" | "cancelled";
 
 export default function Checkout() {
   const [, setLocation] = useLocation();
@@ -74,7 +74,7 @@ export default function Checkout() {
     function handleStatus(status: OrderStatus) {
       if (stopped) return;
       setOrderStatus(status);
-      if (status === "paid" || status === "failed" || status === "cancelled") {
+      if (status === "confirmed" || status === "paid" || status === "failed" || status === "cancelled") {
         clearPendingPayment();
         stop();
       }
@@ -566,7 +566,7 @@ export default function Checkout() {
               </div>
             )}
 
-            {orderStatus === "paid" && (
+            {(orderStatus === "confirmed" || orderStatus === "paid") && (
               <div className="bg-green-50 border-2 border-green-400 rounded-2xl p-8 shadow-sm text-center space-y-3">
                 <div className="w-20 h-20 rounded-full bg-green-100 flex items-center justify-center mx-auto">
                   <PartyPopper className="w-10 h-10 text-green-600" />
@@ -627,8 +627,8 @@ export default function Checkout() {
               </div>
               <div className="flex justify-between items-center">
                 <span className="text-muted-foreground">Statut</span>
-                {orderStatus === "paid"
-                  ? <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-green-100 text-green-700">✅ Payé</span>
+                {orderStatus === "paid" || orderStatus === "confirmed"
+                  ? <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-green-100 text-green-700">✅ Confirmé</span>
                   : orderStatus === "failed" || orderStatus === "cancelled"
                   ? <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-red-100 text-red-700">❌ Échoué</span>
                   : <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-blue-100 text-blue-700">⏳ En cours</span>
@@ -636,7 +636,7 @@ export default function Checkout() {
               </div>
             </div>
 
-            {orderStatus === "paid" && (
+            {(orderStatus === "confirmed" || orderStatus === "paid") && (
               <button
                 onClick={() => setLocation("/commandes")}
                 className="w-full py-4 rounded-2xl font-black text-base border-2 transition-all hover:scale-[1.02] active:scale-95 flex items-center justify-center gap-2"

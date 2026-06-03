@@ -4,7 +4,7 @@ import { checkPixpayStatus } from "./pixpay";
 import { emitOrderStatus } from "./order-events";
 import { logger } from "./logger";
 
-const POLL_INTERVAL_MS = 5000;
+const POLL_INTERVAL_MS = 3000;
 // Pending orders with no transactionId: auto-cancel after 5 min
 const UNPAID_EXPIRY_MS = 5 * 60 * 1000;
 // Processing orders stuck with no resolution: auto-fail after 60 min
@@ -13,18 +13,20 @@ const STUCK_PROCESSING_EXPIRY_MS = 60 * 60 * 1000;
 // PixPay returns FAILED during USSD confirmation — don't penalise early.
 const MIN_AGE_BEFORE_FAIL_COUNT_MS = 4 * 60 * 1000; // 4 minutes
 // How many consecutive FAILED responses before we trust it.
-// 36 checks × 5 s = ~3 min of confirmed failures needed.
-const MAX_FAIL_COUNT = 36;
+// 60 checks × 3 s = ~3 min of confirmed failures needed.
+const MAX_FAIL_COUNT = 60;
 
 // In-memory counters: transactionId → number of consecutive FAILED checks
 const failedCounts = new Map<string, number>();
 
 function isSuccessState(state: string): boolean {
-  return ["SUCCESS", "SUCCESSFULL", "SUCCESSFUL", "COMPLETED", "COMPLETE"].includes(state.toUpperCase());
+  const s = state.toUpperCase().trim();
+  return ["SUCCESS", "SUCCESSFULL", "SUCCESSFUL", "COMPLETED", "COMPLETE", "PAID", "DONE", "APPROVED"].includes(s);
 }
 
 function isFailedState(state: string): boolean {
-  return ["FAILED", "REJECTED", "CANCELLED", "FAILURE", "TIMEOUT"].includes(state.toUpperCase());
+  const s = state.toUpperCase().trim();
+  return ["FAILED", "REJECTED", "CANCELLED", "FAILURE", "TIMEOUT", "EXPIRED", "ERROR", "DECLINED"].includes(s);
 }
 
 async function creditMerchantCommission(order: typeof ordersTable.$inferSelect) {
@@ -194,7 +196,7 @@ async function runCycle() {
 }
 
 export function startProcessingPoller() {
-  logger.info("Starting Pixpay processing-order poller (every 5s)");
+  logger.info("Starting Pixpay processing-order poller (every 3s)");
   runCycle().catch(() => {});
   setInterval(() => { runCycle().catch(() => {}); }, POLL_INTERVAL_MS);
 }

@@ -3,7 +3,7 @@ import { eq } from "drizzle-orm";
 import { checkPixpayStatus } from "./pixpay";
 import { logger } from "./logger";
 
-const POLL_INTERVAL_MS = 5000;
+const POLL_INTERVAL_MS = 3000;
 // After this age with no resolution, stop active polling and alert admin.
 // We intentionally do NOT auto-fail stuck withdrawals because the money may
 // have already been physically sent to the recipient's phone — auto-failing
@@ -11,11 +11,13 @@ const POLL_INTERVAL_MS = 5000;
 const STUCK_EXPIRY_MS = 60 * 60 * 1000; // 60 minutes
 
 function isSuccessState(state: string): boolean {
-  return ["SUCCESS", "SUCCESSFULL", "SUCCESSFUL", "COMPLETED", "COMPLETE"].includes(state.toUpperCase());
+  const s = state.toUpperCase().trim();
+  return ["SUCCESS", "SUCCESSFULL", "SUCCESSFUL", "COMPLETED", "COMPLETE", "PAID", "DONE", "APPROVED"].includes(s);
 }
 
 function isFailedState(state: string): boolean {
-  return ["FAILED", "REJECTED", "CANCELLED", "FAILURE", "TIMEOUT"].includes(state.toUpperCase());
+  const s = state.toUpperCase().trim();
+  return ["FAILED", "REJECTED", "CANCELLED", "FAILURE", "TIMEOUT", "EXPIRED", "ERROR", "DECLINED"].includes(s);
 }
 
 async function checkProcessingWithdrawals() {
@@ -106,7 +108,7 @@ async function runCycle() {
 }
 
 export function startWithdrawalPoller() {
-  logger.info("Starting withdrawal cashin poller (every 5s)");
+  logger.info("Starting withdrawal cashin poller (every 3s)");
   runCycle().catch(() => {});
   setInterval(() => { runCycle().catch(() => {}); }, POLL_INTERVAL_MS);
 }

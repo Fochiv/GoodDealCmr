@@ -7,11 +7,13 @@ import { emitOrderStatus } from "../lib/order-events";
 const router = Router();
 
 function isSuccessState(state: string): boolean {
-  return ["SUCCESS", "SUCCESSFULL", "SUCCESSFUL"].includes(state.toUpperCase());
+  const s = state.toUpperCase().trim();
+  return ["SUCCESS", "SUCCESSFULL", "SUCCESSFUL", "COMPLETED", "COMPLETE", "PAID", "DONE", "APPROVED"].includes(s);
 }
 
 function isFailedState(state: string): boolean {
-  return ["FAILED", "REJECTED", "CANCELLED", "FAILURE", "TIMEOUT"].includes(state.toUpperCase());
+  const s = state.toUpperCase().trim();
+  return ["FAILED", "REJECTED", "CANCELLED", "FAILURE", "TIMEOUT", "EXPIRED", "ERROR", "DECLINED"].includes(s);
 }
 
 router.post("/payments/ipn", async (req, res) => {

@@ -57311,10 +57311,12 @@ var logger = (0, import_pino.default)({
 // src/routes/payments.ts
 var router10 = (0, import_express10.Router)();
 function isSuccessState(state) {
-  return ["SUCCESS", "SUCCESSFULL", "SUCCESSFUL"].includes(state.toUpperCase());
+  const s = state.toUpperCase().trim();
+  return ["SUCCESS", "SUCCESSFULL", "SUCCESSFUL", "COMPLETED", "COMPLETE", "PAID", "DONE", "APPROVED"].includes(s);
 }
 function isFailedState(state) {
-  return ["FAILED", "REJECTED", "CANCELLED", "FAILURE", "TIMEOUT"].includes(state.toUpperCase());
+  const s = state.toUpperCase().trim();
+  return ["FAILED", "REJECTED", "CANCELLED", "FAILURE", "TIMEOUT", "EXPIRED", "ERROR", "DECLINED"].includes(s);
 }
 router10.post("/payments/ipn", async (req, res) => {
   res.status(200).json({ received: true });
@@ -57834,17 +57836,19 @@ if (process.env.NODE_ENV === "production") {
 var app_default = app;
 
 // src/lib/processing-poller.ts
-var POLL_INTERVAL_MS = 5e3;
+var POLL_INTERVAL_MS = 3e3;
 var UNPAID_EXPIRY_MS = 5 * 60 * 1e3;
 var STUCK_PROCESSING_EXPIRY_MS = 60 * 60 * 1e3;
 var MIN_AGE_BEFORE_FAIL_COUNT_MS = 4 * 60 * 1e3;
-var MAX_FAIL_COUNT = 36;
+var MAX_FAIL_COUNT = 60;
 var failedCounts = /* @__PURE__ */ new Map();
 function isSuccessState2(state) {
-  return ["SUCCESS", "SUCCESSFULL", "SUCCESSFUL", "COMPLETED", "COMPLETE"].includes(state.toUpperCase());
+  const s = state.toUpperCase().trim();
+  return ["SUCCESS", "SUCCESSFULL", "SUCCESSFUL", "COMPLETED", "COMPLETE", "PAID", "DONE", "APPROVED"].includes(s);
 }
 function isFailedState2(state) {
-  return ["FAILED", "REJECTED", "CANCELLED", "FAILURE", "TIMEOUT"].includes(state.toUpperCase());
+  const s = state.toUpperCase().trim();
+  return ["FAILED", "REJECTED", "CANCELLED", "FAILURE", "TIMEOUT", "EXPIRED", "ERROR", "DECLINED"].includes(s);
 }
 async function creditMerchantCommission(order) {
   if (!order.merchantId) return;
@@ -57971,7 +57975,7 @@ async function runCycle() {
   await checkProcessingOrders();
 }
 function startProcessingPoller() {
-  logger.info("Starting Pixpay processing-order poller (every 5s)");
+  logger.info("Starting Pixpay processing-order poller (every 3s)");
   runCycle().catch(() => {
   });
   setInterval(() => {
@@ -57981,13 +57985,15 @@ function startProcessingPoller() {
 }
 
 // src/lib/withdrawal-poller.ts
-var POLL_INTERVAL_MS2 = 5e3;
+var POLL_INTERVAL_MS2 = 3e3;
 var STUCK_EXPIRY_MS = 60 * 60 * 1e3;
 function isSuccessState3(state) {
-  return ["SUCCESS", "SUCCESSFULL", "SUCCESSFUL", "COMPLETED", "COMPLETE"].includes(state.toUpperCase());
+  const s = state.toUpperCase().trim();
+  return ["SUCCESS", "SUCCESSFULL", "SUCCESSFUL", "COMPLETED", "COMPLETE", "PAID", "DONE", "APPROVED"].includes(s);
 }
 function isFailedState3(state) {
-  return ["FAILED", "REJECTED", "CANCELLED", "FAILURE", "TIMEOUT"].includes(state.toUpperCase());
+  const s = state.toUpperCase().trim();
+  return ["FAILED", "REJECTED", "CANCELLED", "FAILURE", "TIMEOUT", "EXPIRED", "ERROR", "DECLINED"].includes(s);
 }
 async function checkProcessingWithdrawals() {
   let rows = [];
@@ -58047,7 +58053,7 @@ async function runCycle2() {
   await checkProcessingWithdrawals();
 }
 function startWithdrawalPoller() {
-  logger.info("Starting withdrawal cashin poller (every 5s)");
+  logger.info("Starting withdrawal cashin poller (every 3s)");
   runCycle2().catch(() => {
   });
   setInterval(() => {
