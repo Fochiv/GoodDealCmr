@@ -3,11 +3,13 @@ import { ArrowLeft, Wifi, Calendar, Search, ShoppingBag, Menu } from "lucide-rea
 import { useGetOperator, getGetOperatorQueryKey, useListBundles, getListBundlesQueryKey } from "@workspace/api-client-react";
 import { formatFCFA } from "@/lib/api";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useColors } from "@/hooks/use-colors";
 
 export default function OperatorBundles() {
   const params = useParams<{ id: string }>();
   const operatorId = parseInt(params.id ?? "1");
   const [, setLocation] = useLocation();
+  const c = useColors();
 
   const { data: operator, isLoading: opLoading } = useGetOperator(operatorId, {
     query: { enabled: !isNaN(operatorId), queryKey: getGetOperatorQueryKey(operatorId) }
@@ -31,12 +33,12 @@ export default function OperatorBundles() {
   };
 
   return (
-    <div className="min-h-screen" style={{ background: "#0d0d0d", color: "#ffffff" }}>
+    <div className="min-h-screen" style={{ background: c.bg, color: c.text }}>
 
-      {/* ── Top navbar — style opérateur sombre ─────────────────────────── */}
+      {/* ── Top navbar — style opérateur ─────────────────────────────────── */}
       <div
         className="fixed top-0 left-0 right-0 z-50 border-b"
-        style={{ background: "#0d0d0d", borderBottomColor: accentBorder }}
+        style={{ background: c.bg, borderBottomColor: accentBorder }}
       >
         {/* Logo row */}
         <div className="max-w-6xl mx-auto px-4 h-14 flex items-center justify-between gap-4">
@@ -44,7 +46,8 @@ export default function OperatorBundles() {
           <div className="flex items-center gap-3">
             <button
               onClick={() => setLocation("/")}
-              className="flex items-center gap-1.5 text-gray-400 hover:text-white transition-colors text-sm"
+              className="flex items-center gap-1.5 transition-colors text-sm"
+              style={{ color: c.textMuted }}
             >
               <ArrowLeft className="w-4 h-4" />
             </button>
@@ -54,7 +57,7 @@ export default function OperatorBundles() {
             >
               <img src={logoSrc} alt={logoAlt} className="w-full h-full object-cover" />
             </div>
-            <span className="font-black text-white text-base hidden sm:inline">
+            <span className="font-black text-base hidden sm:inline" style={{ color: c.text }}>
               {isMtn ? "MTN Cameroon" : "Orange Cameroun"}
             </span>
           </div>
@@ -67,7 +70,8 @@ export default function OperatorBundles() {
             <input
               type="text"
               placeholder="Rechercher un forfait..."
-              className="flex-1 px-3 py-2 text-sm outline-none bg-transparent text-white placeholder-gray-500"
+              className="flex-1 px-3 py-2 text-sm outline-none bg-transparent placeholder-gray-500"
+              style={{ color: c.text }}
               readOnly
             />
             <button
@@ -82,29 +86,28 @@ export default function OperatorBundles() {
           <div className="flex items-center gap-3">
             <button
               onClick={() => setLocation("/commandes")}
-              className="p-2 rounded hover:bg-white/10 transition-colors relative"
+              className="p-2 rounded transition-colors"
+              style={{ color: c.textMuted }}
             >
-              <ShoppingBag className="w-5 h-5 text-gray-300" />
+              <ShoppingBag className="w-5 h-5" />
             </button>
-            <button className="md:hidden p-2 rounded hover:bg-white/10 transition-colors">
-              <Menu className="w-5 h-5 text-gray-300" />
+            <button className="md:hidden p-2 rounded transition-colors" style={{ color: c.textMuted }}>
+              <Menu className="w-5 h-5" />
             </button>
           </div>
         </div>
       </div>
 
-      {/* ── Hero banner — fond sombre, nom opérateur ─────────────────────── */}
+      {/* ── Hero banner ────────────────────────────────────────────────────── */}
       <div
         className="pt-14"
-        style={{
-          background: `linear-gradient(180deg, ${isMtn ? "#1a1500" : "#1a0800"} 0%, #0d0d0d 100%)`,
-        }}
+        style={{ background: isMtn ? c.heroGradMtn : c.heroGradOrange }}
       >
         <div className="max-w-5xl mx-auto px-4 py-10">
           {opLoading ? (
             <div className="space-y-2">
-              <Skeleton className="h-8 w-48 bg-white/10" />
-              <Skeleton className="h-5 w-32 bg-white/10" />
+              <Skeleton className="h-8 w-48" style={{ background: c.skeleton }} />
+              <Skeleton className="h-5 w-32" style={{ background: c.skeleton }} />
             </div>
           ) : (
             <>
@@ -114,10 +117,10 @@ export default function OperatorBundles() {
               >
                 {bundles?.length ?? 0} forfaits disponibles
               </div>
-              <h1 className="text-3xl md:text-4xl font-black text-white leading-tight mb-2">
+              <h1 className="text-3xl md:text-4xl font-black leading-tight mb-2" style={{ color: c.text }}>
                 Forfaits internet
               </h1>
-              <p className="text-gray-400 text-sm max-w-md">
+              <p className="text-sm max-w-md" style={{ color: c.textMuted }}>
                 Découvrez tous nos forfaits Internet {isMtn ? "MTN" : "Orange"} avec ou sans engagement
               </p>
             </>
@@ -130,11 +133,11 @@ export default function OperatorBundles() {
         {bundlesLoading ? (
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {[1, 2, 3, 4, 5, 6].map(i => (
-              <div key={i} className="h-52 animate-pulse rounded" style={{ background: "#1a1a1a" }} />
+              <div key={i} className="h-52 animate-pulse rounded" style={{ background: c.bgCard }} />
             ))}
           </div>
         ) : !bundles?.length ? (
-          <div className="text-center py-20 text-gray-500">
+          <div className="text-center py-20" style={{ color: c.textMuted }}>
             <Wifi className="w-12 h-12 mx-auto mb-4 opacity-30" />
             <p className="text-lg">Aucun forfait disponible pour le moment</p>
           </div>
@@ -145,7 +148,7 @@ export default function OperatorBundles() {
                 key={bundle.id}
                 className="overflow-hidden transition-all hover:scale-[1.02] group"
                 style={{
-                  background: "#1a1a1a",
+                  background: c.bgCard,
                   border: `1px solid ${accentBorder}`,
                   borderRadius: "6px",
                 }}
@@ -163,24 +166,24 @@ export default function OperatorBundles() {
                     >
                       {bundle.operatorName}
                     </span>
-                    <span className="flex items-center gap-1 text-xs text-gray-500">
+                    <span className="flex items-center gap-1 text-xs" style={{ color: c.textSubtle }}>
                       <Calendar className="w-3 h-3" />
                       {bundle.validity}j
                     </span>
                   </div>
 
                   {/* Data size */}
-                  <div className="text-4xl font-black text-white leading-none mb-1">
+                  <div className="text-4xl font-black leading-none mb-1" style={{ color: c.text }}>
                     {bundle.dataSize}
                   </div>
-                  <div className="text-sm text-gray-400 mb-5">{bundle.name}</div>
+                  <div className="text-sm mb-5" style={{ color: c.textMuted }}>{bundle.name}</div>
 
                   {/* Prix */}
                   <div className="text-2xl font-black mb-5" style={{ color: accent }}>
                     {formatFCFA(bundle.price)}
                   </div>
 
-                  {/* Bouton — style "Souscrire à nos offres" avec bordure */}
+                  {/* Bouton */}
                   <button
                     onClick={() => handleBuyBundle(bundle.id)}
                     className="w-full py-2.5 font-bold text-sm transition-all border-2 hover:opacity-90 active:opacity-75"
@@ -213,8 +216,8 @@ export default function OperatorBundles() {
           <div className="mt-10 text-center">
             <button
               onClick={() => setLocation("/forfaits")}
-              className="px-8 py-3.5 font-bold text-sm text-white border border-white/20 hover:bg-white/10 transition-colors"
-              style={{ borderRadius: "4px" }}
+              className="px-8 py-3.5 font-bold text-sm border transition-colors hover:opacity-80"
+              style={{ borderColor: c.borderMd, color: c.text, borderRadius: "4px" }}
             >
               Voir tous les forfaits disponibles
             </button>
@@ -222,8 +225,8 @@ export default function OperatorBundles() {
         )}
       </div>
 
-      {/* ── Footer sombre — style opérateur ──────────────────────────────── */}
-      <footer style={{ background: "#111111", borderTop: `1px solid ${accentBorder}` }}>
+      {/* ── Footer ────────────────────────────────────────────────────────── */}
+      <footer style={{ background: c.bgSecondary, borderTop: `1px solid ${accentBorder}` }}>
         <div className="max-w-5xl mx-auto px-4 py-10">
 
           {/* Logo + description */}
@@ -235,16 +238,16 @@ export default function OperatorBundles() {
               <img src={logoSrc} alt={logoAlt} className="w-full h-full object-cover" />
             </div>
             <div>
-              <div className="font-black text-white text-base">
+              <div className="font-black text-base" style={{ color: c.text }}>
                 {isMtn ? "MTN Cameroon" : "Orange Cameroun"}
               </div>
-              <div className="text-xs text-gray-500">via Good Deal</div>
+              <div className="text-xs" style={{ color: c.textSubtle }}>via Good Deal</div>
             </div>
           </div>
 
           {/* Réseaux sociaux */}
           <div className="mb-8">
-            <div className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-4">
+            <div className="text-xs font-bold uppercase tracking-widest mb-4" style={{ color: c.textSubtle }}>
               Plus de sites
             </div>
             <div className="flex flex-col gap-3">
@@ -278,8 +281,7 @@ export default function OperatorBundles() {
             </div>
           </div>
 
-          {/* Séparateur */}
-          <div className="border-t mb-8" style={{ borderColor: "rgba(255,255,255,0.08)" }} />
+          <div className="border-t mb-8" style={{ borderColor: c.border }} />
 
           {/* Liens légaux */}
           <div className="flex flex-col gap-3 mb-8">
@@ -293,21 +295,20 @@ export default function OperatorBundles() {
               <a
                 key={link}
                 href="#"
-                className="text-sm text-gray-400 hover:text-white transition-colors"
+                className="text-sm transition-colors hover:opacity-80"
+                style={{ color: c.textMuted }}
               >
                 {link}
               </a>
             ))}
           </div>
 
-          {/* Séparateur */}
-          <div className="border-t mb-6" style={{ borderColor: "rgba(255,255,255,0.08)" }} />
+          <div className="border-t mb-6" style={{ borderColor: c.border }} />
 
-          {/* Copyright */}
-          <p className="text-xs text-gray-600">
+          <p className="text-xs" style={{ color: c.textSubtle }}>
             © 2025 {isMtn ? "MTN CAMEROON" : "ORANGE CAMEROUN"}, ALL RIGHTS RESERVED.
           </p>
-          <p className="text-xs text-gray-700 mt-1">
+          <p className="text-xs mt-1" style={{ color: c.textSubtle }}>
             Forfaits distribués via <span style={{ color: accent }}>Good Deal</span>
           </p>
         </div>

@@ -4,6 +4,7 @@ import { Wifi, Zap, Phone, ChevronRight, Check, Star, CheckCircle, MessageCircle
 import { useListOperators, useListBundles } from "@workspace/api-client-react";
 import { useQuery } from "@tanstack/react-query";
 import { formatFCFA } from "@/lib/api";
+import { useColors } from "@/hooks/use-colors";
 
 const DEFAULT_WHATSAPP = "237650000000";
 const API_BASE = import.meta.env.VITE_API_URL ?? "/api";
@@ -85,8 +86,9 @@ const TESTIMONIALS: DisplayTestimonial[] = [
 function TestimonialCard({ t }: { t: DisplayTestimonial }) {
   const isMtn = t.bundle ? t.bundle.includes("MTN") : Math.random() > 0.5;
   const initial = t.phone.charAt(0).toUpperCase();
+  const c = useColors();
   return (
-    <div className="flex-shrink-0 w-72 rounded-2xl p-4 mx-2" style={{ background: "#1a1a1a", border: "1px solid rgba(255,255,255,0.08)" }}>
+    <div className="flex-shrink-0 w-72 rounded-2xl p-4 mx-2" style={{ background: c.bgCard, border: `1px solid ${c.border}` }}>
       <div className="flex items-start justify-between mb-2">
         <div className="flex items-center gap-2">
           {t.bundle ? (
@@ -106,9 +108,9 @@ function TestimonialCard({ t }: { t: DisplayTestimonial }) {
             </div>
           )}
           <div>
-            <div className="font-bold text-sm text-white">{t.phone}</div>
+            <div className="font-bold text-sm" style={{ color: c.text }}>{t.phone}</div>
             {t.bundle && t.amount && (
-              <div className="text-xs text-gray-400">{t.bundle} · {t.amount}</div>
+              <div className="text-xs" style={{ color: c.textMuted }}>{t.bundle} · {t.amount}</div>
             )}
           </div>
         </div>
@@ -119,10 +121,10 @@ function TestimonialCard({ t }: { t: DisplayTestimonial }) {
           <Star key={i} className="w-3 h-3 fill-yellow-400 text-yellow-400" />
         ))}
         {Array.from({ length: 5 - t.stars }).map((_, i) => (
-          <Star key={i} className="w-3 h-3 text-gray-200" />
+          <Star key={i} className="w-3 h-3" style={{ color: c.textSubtle }} />
         ))}
       </div>
-      <p className="text-sm text-gray-300 leading-snug">{t.msg}</p>
+      <p className="text-sm leading-snug" style={{ color: c.textMuted }}>{t.msg}</p>
     </div>
   );
 }
@@ -332,6 +334,7 @@ export default function Home() {
   const { data: settings } = useSettings();
   const { data: dbReviews = [] } = useApprovedReviews();
   const whatsappNumber = settings?.whatsapp_number ?? DEFAULT_WHATSAPP;
+  const c = useColors();
 
   // Fusionner les avis approuvés (BDD en premier) avec les témoignages hardcodés
   const allTestimonials: DisplayTestimonial[] = [...dbReviews, ...TESTIMONIALS];
@@ -372,40 +375,40 @@ export default function Home() {
   }
 
   return (
-    <div className="min-h-screen" style={{ background: "#0d0d0d", color: "#ffffff" }}>
+    <div className="min-h-screen" style={{ background: c.bg, color: c.text }}>
       {/* ── Access modal (admin or merchant) ─────────────────────────────── */}
       {showAccessModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center px-4 bg-black/60 backdrop-blur-sm">
-          <div className="rounded-2xl p-6 w-full max-w-xs shadow-xl border border-white/10" style={{ background: "#1a1a1a" }}>
+          <div className="rounded-2xl p-6 w-full max-w-xs shadow-xl" style={{ background: c.bgModal, border: `1px solid ${c.border}` }}>
             <div className="flex items-center justify-between mb-5">
-              <h2 className="font-black text-base text-white">Accès restreint</h2>
-              <button onClick={() => setShowAccessModal(false)} className="text-gray-400 hover:text-white text-xl leading-none">×</button>
+              <h2 className="font-black text-base" style={{ color: c.text }}>Accès restreint</h2>
+              <button onClick={() => setShowAccessModal(false)} className="text-xl leading-none" style={{ color: c.textMuted }}>×</button>
             </div>
             <div className="flex flex-col gap-3">
               <button
                 onClick={() => { setShowAccessModal(false); setLocation("/ashtech"); }}
-                className="flex items-center gap-4 p-4 rounded-xl border hover:bg-white/5 transition-colors text-left"
-                style={{ borderColor: "rgba(255,255,255,0.1)" }}
+                className="flex items-center gap-4 p-4 rounded-xl border transition-colors text-left"
+                style={{ borderColor: c.border }}
               >
-                <div className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center flex-shrink-0">
-                  <Shield className="w-5 h-5 text-white" />
+                <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: c.hoverBg }}>
+                  <Shield className="w-5 h-5" style={{ color: c.text }} />
                 </div>
                 <div>
-                  <div className="font-bold text-sm text-white">Administrateur</div>
-                  <div className="text-xs text-gray-400">Accès au panneau admin</div>
+                  <div className="font-bold text-sm" style={{ color: c.text }}>Administrateur</div>
+                  <div className="text-xs" style={{ color: c.textMuted }}>Accès au panneau admin</div>
                 </div>
               </button>
               <button
                 onClick={() => { setShowAccessModal(false); setLocation("/marchand"); }}
-                className="flex items-center gap-4 p-4 rounded-xl border hover:bg-white/5 transition-colors text-left"
+                className="flex items-center gap-4 p-4 rounded-xl border transition-colors text-left"
                 style={{ borderColor: "rgba(255,102,0,0.3)" }}
               >
                 <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: "#FF6600" }}>
                   <Store className="w-5 h-5 text-white" />
                 </div>
                 <div>
-                  <div className="font-bold text-sm text-white">Espace marchand</div>
-                  <div className="text-xs text-gray-400">Gérer mon compte marchand</div>
+                  <div className="font-bold text-sm" style={{ color: c.text }}>Espace marchand</div>
+                  <div className="text-xs" style={{ color: c.textMuted }}>Gérer mon compte marchand</div>
                 </div>
               </button>
             </div>
@@ -414,13 +417,13 @@ export default function Home() {
       )}
 
       {/* Hero */}
-      <section className="pt-24 pb-10 px-4 border-b" style={{ background: "linear-gradient(180deg, #1a0800 0%, #0d0d0d 100%)", borderBottomColor: "rgba(255,255,255,0.06)" }}>
+      <section className="pt-24 pb-10 px-4 border-b" style={{ background: c.heroGrad, borderBottomColor: c.border }}>
         <div className="max-w-4xl mx-auto text-center">
-          <h1 className="text-4xl md:text-5xl font-black text-white leading-tight mb-4">
+          <h1 className="text-4xl md:text-5xl font-black leading-tight mb-4" style={{ color: c.text }}>
             Internet mobile au<br />
             <span style={{ color: "#FF6600" }}>meilleur prix</span> au Cameroun
           </h1>
-          <p className="text-base text-gray-400 max-w-xl mx-auto mb-8">
+          <p className="text-base max-w-xl mx-auto mb-8" style={{ color: c.textMuted }}>
             Achetez vos forfaits internet MTN et Orange directement depuis votre téléphone. Paiement Mobile Money instantané.
           </p>
 
@@ -468,10 +471,10 @@ export default function Home() {
 
       {/* Operator Cards */}
       <section className="px-4 py-12 max-w-5xl mx-auto">
-        <h2 className="text-xl font-black text-white mb-6">Choisissez votre opérateur</h2>
+        <h2 className="text-xl font-black mb-6" style={{ color: c.text }}>Choisissez votre opérateur</h2>
         {opsLoading ? (
           <div className="grid md:grid-cols-2 gap-4">
-            {[1, 2].map(i => <div key={i} className="h-52 animate-pulse" style={{ background: "#1a1a1a", borderRadius: "6px" }} />)}
+            {[1, 2].map(i => <div key={i} className="h-52 animate-pulse" style={{ background: c.bgCard, borderRadius: "6px" }} />)}
           </div>
         ) : (
           <div className="grid md:grid-cols-2 gap-4">
@@ -479,15 +482,15 @@ export default function Home() {
             <button
               onClick={() => orangeOp ? setLocation(`/operator/${orangeOp.id}`) : setLocation("/forfaits")}
               className="group p-6 text-left transition-all hover:scale-[1.01] overflow-hidden"
-              style={{ background: "#1a1a1a", border: "1px solid rgba(255,102,0,0.3)", borderLeft: "4px solid #FF6600", borderRadius: "6px" }}
+              style={{ background: c.bgCard, border: "1px solid rgba(255,102,0,0.3)", borderLeft: "4px solid #FF6600", borderRadius: "6px" }}
             >
               <div className="flex items-center gap-3 mb-4">
                 <div className="w-12 h-12 rounded overflow-hidden flex-shrink-0" style={{ background: "#FF6600" }}>
                   <img src="/logo-orange.jpg" alt="Orange" className="w-full h-full object-cover" />
                 </div>
                 <div>
-                  <div className="font-black text-white text-lg">Orange Cameroun</div>
-                  <div className="text-sm text-gray-400">{allOrangeBundles.length} forfaits disponibles</div>
+                  <div className="font-black text-lg" style={{ color: c.text }}>Orange Cameroun</div>
+                  <div className="text-sm" style={{ color: c.textMuted }}>{allOrangeBundles.length} forfaits disponibles</div>
                 </div>
               </div>
               <div className="flex gap-2 flex-wrap mb-4">
@@ -506,15 +509,15 @@ export default function Home() {
             <button
               onClick={() => mtnOp ? setLocation(`/operator/${mtnOp.id}`) : setLocation("/forfaits")}
               className="group p-6 text-left transition-all hover:scale-[1.01] overflow-hidden"
-              style={{ background: "#1a1a1a", border: "1px solid rgba(255,215,0,0.3)", borderLeft: "4px solid #FFD700", borderRadius: "6px" }}
+              style={{ background: c.bgCard, border: "1px solid rgba(255,215,0,0.3)", borderLeft: "4px solid #FFD700", borderRadius: "6px" }}
             >
               <div className="flex items-center gap-3 mb-4">
                 <div className="w-12 h-12 rounded overflow-hidden flex-shrink-0" style={{ background: "#FFD700" }}>
                   <img src="/logo-mtn.png" alt="MTN" className="w-full h-full object-cover" />
                 </div>
                 <div>
-                  <div className="font-black text-white text-lg">MTN Cameroon</div>
-                  <div className="text-sm text-gray-400">{allMtnBundles.length} forfaits disponibles</div>
+                  <div className="font-black text-lg" style={{ color: c.text }}>MTN Cameroon</div>
+                  <div className="text-sm" style={{ color: c.textMuted }}>{allMtnBundles.length} forfaits disponibles</div>
                 </div>
               </div>
               <div className="flex gap-2 flex-wrap mb-4">
@@ -533,14 +536,14 @@ export default function Home() {
       </section>
 
       {/* ===== TESTIMONIALS ===== */}
-      <section id="avis" className="pb-16 pt-12 overflow-hidden" style={{ background: "#111111" }}>
+      <section id="avis" className="pb-16 pt-12 overflow-hidden" style={{ background: c.bgSecondary }}>
         <div className="max-w-4xl mx-auto px-4 text-center mb-8">
           <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-sm font-bold mb-4" style={{ background: "rgba(34,197,94,0.15)", color: "#4ade80" }}>
             <CheckCircle className="w-4 h-4" />
             Clients satisfaits
           </div>
-          <h2 className="text-2xl font-black text-white mb-2">Ce que disent nos clients</h2>
-          <p className="text-gray-400 text-sm mb-6">Plus de <strong className="text-white">10 000 forfaits</strong> vendus — ils témoignent</p>
+          <h2 className="text-2xl font-black mb-2" style={{ color: c.text }}>Ce que disent nos clients</h2>
+          <p className="text-sm mb-6" style={{ color: c.textMuted }}>Plus de <strong style={{ color: c.text }}>10 000 forfaits</strong> vendus — ils témoignent</p>
         </div>
 
         <div className="space-y-3">
@@ -551,9 +554,9 @@ export default function Home() {
       </section>
 
       {/* How it works */}
-      <section className="px-4 pb-16" style={{ background: "#0d0d0d" }}>
+      <section className="px-4 pb-16" style={{ background: c.bg }}>
         <div className="max-w-4xl mx-auto py-16">
-          <h2 className="text-2xl font-black text-center text-white mb-12">Comment ça marche ?</h2>
+          <h2 className="text-2xl font-black text-center mb-12" style={{ color: c.text }}>Comment ça marche ?</h2>
           <div className="grid md:grid-cols-3 gap-8">
             {[
               { icon: Wifi,  step: "1", title: "Choisissez un forfait", desc: "Parcourez nos offres MTN et Orange, comparez les prix et la data.", color: "#FF6600" },
@@ -570,8 +573,8 @@ export default function Home() {
                   <item.icon className="w-7 h-7" style={{ color: item.color }} />
                 </div>
                 <div className="text-xs font-bold uppercase tracking-widest mb-2" style={{ color: item.color }}>Étape {item.step}</div>
-                <h3 className="text-lg font-bold text-white mb-2">{item.title}</h3>
-                <p className="text-gray-400 text-sm leading-relaxed">{item.desc}</p>
+                <h3 className="text-lg font-bold mb-2" style={{ color: c.text }}>{item.title}</h3>
+                <p className="text-sm leading-relaxed" style={{ color: c.textMuted }}>{item.desc}</p>
               </div>
             ))}
           </div>
@@ -580,8 +583,8 @@ export default function Home() {
 
       {/* Features */}
       <section className="px-4 pb-20 max-w-4xl mx-auto pt-4">
-        <div className="border rounded-2xl p-8" style={{ background: "#1a1a1a", borderColor: "rgba(255,255,255,0.08)" }}>
-          <h2 className="text-xl font-black text-white mb-6">Pourquoi Good Deal ?</h2>
+        <div className="border rounded-2xl p-8" style={{ background: c.bgCard, borderColor: c.border }}>
+          <h2 className="text-xl font-black mb-6" style={{ color: c.text }}>Pourquoi Good Deal ?</h2>
           <div className="grid sm:grid-cols-2 gap-4">
             {[
               "Paiement 100% sécurisé Mobile Money",
@@ -595,7 +598,7 @@ export default function Home() {
                 <div className="w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: "rgba(34,197,94,0.2)" }}>
                   <Check className="w-3 h-3" style={{ color: "#4ade80" }} />
                 </div>
-                <span className="text-sm text-gray-300">{feat}</span>
+                <span className="text-sm" style={{ color: c.textMuted }}>{feat}</span>
               </div>
             ))}
           </div>
@@ -603,7 +606,7 @@ export default function Home() {
       </section>
 
       {/* Footer */}
-      <footer style={{ background: "#111111", borderTop: "1px solid rgba(255,255,255,0.08)" }}>
+      <footer style={{ background: c.bgSecondary, borderTop: `1px solid ${c.border}` }}>
         <div className="max-w-5xl mx-auto px-4 py-10">
 
           {/* Logo + description */}
@@ -612,14 +615,14 @@ export default function Home() {
               G
             </div>
             <div>
-              <div className="font-black text-white text-base">Good Deal</div>
-              <div className="text-xs text-gray-500">Forfaits internet MTN & Orange au Cameroun</div>
+              <div className="font-black text-base" style={{ color: c.text }}>Good Deal</div>
+              <div className="text-xs" style={{ color: c.textSubtle }}>Forfaits internet MTN & Orange au Cameroun</div>
             </div>
           </div>
 
           {/* Liens rapides */}
           <div className="mb-8">
-            <div className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-4">Navigation</div>
+            <div className="text-xs font-bold uppercase tracking-widest mb-4" style={{ color: c.textSubtle }}>Navigation</div>
             <div className="flex flex-col gap-3">
               {[
                 { label: "Forfaits Orange", href: orangeOp ? `/operator/${orangeOp.id}` : "/forfaits" },
@@ -639,7 +642,7 @@ export default function Home() {
             </div>
           </div>
 
-          <div className="border-t mb-8" style={{ borderColor: "rgba(255,255,255,0.08)" }} />
+          <div className="border-t mb-8" style={{ borderColor: c.border }} />
 
           {/* Liens légaux */}
           <div className="flex flex-col gap-3 mb-8">
@@ -649,16 +652,16 @@ export default function Home() {
               "Assistance client",
               "ANTIC — Cybersécurité",
             ].map(link => (
-              <a key={link} href="#" className="text-sm text-gray-400 hover:text-white transition-colors">
+              <a key={link} href="#" className="text-sm transition-colors hover:opacity-80" style={{ color: c.textMuted }}>
                 {link}
               </a>
             ))}
           </div>
 
-          <div className="border-t mb-6" style={{ borderColor: "rgba(255,255,255,0.08)" }} />
+          <div className="border-t mb-6" style={{ borderColor: c.border }} />
 
-          <p className="text-xs text-gray-600">© 2025 GOOD DEAL, ALL RIGHTS RESERVED.</p>
-          <p className="text-xs text-gray-700 mt-1">
+          <p className="text-xs" style={{ color: c.textSubtle }}>© 2025 GOOD DEAL, ALL RIGHTS RESERVED.</p>
+          <p className="text-xs mt-1" style={{ color: c.textSubtle }}>
             Forfaits distribués par <span style={{ color: "#FF6600" }}>Good Deal Cameroun</span>
           </p>
         </div>
