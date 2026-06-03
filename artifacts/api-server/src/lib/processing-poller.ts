@@ -5,20 +5,22 @@ import { emitOrderStatus } from "./order-events";
 import { logger } from "./logger";
 
 const POLL_INTERVAL_MS = 5000;
-// Pending orders with no transactionId: auto-cancel after 3 min
-const UNPAID_EXPIRY_MS = 3 * 60 * 1000;
-// Processing orders stuck with no resolution: auto-fail after 30 min
-const STUCK_PROCESSING_EXPIRY_MS = 30 * 60 * 1000;
+// Pending orders with no transactionId: auto-cancel after 5 min
+const UNPAID_EXPIRY_MS = 5 * 60 * 1000;
+// Processing orders stuck with no resolution: auto-fail after 60 min
+const STUCK_PROCESSING_EXPIRY_MS = 60 * 60 * 1000;
+// Minimum age before we start counting consecutive FAILEDs.
+// PixPay returns FAILED during USSD confirmation — don't penalise early.
+const MIN_AGE_BEFORE_FAIL_COUNT_MS = 4 * 60 * 1000; // 4 minutes
 // How many consecutive FAILED responses before we trust it.
-// Pixpay can return FAILED briefly on cashouts even when the customer is
-// still confirming. 6 checks × 5 s = ~30 s of confirmed failures needed.
-const MAX_FAIL_COUNT = 6;
+// 36 checks × 5 s = ~3 min of confirmed failures needed.
+const MAX_FAIL_COUNT = 36;
 
 // In-memory counters: transactionId → number of consecutive FAILED checks
 const failedCounts = new Map<string, number>();
 
 function isSuccessState(state: string): boolean {
-  return ["SUCCESS", "SUCCESSFULL", "SUCCESSFUL"].includes(state.toUpperCase());
+  return ["SUCCESS", "SUCCESSFULL", "SUCCESSFUL", "COMPLETED", "COMPLETE"].includes(state.toUpperCase());
 }
 
 function isFailedState(state: string): boolean {
@@ -70,7 +72,7 @@ async function cancelOldUnpaidOrders() {
   }
 }
 
-// Fail `processing` orders stuck for more than 30 min (IPN never arrived)
+// Fail `processing` orders stuck for more than 60 min (IPN never arrived)
 async function failStuckProcessingOrders() {
   const cutoff = new Date(Date.now() - STUCK_PROCESSING_EXPIRY_MS);
   try {
@@ -105,7 +107,7 @@ async function failStuckProcessingOrders() {
         if (order.transactionId) failedCounts.delete(order.transactionId);
         await db.update(ordersTable).set({ status: "failed" }).where(eq(ordersTable.id, order.id));
         emitOrderStatus(order.id, "failed", order.transactionId);
-        logger.warn({ orderId: order.id, finalState }, "Poller: stuck order auto-failed after 30 min");
+        logger.warn({ orderId: order.id, finalState }, "Poller: stuck order auto-failed after 60 min");
       }
     }
   } catch (err: any) {
@@ -135,7 +137,6 @@ async function checkProcessingOrders() {
       logger.debug({ orderId: order.id, transactionId: order.transactionId, state }, "Poller: Pixpay status");
 
       if (isSuccessState(state)) {
-        // Immediate — reset counter and mark confirmed
         failedCounts.delete(order.transactionId);
         const updated = await db
           .update(ordersTable)
@@ -151,7 +152,17 @@ async function checkProcessingOrders() {
         logger.info({ orderId: order.id, state }, "Poller: order confirmed");
 
       } else if (isFailedState(state)) {
-        // Increment consecutive-failure counter
+        // PixPay returns FAILED briefly while user is confirming USSD.
+        // Don't start counting failures until the order is at least 4 minutes old.
+        if (ageMs < MIN_AGE_BEFORE_FAIL_COUNT_MS) {
+          logger.info(
+            { orderId: order.id, state, ageMs },
+            "Poller: FAILED state but order too young — ignoring (user may still be confirming)"
+          );
+          failedCounts.delete(order.transactionId);
+          continue;
+        }
+
         const count = (failedCounts.get(order.transactionId) ?? 0) + 1;
         failedCounts.set(order.transactionId, count);
 
@@ -161,14 +172,13 @@ async function checkProcessingOrders() {
         );
 
         if (count >= MAX_FAIL_COUNT) {
-          // Confirmed failure after MAX_FAIL_COUNT × 5 s ≈ 30 s of consecutive FAILED
           failedCounts.delete(order.transactionId);
           await db.update(ordersTable).set({ status: "failed" }).where(eq(ordersTable.id, order.id));
           emitOrderStatus(order.id, "failed", order.transactionId);
           logger.info({ orderId: order.id, state }, "Poller: order marked failed after consecutive checks");
         }
       } else {
-        // In-flight (PENDING / PROCESSING / unknown) — reset failure streak
+        // In-flight (PENDING / PENDING1 / PROCESSING / unknown) — reset failure streak
         failedCounts.delete(order.transactionId);
       }
     } catch (err: any) {

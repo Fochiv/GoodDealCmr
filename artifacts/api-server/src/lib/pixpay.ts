@@ -18,7 +18,20 @@ function getIpnUrl(): string {
     (process.env.REPLIT_DEV_DOMAIN
       ? `https://${process.env.REPLIT_DEV_DOMAIN}`
       : "");
-  return `${base}/api/payments/ipn`;
+
+  const url = `${base}/api/payments/ipn`;
+
+  if (!base || !url.startsWith("http")) {
+    // In production, BASE_URL must be set (e.g. BASE_URL=https://good-deals-cm.top)
+    // Without it, PixPay cannot send IPN notifications and payments will rely on polling only.
+    console.error(
+      "[PixPay] AVERTISSEMENT : BASE_URL n'est pas configuré. " +
+      "PixPay ne pourra pas notifier le serveur (IPN). " +
+      "Configurez BASE_URL=https://good-deals-cm.top dans les variables d'environnement Plesk."
+    );
+  }
+
+  return url;
 }
 
 function formatPhone(phone: string): string {

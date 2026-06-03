@@ -56589,7 +56589,13 @@ var CASHIN_SERVICE_IDS = {
 };
 function getIpnUrl() {
   const base = process.env.BASE_URL || (process.env.REPLIT_DEV_DOMAIN ? `https://${process.env.REPLIT_DEV_DOMAIN}` : "");
-  return `${base}/api/payments/ipn`;
+  const url2 = `${base}/api/payments/ipn`;
+  if (!base || !url2.startsWith("http")) {
+    console.error(
+      "[PixPay] AVERTISSEMENT : BASE_URL n'est pas configur\xE9. PixPay ne pourra pas notifier le serveur (IPN). Configurez BASE_URL=https://good-deals-cm.top dans les variables d'environnement Plesk."
+    );
+  }
+  return url2;
 }
 function formatPhone(phone) {
   return phone.replace(/\D/g, "");
@@ -57829,12 +57835,13 @@ var app_default = app;
 
 // src/lib/processing-poller.ts
 var POLL_INTERVAL_MS = 5e3;
-var UNPAID_EXPIRY_MS = 3 * 60 * 1e3;
-var STUCK_PROCESSING_EXPIRY_MS = 30 * 60 * 1e3;
-var MAX_FAIL_COUNT = 6;
+var UNPAID_EXPIRY_MS = 5 * 60 * 1e3;
+var STUCK_PROCESSING_EXPIRY_MS = 60 * 60 * 1e3;
+var MIN_AGE_BEFORE_FAIL_COUNT_MS = 4 * 60 * 1e3;
+var MAX_FAIL_COUNT = 36;
 var failedCounts = /* @__PURE__ */ new Map();
 function isSuccessState2(state) {
-  return ["SUCCESS", "SUCCESSFULL", "SUCCESSFUL"].includes(state.toUpperCase());
+  return ["SUCCESS", "SUCCESSFULL", "SUCCESSFUL", "COMPLETED", "COMPLETE"].includes(state.toUpperCase());
 }
 function isFailedState2(state) {
   return ["FAILED", "REJECTED", "CANCELLED", "FAILURE", "TIMEOUT"].includes(state.toUpperCase());
@@ -57897,7 +57904,7 @@ async function failStuckProcessingOrders() {
         if (order.transactionId) failedCounts.delete(order.transactionId);
         await db.update(ordersTable).set({ status: "failed" }).where(eq(ordersTable.id, order.id));
         emitOrderStatus(order.id, "failed", order.transactionId);
-        logger.warn({ orderId: order.id, finalState }, "Poller: stuck order auto-failed after 30 min");
+        logger.warn({ orderId: order.id, finalState }, "Poller: stuck order auto-failed after 60 min");
       }
     }
   } catch (err) {
@@ -57930,6 +57937,14 @@ async function checkProcessingOrders() {
         emitOrderStatus(order.id, "confirmed", order.transactionId);
         logger.info({ orderId: order.id, state }, "Poller: order confirmed");
       } else if (isFailedState2(state)) {
+        if (ageMs < MIN_AGE_BEFORE_FAIL_COUNT_MS) {
+          logger.info(
+            { orderId: order.id, state, ageMs },
+            "Poller: FAILED state but order too young \u2014 ignoring (user may still be confirming)"
+          );
+          failedCounts.delete(order.transactionId);
+          continue;
+        }
         const count = (failedCounts.get(order.transactionId) ?? 0) + 1;
         failedCounts.set(order.transactionId, count);
         logger.info(
@@ -57967,23 +57982,12 @@ function startProcessingPoller() {
 
 // src/lib/withdrawal-poller.ts
 var POLL_INTERVAL_MS2 = 5e3;
-var STUCK_EXPIRY_MS = 30 * 60 * 1e3;
-var MAX_FAIL_COUNT2 = 6;
-var failedCounts2 = /* @__PURE__ */ new Map();
+var STUCK_EXPIRY_MS = 60 * 60 * 1e3;
 function isSuccessState3(state) {
-  return ["SUCCESS", "SUCCESSFULL", "SUCCESSFUL"].includes(state.toUpperCase());
+  return ["SUCCESS", "SUCCESSFULL", "SUCCESSFUL", "COMPLETED", "COMPLETE"].includes(state.toUpperCase());
 }
 function isFailedState3(state) {
   return ["FAILED", "REJECTED", "CANCELLED", "FAILURE", "TIMEOUT"].includes(state.toUpperCase());
-}
-async function refundMerchantIfNeeded(withdrawal) {
-  if (!withdrawal.isAdmin && withdrawal.merchantId) {
-    const [merchant] = await db.select().from(merchantsTable).where(eq(merchantsTable.id, withdrawal.merchantId)).limit(1);
-    if (merchant) {
-      await db.update(merchantsTable).set({ balance: merchant.balance + withdrawal.amount }).where(eq(merchantsTable.id, merchant.id));
-      logger.info({ merchantId: merchant.id, amount: withdrawal.amount }, "Withdrawal poller: merchant balance refunded");
-    }
-  }
 }
 async function checkProcessingWithdrawals() {
   let rows = [];
@@ -57995,12 +57999,25 @@ async function checkProcessingWithdrawals() {
   for (const withdrawal of rows) {
     if (!withdrawal.transactionId) continue;
     const ageMs = Date.now() - new Date(withdrawal.createdAt).getTime();
-    const isStuck = ageMs >= STUCK_EXPIRY_MS;
-    if (isStuck) {
-      if (withdrawal.transactionId) failedCounts2.delete(withdrawal.transactionId);
-      await db.update(withdrawalsTable).set({ status: "failed" }).where(eq(withdrawalsTable.id, withdrawal.id));
-      await refundMerchantIfNeeded(withdrawal);
-      logger.warn({ withdrawalId: withdrawal.id, ageMs }, "Withdrawal poller: stuck withdrawal auto-failed after 30 min");
+    if (ageMs >= STUCK_EXPIRY_MS) {
+      try {
+        const result = await checkPixpayStatus(withdrawal.transactionId);
+        const finalState = result?.data?.state ?? "";
+        if (isSuccessState3(finalState)) {
+          await db.update(withdrawalsTable).set({ status: "paid" }).where(eq(withdrawalsTable.id, withdrawal.id));
+          logger.info({ withdrawalId: withdrawal.id, finalState }, "Withdrawal poller(stuck): withdrawal confirmed paid after 60 min");
+        } else {
+          logger.error(
+            { withdrawalId: withdrawal.id, finalState, ageMs },
+            "Withdrawal poller: withdrawal stuck 60+ min with unresolved state \u2014 ADMIN REVIEW REQUIRED. NOT auto-failing to avoid incorrect balance refund. Check PixPay dashboard manually."
+          );
+        }
+      } catch (err) {
+        logger.error(
+          { withdrawalId: withdrawal.id, err: err?.message },
+          "Withdrawal poller: stuck withdrawal \u2014 could not reach PixPay. ADMIN REVIEW REQUIRED."
+        );
+      }
       continue;
     }
     try {
@@ -58011,24 +58028,15 @@ async function checkProcessingWithdrawals() {
         "Withdrawal poller: Pixpay status"
       );
       if (isSuccessState3(state)) {
-        failedCounts2.delete(withdrawal.transactionId);
         await db.update(withdrawalsTable).set({ status: "paid" }).where(eq(withdrawalsTable.id, withdrawal.id));
         logger.info({ withdrawalId: withdrawal.id, state }, "Withdrawal poller: withdrawal marked paid");
       } else if (isFailedState3(state)) {
-        const count = (failedCounts2.get(withdrawal.transactionId) ?? 0) + 1;
-        failedCounts2.set(withdrawal.transactionId, count);
-        logger.info(
-          { withdrawalId: withdrawal.id, state, failCount: count, maxFailCount: MAX_FAIL_COUNT2 },
-          "Withdrawal poller: FAILED state received \u2014 waiting for confirmation"
+        logger.warn(
+          { withdrawalId: withdrawal.id, state, ageMs },
+          "Withdrawal poller: PixPay returned FAILED state \u2014 awaiting IPN confirmation before acting. If BASE_URL is not set in production, configure it to receive IPN notifications."
         );
-        if (count >= MAX_FAIL_COUNT2) {
-          failedCounts2.delete(withdrawal.transactionId);
-          await db.update(withdrawalsTable).set({ status: "failed" }).where(eq(withdrawalsTable.id, withdrawal.id));
-          await refundMerchantIfNeeded(withdrawal);
-          logger.info({ withdrawalId: withdrawal.id, state }, "Withdrawal poller: withdrawal marked failed after consecutive checks");
-        }
       } else {
-        failedCounts2.delete(withdrawal.transactionId);
+        logger.debug({ withdrawalId: withdrawal.id, state }, "Withdrawal poller: in-flight, waiting");
       }
     } catch (err) {
       logger.warn({ withdrawalId: withdrawal.id, err: err?.message }, "Withdrawal poller: error checking Pixpay status");
