@@ -1,4 +1,4 @@
-import { Switch, Route, Router as WouterRouter } from "wouter";
+import { Switch, Route, Router as WouterRouter, useLocation } from "wouter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useEffect } from "react";
 import { Toaster } from "@/components/ui/toaster";
@@ -68,9 +68,11 @@ export function clearReferralCode() {
 }
 
 function AppLayout() {
+  const [location] = useLocation();
+  const isOperatorPage = location.startsWith("/operator/");
+
   useEffect(() => {
     document.documentElement.classList.remove("dark");
-    // Capturer le code parrain dès l'arrivée sur le site, peu importe la page
     const params = new URLSearchParams(window.location.search);
     const ref = params.get("ref");
     if (ref && ref.trim()) {
@@ -80,11 +82,11 @@ function AppLayout() {
 
   return (
     <>
-      <Navbar />
+      {!isOperatorPage && <Navbar />}
       <Router />
-      <PendingPaymentBar />
-      <DevicePendingBar />
-      <BottomNav />
+      {!isOperatorPage && <PendingPaymentBar />}
+      {!isOperatorPage && <DevicePendingBar />}
+      {!isOperatorPage && <BottomNav />}
     </>
   );
 }
