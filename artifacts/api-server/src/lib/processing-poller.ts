@@ -4,7 +4,7 @@ import { checkPixpayStatus } from "./pixpay";
 import { emitOrderStatus } from "./order-events";
 import { logger } from "./logger";
 
-const POLL_INTERVAL_MS = 3000;
+const POLL_INTERVAL_MS = 2000;
 // Pending orders with no transactionId: auto-cancel after 5 min
 const UNPAID_EXPIRY_MS = 5 * 60 * 1000;
 // Processing orders stuck with no resolution: auto-fail after 60 min
@@ -196,7 +196,7 @@ async function runCycle() {
 }
 
 export function startProcessingPoller() {
-  logger.info("Starting Pixpay processing-order poller (every 3s)");
+  logger.info("Starting Pixpay processing-order poller (every 2s)");
   runCycle().catch(() => {});
   setInterval(() => { runCycle().catch(() => {}); }, POLL_INTERVAL_MS);
 }

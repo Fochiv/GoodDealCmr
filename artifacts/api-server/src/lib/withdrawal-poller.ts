@@ -3,7 +3,7 @@ import { eq } from "drizzle-orm";
 import { checkPixpayStatus } from "./pixpay";
 import { logger } from "./logger";
 
-const POLL_INTERVAL_MS = 3000;
+const POLL_INTERVAL_MS = 2000;
 // After this age with no resolution, stop active polling and alert admin.
 // We intentionally do NOT auto-fail stuck withdrawals because the money may
 // have already been physically sent to the recipient's phone — auto-failing
@@ -108,7 +108,7 @@ async function runCycle() {
 }
 
 export function startWithdrawalPoller() {
-  logger.info("Starting withdrawal cashin poller (every 3s)");
+  logger.info("Starting withdrawal cashin poller (every 2s)");
   runCycle().catch(() => {});
   setInterval(() => { runCycle().catch(() => {}); }, POLL_INTERVAL_MS);
 }

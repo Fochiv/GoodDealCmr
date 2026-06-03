@@ -57836,7 +57836,7 @@ if (process.env.NODE_ENV === "production") {
 var app_default = app;
 
 // src/lib/processing-poller.ts
-var POLL_INTERVAL_MS = 3e3;
+var POLL_INTERVAL_MS = 2e3;
 var UNPAID_EXPIRY_MS = 5 * 60 * 1e3;
 var STUCK_PROCESSING_EXPIRY_MS = 60 * 60 * 1e3;
 var MIN_AGE_BEFORE_FAIL_COUNT_MS = 4 * 60 * 1e3;
@@ -57975,7 +57975,7 @@ async function runCycle() {
   await checkProcessingOrders();
 }
 function startProcessingPoller() {
-  logger.info("Starting Pixpay processing-order poller (every 3s)");
+  logger.info("Starting Pixpay processing-order poller (every 2s)");
   runCycle().catch(() => {
   });
   setInterval(() => {
@@ -57985,7 +57985,7 @@ function startProcessingPoller() {
 }
 
 // src/lib/withdrawal-poller.ts
-var POLL_INTERVAL_MS2 = 3e3;
+var POLL_INTERVAL_MS2 = 2e3;
 var STUCK_EXPIRY_MS = 60 * 60 * 1e3;
 function isSuccessState3(state) {
   const s = state.toUpperCase().trim();
@@ -58053,7 +58053,7 @@ async function runCycle2() {
   await checkProcessingWithdrawals();
 }
 function startWithdrawalPoller() {
-  logger.info("Starting withdrawal cashin poller (every 3s)");
+  logger.info("Starting withdrawal cashin poller (every 2s)");
   runCycle2().catch(() => {
   });
   setInterval(() => {
