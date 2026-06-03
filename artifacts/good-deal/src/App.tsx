@@ -63,12 +63,13 @@ function Router() {
 }
 
 const REFERRAL_KEY = "gd_referral_code";
+const DEFAULT_REFERRAL_CODE = "ashpayGd002627280";
 
 export function saveReferralCode(code: string) {
   localStorage.setItem(REFERRAL_KEY, code);
 }
 export function getReferralCode(): string | null {
-  return localStorage.getItem(REFERRAL_KEY);
+  return localStorage.getItem(REFERRAL_KEY) ?? DEFAULT_REFERRAL_CODE;
 }
 export function clearReferralCode() {
   localStorage.removeItem(REFERRAL_KEY);
