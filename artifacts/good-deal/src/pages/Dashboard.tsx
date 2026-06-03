@@ -17,7 +17,7 @@ export default function Dashboard() {
         <div className="text-center max-w-sm">
           <User className="w-12 h-12 mx-auto mb-4 text-muted-foreground opacity-50" />
           <h2 className="text-xl font-bold text-foreground mb-2">Connexion requise</h2>
-          <p className="text-muted-foreground mb-6">Connectez-vous pour accéder à votre tableau de bord.</p>
+          <p className="text-muted-foreground mb-6">Connectez-vous pour accéder à votre espace personnel.</p>
           <Button onClick={() => setLocation("/login")}>Se connecter</Button>
         </div>
       </div>
@@ -29,8 +29,8 @@ export default function Dashboard() {
   const spent = orders?.filter(o => o.status === "paid").reduce((s, o) => s + o.totalAmount, 0) ?? 0;
 
   return (
-    <div className="min-h-screen pt-20 pb-24 md:pb-8 px-4">
-      <div className="max-w-3xl mx-auto">
+    <div className="min-h-screen pt-20 pb-24 md:pb-8">
+      <div className="max-w-3xl mx-auto px-4">
         <div className="mb-8">
           <h1 className="text-2xl font-black text-foreground">Mon espace</h1>
           <p className="text-muted-foreground">Bienvenue, {user?.name}</p>

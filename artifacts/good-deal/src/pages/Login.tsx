@@ -33,7 +33,7 @@ export default function Login() {
       const data = await res.json();
       login(data.token, data.user);
       toast({ title: "Bienvenue !", description: `Connecté en tant que ${data.user.name}` });
-      setLocation(data.user.role === "admin" ? "/admin" : "/dashboard");
+      setLocation(data.user.role === "admin" ? "/ashtech/dashboard" : "/dashboard");
     } catch (err: any) {
       toast({ title: "Erreur de connexion", description: err.message, variant: "destructive" });
     } finally {

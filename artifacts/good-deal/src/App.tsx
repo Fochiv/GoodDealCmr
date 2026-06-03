@@ -22,6 +22,8 @@ import AdminReviews from "@/pages/AdminReviews";
 import AdminSettings from "@/pages/AdminSettings";
 import AdminMerchantDetail from "@/pages/AdminMerchantDetail";
 import Dashboard from "@/pages/Dashboard";
+import Login from "@/pages/Login";
+import Register from "@/pages/Register";
 import MarchandLogin from "@/pages/MarchandLogin";
 import MarchandDashboard from "@/pages/MarchandDashboard";
 import NotFound from "@/pages/not-found";
@@ -42,6 +44,8 @@ function Router() {
       <Route path="/forfaits" component={AllBundles} />
       <Route path="/commandes" component={Orders} />
       <Route path="/dashboard" component={Dashboard} />
+      <Route path="/login" component={Login} />
+      <Route path="/register" component={Register} />
       <Route path="/ashtech" component={Ashtech} />
       <Route path="/ashtech/dashboard" component={Admin} />
       <Route path="/ashtech/bundles" component={AdminBundles} />
