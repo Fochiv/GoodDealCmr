@@ -2,6 +2,7 @@ import express, { type Express } from "express";
 import cors from "cors";
 import pinoHttp from "pino-http";
 import path from "path";
+import http from "http";
 import { fileURLToPath } from "url";
 import router from "./routes";
 import { logger } from "./lib/logger";
@@ -37,14 +38,38 @@ app.use(express.urlencoded({ extended: true }));
 app.use("/api", router);
 
 if (process.env.NODE_ENV === "production") {
-  // STATIC_DIR can be set explicitly.
-  // Default: dist/public relative to cwd() — works for Plesk/Passenger out of the box.
   const staticDir = process.env.STATIC_DIR
     ? path.resolve(process.cwd(), process.env.STATIC_DIR)
     : path.resolve(process.cwd(), "dist/public");
   app.use(express.static(staticDir));
   app.get("/{*path}", (_req, res) => {
     res.sendFile(path.join(staticDir, "index.html"));
+  });
+} else {
+  // In development: proxy all non-API requests to the Vite dev server (port 5000)
+  const VITE_PORT = 5000;
+  app.use((req, res) => {
+    const options = {
+      hostname: "localhost",
+      port: VITE_PORT,
+      path: req.url,
+      method: req.method,
+      headers: {
+        ...req.headers,
+        host: `localhost:${VITE_PORT}`,
+      },
+    };
+
+    const proxy = http.request(options, (proxyRes) => {
+      res.writeHead(proxyRes.statusCode ?? 200, proxyRes.headers);
+      proxyRes.pipe(res, { end: true });
+    });
+
+    proxy.on("error", () => {
+      res.status(502).send("Frontend not ready yet — please wait a moment and refresh.");
+    });
+
+    req.pipe(proxy, { end: true });
   });
 }
 
