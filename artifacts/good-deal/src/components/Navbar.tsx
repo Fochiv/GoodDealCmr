@@ -109,10 +109,11 @@ export function Navbar() {
       <div className="max-w-6xl mx-auto px-4 h-14 flex items-center justify-between gap-4">
         <Link href="/" className="flex items-center gap-2.5 font-black text-lg text-white flex-shrink-0">
           <div
-            className="w-9 h-9 flex items-center justify-center rounded-sm font-black text-white text-base leading-none"
-            style={{ background: "#FF6600" }}
+            className="flex items-center justify-center rounded-sm font-black text-white leading-none px-2 h-9 sm:w-9 sm:px-0"
+            style={{ background: "#FF6600", fontSize: "clamp(7px, 1.8vw, 11px)" }}
           >
-            G
+            <span className="sm:hidden tracking-tight">GOODDEALS</span>
+            <span className="hidden sm:inline text-base">G</span>
           </div>
           <span className="hidden sm:inline">Good Deal</span>
         </Link>
