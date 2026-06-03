@@ -221,6 +221,97 @@ export default function OperatorBundles() {
           </div>
         )}
       </div>
+
+      {/* ── Footer sombre — style opérateur ──────────────────────────────── */}
+      <footer style={{ background: "#111111", borderTop: `1px solid ${accentBorder}` }}>
+        <div className="max-w-5xl mx-auto px-4 py-10">
+
+          {/* Logo + description */}
+          <div className="flex items-center gap-3 mb-8">
+            <div
+              className="w-10 h-10 rounded flex items-center justify-center overflow-hidden flex-shrink-0"
+              style={{ background: accent }}
+            >
+              <img src={logoSrc} alt={logoAlt} className="w-full h-full object-cover" />
+            </div>
+            <div>
+              <div className="font-black text-white text-base">
+                {isMtn ? "MTN Cameroon" : "Orange Cameroun"}
+              </div>
+              <div className="text-xs text-gray-500">via Good Deal</div>
+            </div>
+          </div>
+
+          {/* Réseaux sociaux */}
+          <div className="mb-8">
+            <div className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-4">
+              Plus de sites
+            </div>
+            <div className="flex flex-col gap-3">
+              {(isMtn
+                ? [
+                    { name: "TWITTER",   href: "https://twitter.com/MTNCameroon" },
+                    { name: "YOUTUBE",   href: "https://youtube.com/@MTNCameroon" },
+                    { name: "FACEBOOK",  href: "https://facebook.com/MTNCameroon" },
+                    { name: "INSTAGRAM", href: "https://instagram.com/mtncameroon" },
+                    { name: "LINKEDIN",  href: "https://linkedin.com/company/mtn-cameroon" },
+                  ]
+                : [
+                    { name: "TWITTER",   href: "https://twitter.com/OrangeCameroun" },
+                    { name: "YOUTUBE",   href: "https://youtube.com/@OrangeCameroun" },
+                    { name: "FACEBOOK",  href: "https://facebook.com/OrangeCameroun" },
+                    { name: "INSTAGRAM", href: "https://instagram.com/orangecameroun" },
+                    { name: "LINKEDIN",  href: "https://linkedin.com/company/orange-cameroun" },
+                  ]
+              ).map(link => (
+                <a
+                  key={link.name}
+                  href={link.href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-sm font-bold transition-opacity hover:opacity-70"
+                  style={{ color: accent }}
+                >
+                  {link.name}
+                </a>
+              ))}
+            </div>
+          </div>
+
+          {/* Séparateur */}
+          <div className="border-t mb-8" style={{ borderColor: "rgba(255,255,255,0.08)" }} />
+
+          {/* Liens légaux */}
+          <div className="flex flex-col gap-3 mb-8">
+            {[
+              "Politique de confidentialité",
+              "Conditions générales d'utilisation",
+              "Mon contrat",
+              "Couverture réseau",
+              "ANTIC — Cybersécurité",
+            ].map(link => (
+              <a
+                key={link}
+                href="#"
+                className="text-sm text-gray-400 hover:text-white transition-colors"
+              >
+                {link}
+              </a>
+            ))}
+          </div>
+
+          {/* Séparateur */}
+          <div className="border-t mb-6" style={{ borderColor: "rgba(255,255,255,0.08)" }} />
+
+          {/* Copyright */}
+          <p className="text-xs text-gray-600">
+            © 2025 {isMtn ? "MTN CAMEROON" : "ORANGE CAMEROUN"}, ALL RIGHTS RESERVED.
+          </p>
+          <p className="text-xs text-gray-700 mt-1">
+            Forfaits distribués via <span style={{ color: accent }}>Good Deal</span>
+          </p>
+        </div>
+      </footer>
     </div>
   );
 }
