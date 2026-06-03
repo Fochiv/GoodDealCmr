@@ -1,6 +1,19 @@
 import { useState, useEffect } from "react";
 import { Link, useLocation } from "wouter";
-import { Search, ShoppingBag, Menu, X, Zap, Clock } from "lucide-react";
+import { Search, ShoppingBag, Menu, X, Zap, Clock, Star, MessageSquarePlus } from "lucide-react";
+
+function scrollToAvis() {
+  const el = document.getElementById("avis");
+  if (el) {
+    el.scrollIntoView({ behavior: "smooth", block: "start" });
+  } else {
+    window.location.href = "/#avis";
+  }
+}
+
+function openAvisModal() {
+  window.dispatchEvent(new CustomEvent("open-avis-modal"));
+}
 
 const DURATION_MS = 5 * 60 * 60 * 1000;
 
@@ -130,6 +143,21 @@ export function Navbar() {
           <Link href="/commandes" className="hidden md:flex items-center gap-1.5 text-sm font-semibold text-foreground hover:text-orange-600 transition-colors">
             Mes commandes
           </Link>
+          <button
+            onClick={scrollToAvis}
+            className="hidden md:flex items-center gap-1.5 text-sm font-semibold text-foreground hover:text-orange-600 transition-colors"
+          >
+            <Star className="w-4 h-4" />
+            Avis
+          </button>
+          <button
+            onClick={openAvisModal}
+            className="hidden md:flex items-center gap-1.5 text-sm font-semibold text-white px-3 py-1.5 rounded-md transition-opacity hover:opacity-90"
+            style={{ background: "linear-gradient(135deg, #FF6600, #FFD700)" }}
+          >
+            <MessageSquarePlus className="w-4 h-4" />
+            Poster un avis
+          </button>
           <Link href="/commandes" className="p-2 rounded hover:bg-gray-100 transition-colors relative">
             <ShoppingBag className="w-5 h-5 text-gray-700" />
           </Link>
@@ -147,6 +175,21 @@ export function Navbar() {
           <Link href="/" className="py-2.5 px-3 rounded text-sm font-semibold text-foreground hover:bg-gray-50">Accueil</Link>
           <Link href="/forfaits" className="py-2.5 px-3 rounded text-sm font-semibold text-foreground hover:bg-gray-50">Forfaits</Link>
           <Link href="/commandes" className="py-2.5 px-3 rounded text-sm font-semibold text-foreground hover:bg-gray-50">Mes commandes</Link>
+          <button
+            onClick={() => { setMobileOpen(false); scrollToAvis(); }}
+            className="py-2.5 px-3 rounded text-sm font-semibold text-foreground hover:bg-gray-50 flex items-center gap-2 text-left"
+          >
+            <Star className="w-4 h-4 text-yellow-500" />
+            Avis
+          </button>
+          <button
+            onClick={() => { setMobileOpen(false); openAvisModal(); }}
+            className="mt-1 py-2.5 px-3 rounded text-sm font-bold text-white flex items-center gap-2 transition-opacity hover:opacity-90"
+            style={{ background: "linear-gradient(135deg, #FF6600, #FFD700)" }}
+          >
+            <MessageSquarePlus className="w-4 h-4" />
+            Poster un avis
+          </button>
         </div>
       )}
     </nav>

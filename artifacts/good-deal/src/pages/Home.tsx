@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useLocation } from "wouter";
 import { Wifi, Zap, Phone, ChevronRight, Check, Star, CheckCircle, MessageCircle, X, Send, HeadphonesIcon, Shield, Store } from "lucide-react";
 import { useListOperators, useListBundles } from "@workspace/api-client-react";
@@ -348,6 +348,13 @@ export default function Home() {
   const mtnOp = operators?.find(o => o.slug === "mtn");
   const orangeOp = operators?.find(o => o.slug === "orange");
 
+  // Écouter l'événement global pour ouvrir la modale avis (depuis la Navbar)
+  useEffect(() => {
+    const handler = () => setShowAvisModal(true);
+    window.addEventListener("open-avis-modal", handler);
+    return () => window.removeEventListener("open-avis-modal", handler);
+  }, []);
+
   // ── Secret shortcut: 5 taps on Étape 3 → show access modal ─────────────────
   const step3Clicks = useRef(0);
   const step3Timer  = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -526,7 +533,7 @@ export default function Home() {
       </section>
 
       {/* ===== TESTIMONIALS ===== */}
-      <section className="pb-16 bg-gray-50 pt-12 overflow-hidden">
+      <section id="avis" className="pb-16 bg-gray-50 pt-12 overflow-hidden">
         <div className="max-w-4xl mx-auto px-4 text-center mb-8">
           <div className="inline-flex items-center gap-2 bg-green-100 text-green-700 px-4 py-1.5 rounded-full text-sm font-bold mb-4">
             <CheckCircle className="w-4 h-4" />
