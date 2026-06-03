@@ -85,7 +85,7 @@ export function DevicePendingBar() {
   const isDelivery  = !!delivering.length;
 
   const isMtn       = primary?.bundle?.operatorName?.toLowerCase().includes("mtn") ?? false;
-  const color       = isDelivery ? "#1D4ED8"   : isMtn ? "#B8860B"  : "#CC4400";
+  const color       = isDelivery ? "#1D4ED8"   : isMtn ? "#B8860B"  : "#CC5200";
   const bgColor     = isDelivery ? "#EFF6FF"   : isMtn ? "#FFFBEB"  : "#FFF7F0";
   const borderColor = isDelivery ? "#BFDBFE"   : isMtn ? "#FCD34D"  : "#FDBA74";
   const accent      = isDelivery ? "#3B82F6"   : isMtn ? "#F59E0B"  : "#F97316";

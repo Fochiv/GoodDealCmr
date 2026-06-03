@@ -302,7 +302,7 @@ export default function AdminMerchantDetail() {
             ) : (
               <div className="divide-y divide-gray-100">
                 {paginatedWithdrawals.map((w: any) => {
-                  const opColor = w.operator === "mtn" ? "#FFD700" : "#FF6B00";
+                  const opColor = w.operator === "mtn" ? "#FFD700" : "#FF6600";
                   const opLabel = w.operator === "mtn" ? "MTN MoMo" : "Orange Money";
                   const statusMap: Record<string, { label: string; cls: string }> = {
                     pending:    { label: "En attente", cls: "bg-yellow-100 text-yellow-700" },

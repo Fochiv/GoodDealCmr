@@ -150,7 +150,7 @@ export function PendingPaymentBar() {
   const isPending    = !finalStatus || finalStatus === null;
 
   // Blue for delivery mode, operator color for payment pending
-  const color       = isPaid ? "#15803D" : isFailed ? "#B91C1C" : isDelivering ? "#1D4ED8" : payment.isMtn ? "#B8860B" : "#CC4400";
+  const color       = isPaid ? "#15803D" : isFailed ? "#B91C1C" : isDelivering ? "#1D4ED8" : payment.isMtn ? "#B8860B" : "#CC5200";
   const bgColor     = isPaid ? "#F0FDF4" : isFailed ? "#FFF1F2" : isDelivering ? "#EFF6FF" : payment.isMtn ? "#FFFBEB" : "#FFF7F0";
   const borderColor = isPaid ? "#86EFAC" : isFailed ? "#FCA5A5" : isDelivering ? "#BFDBFE" : payment.isMtn ? "#FCD34D" : "#FDBA74";
   const barFrom     = isDelivering ? "#3B82F6" : payment.isMtn ? "#F59E0B" : "#F97316";

@@ -56,11 +56,11 @@ export default function Checkout() {
 
   const isMtn = bundle?.operatorSlug === "mtn";
   const operatorLabel = isMtn ? "MTN" : "Orange";
-  const operatorColor = isMtn ? "#FFD700" : "#FF6B00";
+  const operatorColor = isMtn ? "#FFD700" : "#FF6600";
   const operatorTextColor = isMtn ? "#1a1a1a" : "#ffffff";
   const gradient = isMtn
     ? "linear-gradient(135deg, #FFD700, #FFA500)"
-    : "linear-gradient(135deg, #FF6B00, #FF8C00)";
+    : "linear-gradient(135deg, #FF6600, #FF8000)";
 
   const startPolling = (id: number) => {
     const ref = (pollRef as any).current;
@@ -334,7 +334,7 @@ export default function Checkout() {
                   </div>
                   <span
                     className="text-sm font-black px-3 py-0.5 rounded-full"
-                    style={{ background: isMtn ? "#FFF3CD" : "#FFE5CC", color: isMtn ? "#B8860B" : "#CC4400" }}
+                    style={{ background: isMtn ? "#FFF3CD" : "#FFE5CC", color: isMtn ? "#B8860B" : "#CC5200" }}
                   >
                     {operatorLabel}
                   </span>
@@ -362,7 +362,7 @@ export default function Checkout() {
                     <CreditCard className="w-4 h-4 text-muted-foreground" />
                     <span className="text-sm text-muted-foreground">Montant à payer</span>
                   </div>
-                  <span className="text-sm font-black" style={{ color: isMtn ? "#B8860B" : "#D45800" }}>
+                  <span className="text-sm font-black" style={{ color: isMtn ? "#B8860B" : "#CC5200" }}>
                     {bundle ? formatFCFA(bundle.price) : "—"}
                   </span>
                 </div>
@@ -415,7 +415,7 @@ export default function Checkout() {
                   </div>
                   <div
                     className="text-xs font-bold px-2.5 py-1 rounded-full"
-                    style={{ background: isMtn ? "#FFF3CD" : "#FFE5CC", color: isMtn ? "#B8860B" : "#CC4400" }}
+                    style={{ background: isMtn ? "#FFF3CD" : "#FFE5CC", color: isMtn ? "#B8860B" : "#CC5200" }}
                   >
                     {operatorLabel}
                   </div>

@@ -53,7 +53,7 @@ function PromoBanner() {
     <div
       className="w-full flex items-center justify-center gap-2 px-3 py-2 relative overflow-hidden select-none"
       style={{
-        background: "linear-gradient(90deg, #b91c1c 0%, #dc2626 40%, #ea580c 70%, #b91c1c 100%)",
+        background: "linear-gradient(90deg, #e65c00 0%, #FF6600 40%, #ff8000 70%, #e65c00 100%)",
         backgroundSize: "200% 100%",
         animation: "shimmerBg 4s linear infinite",
       }}

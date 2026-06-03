@@ -128,7 +128,7 @@ function WhatsAppFab() {
       <button
         onClick={() => setOpen(o => !o)}
         className="w-14 h-14 rounded-full shadow-2xl flex items-center justify-center transition-all hover:scale-110 active:scale-95"
-        style={{ background: open ? "#6b7280" : "linear-gradient(135deg, #FF6B00, #FFD700)" }}
+        style={{ background: open ? "#6b7280" : "linear-gradient(135deg, #FF6600, #FFD700)" }}
         aria-label="Aide"
       >
         {open ? <X className="w-6 h-6 text-white" /> : <HeadphonesIcon className="w-6 h-6 text-white" />}

@@ -140,9 +140,9 @@ export default function AllBundles() {
               const isMtn = bundle.operatorSlug === "mtn";
               const gradient = isMtn
                 ? "linear-gradient(135deg,#FFD700,#FFA500)"
-                : "linear-gradient(135deg,#FF6B00,#FF8C00)";
-              const badgeBg = isMtn ? "rgba(255,215,0,0.15)" : "rgba(255,107,0,0.15)";
-              const badgeColor = isMtn ? "#B8860B" : "#D45800";
+                : "linear-gradient(135deg,#FF6600,#FF8000)";
+              const badgeBg = isMtn ? "rgba(255,215,0,0.15)" : "rgba(255,102,0,0.15)";
+              const badgeColor = isMtn ? "#B8860B" : "#CC5200";
 
               return (
                 <div
@@ -179,7 +179,7 @@ export default function AllBundles() {
                     {/* Price + CTA */}
                     <div className="flex items-end justify-between">
                       <div>
-                        <div className="text-2xl font-black" style={{ color: isMtn ? "#B8860B" : "#D45800" }}>
+                        <div className="text-2xl font-black" style={{ color: isMtn ? "#B8860B" : "#CC5200" }}>
                           {formatFCFA(bundle.price)}
                         </div>
                         <div className="text-xs text-muted-foreground">Valide {bundle.validity} jours</div>
@@ -228,8 +228,8 @@ export default function AllBundles() {
                           <span
                             className="px-2 py-0.5 rounded-full text-xs font-bold"
                             style={{
-                              background: isMtn ? "rgba(255,215,0,0.15)" : "rgba(255,107,0,0.15)",
-                              color: isMtn ? "#B8860B" : "#D45800",
+                              background: isMtn ? "rgba(255,215,0,0.15)" : "rgba(255,102,0,0.15)",
+                              color: isMtn ? "#B8860B" : "#CC5200",
                             }}
                           >
                             {b.operatorName}
@@ -237,7 +237,7 @@ export default function AllBundles() {
                         </td>
                         <td className="py-2.5 pr-4 font-bold text-foreground">{b.dataSize}</td>
                         <td className="py-2.5 pr-4 text-muted-foreground">{b.validity}j</td>
-                        <td className="py-2.5 pr-4 font-bold" style={{ color: isMtn ? "#B8860B" : "#D45800" }}>
+                        <td className="py-2.5 pr-4 font-bold" style={{ color: isMtn ? "#B8860B" : "#CC5200" }}>
                           {formatFCFA(b.price)}
                         </td>
                         <td className="py-2.5 text-muted-foreground text-xs">{ratio} Mo/F</td>

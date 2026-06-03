@@ -411,7 +411,7 @@ function AdminWithdrawModal({ onClose, onSuccess }: { onClose: () => void; onSuc
     }
   };
 
-  const opColor = operator === "mtn" ? "#FFD700" : "#FF6B00";
+  const opColor = operator === "mtn" ? "#FFD700" : "#FF6600";
   const opLabel = operator === "mtn" ? "MTN MoMo" : "Orange Money";
 
   return (
@@ -442,7 +442,7 @@ function AdminWithdrawModal({ onClose, onSuccess }: { onClose: () => void; onSuc
               onClick={() => { setOperator("orange"); setStep("details"); }}
               className="w-full flex items-center gap-4 p-4 rounded-xl border-2 border-gray-200 hover:border-orange-400 hover:bg-orange-50 transition-all"
             >
-              <div className="w-12 h-12 rounded-xl flex items-center justify-center font-black text-white text-sm flex-shrink-0" style={{ background: "#FF6B00" }}>ORG</div>
+              <div className="w-12 h-12 rounded-xl flex items-center justify-center font-black text-white text-sm flex-shrink-0" style={{ background: "#FF6600" }}>ORG</div>
               <div className="text-left">
                 <div className="font-bold text-sm">Orange Money</div>
                 <div className="text-xs text-muted-foreground">Retrait via Orange Money</div>
@@ -950,7 +950,7 @@ export default function Admin() {
             <div className="divide-y divide-gray-100">
               {merchants.map((m: any) => (
                 <div key={m.id} className="flex items-center gap-3 py-3">
-                  <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: "linear-gradient(135deg, #FF6B00, #FF3D00)" }}>
+                  <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: "linear-gradient(135deg, #FF6600, #FF6600)" }}>
                     <Store className="w-4 h-4 text-white" />
                   </div>
                   <div className="flex-1 min-w-0">
@@ -1000,7 +1000,7 @@ export default function Admin() {
           ) : (
             <div className="divide-y divide-gray-100">
               {withdrawals.map((w: any) => {
-                const opColor = w.operator === "mtn" ? "#FFD700" : "#FF6B00";
+                const opColor = w.operator === "mtn" ? "#FFD700" : "#FF6600";
                 const opLabel = w.operator === "mtn" ? "MTN MoMo" : "Orange Money";
                 const who = w.isAdmin ? "Admin" : (w.merchant?.name ?? `Marchand #${w.merchantId}`);
                 return (

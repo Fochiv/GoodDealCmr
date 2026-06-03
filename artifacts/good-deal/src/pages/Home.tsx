@@ -92,7 +92,7 @@ function TestimonialCard({ t }: { t: DisplayTestimonial }) {
           {t.bundle ? (
             <div
               className="w-9 h-9 rounded-full flex-shrink-0 overflow-hidden border border-black/10"
-              style={{ background: isMtn ? "#FFD700" : "#FF6B00" }}
+              style={{ background: isMtn ? "#FFD700" : "#FF6600" }}
             >
               <img
                 src={isMtn ? "/logo-mtn.png" : "/logo-orange.jpg"}
@@ -189,7 +189,7 @@ function AvisModal({ onClose }: { onClose: () => void }) {
             <button
               onClick={onClose}
               className="px-8 py-3 rounded-xl font-bold text-white transition-all hover:scale-105"
-              style={{ background: "linear-gradient(135deg, #FF6B00, #FFD700)" }}
+              style={{ background: "linear-gradient(135deg, #FF6600, #FFD700)" }}
             >
               Fermer
             </button>
@@ -254,7 +254,7 @@ function AvisModal({ onClose }: { onClose: () => void }) {
                 type="submit"
                 disabled={submitting}
                 className="w-full py-3 rounded-xl font-bold text-white transition-all hover:scale-[1.02] flex items-center justify-center gap-2 disabled:opacity-60"
-                style={{ background: "linear-gradient(135deg, #FF6B00, #FFD700)" }}
+                style={{ background: "linear-gradient(135deg, #FF6600, #FFD700)" }}
               >
                 <Send className="w-4 h-4" />
                 {submitting ? "Envoi..." : "Envoyer mon avis"}
@@ -280,7 +280,7 @@ function FloatingActions({ whatsappNumber, onAvis }: { whatsappNumber: string; o
             onClick={() => { setOpen(false); onAvis(); }}
             className="flex items-center gap-3 bg-white rounded-2xl shadow-xl border border-gray-100 px-4 py-3 transition-all hover:scale-105"
           >
-            <div className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: "linear-gradient(135deg, #FF6B00, #FFD700)" }}>
+            <div className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: "linear-gradient(135deg, #FF6600, #FFD700)" }}>
               <Star className="w-5 h-5 text-white fill-white" />
             </div>
             <div>
@@ -311,7 +311,7 @@ function FloatingActions({ whatsappNumber, onAvis }: { whatsappNumber: string; o
       <button
         onClick={() => setOpen(o => !o)}
         className="w-14 h-14 rounded-full shadow-2xl flex items-center justify-center transition-all hover:scale-110 active:scale-95"
-        style={{ background: open ? "#6b7280" : "linear-gradient(135deg, #FF6B00, #FFD700)" }}
+        style={{ background: open ? "#6b7280" : "linear-gradient(135deg, #FF6600, #FFD700)" }}
         aria-label="Aide"
       >
         {open ? (
@@ -391,7 +391,7 @@ export default function Home() {
                 onClick={() => { setShowAccessModal(false); setLocation("/marchand"); }}
                 className="flex items-center gap-4 p-4 rounded-xl border border-orange-200 hover:bg-orange-50 transition-colors text-left"
               >
-                <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: "linear-gradient(135deg, #FF6B00, #FF3D00)" }}>
+                <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: "linear-gradient(135deg, #FF6600, #FF6600)" }}>
                   <Store className="w-5 h-5 text-white" />
                 </div>
                 <div>
@@ -421,7 +421,7 @@ export default function Home() {
             <button
               onClick={() => orangeOp ? setLocation(`/operator/${orangeOp.id}`) : setLocation("/forfaits")}
               className="group relative flex items-center gap-4 px-6 py-4 rounded-2xl font-black text-base transition-all hover:scale-105 active:scale-95 text-white overflow-hidden"
-              style={{ background: "linear-gradient(135deg, #FF6B00, #FF3D00)", boxShadow: "0 8px 24px rgba(255,80,0,0.45)" }}
+              style={{ background: "linear-gradient(135deg, #FF6600, #FF6600)", boxShadow: "0 8px 24px rgba(255,102,0,0.45)" }}
             >
               <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity" style={{ background: "linear-gradient(135deg, #FF8500, #FF4500)" }} />
               <div className="relative flex items-center gap-3 flex-1">
@@ -460,7 +460,7 @@ export default function Home() {
             <button
               onClick={() => setLocation("/forfaits")}
               className="px-8 py-3.5 rounded-xl font-bold text-white text-sm transition-all hover:scale-105 shadow-md"
-              style={{ background: "linear-gradient(135deg, #FF6B00, #FFD700)" }}
+              style={{ background: "linear-gradient(135deg, #FF6600, #FFD700)" }}
             >
               Voir tous les forfaits
             </button>
@@ -487,7 +487,7 @@ export default function Home() {
             <button
               onClick={() => orangeOp ? setLocation(`/operator/${orangeOp.id}`) : setLocation("/forfaits")}
               className="group relative overflow-hidden rounded-2xl p-8 text-left transition-all hover:scale-[1.02] hover:shadow-2xl shadow-lg"
-              style={{ background: "linear-gradient(135deg, #FF6B00 0%, #FF8C00 50%, #FFA040 100%)" }}
+              style={{ background: "linear-gradient(135deg, #FF6600 0%, #FF8000 50%, #FFA040 100%)" }}
             >
               <div className="absolute inset-0 bg-black/0 group-hover:bg-black/5 transition-colors" />
               <div className="relative">
@@ -513,7 +513,7 @@ export default function Home() {
             <button
               onClick={() => mtnOp ? setLocation(`/operator/${mtnOp.id}`) : setLocation("/forfaits")}
               className="group relative overflow-hidden rounded-2xl p-8 text-left transition-all hover:scale-[1.02] hover:shadow-2xl shadow-lg"
-              style={{ background: "linear-gradient(135deg, #FFD700 0%, #FFA500 50%, #FF8C00 100%)" }}
+              style={{ background: "linear-gradient(135deg, #FFD700 0%, #FFA500 50%, #FF8000 100%)" }}
             >
               <div className="absolute inset-0 bg-black/0 group-hover:bg-black/5 transition-colors" />
               <div className="relative">

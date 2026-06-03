@@ -67,7 +67,7 @@ export default function MarchandLogin() {
     <div className="min-h-screen flex items-center justify-center px-4 bg-gradient-to-br from-orange-50 via-white to-yellow-50">
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
-          <div className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4" style={{ background: "linear-gradient(135deg, #FF6B00, #FF3D00)" }}>
+          <div className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4" style={{ background: "linear-gradient(135deg, #FF6600, #FF6600)" }}>
             <Store className="w-8 h-8 text-white" />
           </div>
           <h1 className="text-xl font-black text-foreground">Espace marchand</h1>
@@ -116,7 +116,7 @@ export default function MarchandLogin() {
             <Button
               type="submit"
               className="w-full text-white font-bold"
-              style={{ background: "linear-gradient(135deg, #FF6B00, #FF3D00)" }}
+              style={{ background: "linear-gradient(135deg, #FF6600, #FF6600)" }}
               disabled={!phone || !password || loading}
             >
               {loading ? "Connexion..." : "Accéder à mon espace"}

@@ -20,7 +20,7 @@ export default function OperatorBundles() {
   const isMtn = operator?.slug === "mtn";
   const gradient = isMtn
     ? "linear-gradient(135deg, #FFD700, #FFA500)"
-    : "linear-gradient(135deg, #FF6B00, #FF8C00)";
+    : "linear-gradient(135deg, #FF6600, #FF8000)";
   const textOnBg = isMtn ? "text-gray-900" : "text-white";
   const subTextOnBg = isMtn ? "text-yellow-900" : "text-orange-100";
 
@@ -78,8 +78,8 @@ export default function OperatorBundles() {
                   <div
                     className="px-3 py-1 rounded-full text-xs font-bold"
                     style={{
-                      background: isMtn ? "rgba(255,215,0,0.15)" : "rgba(255,107,0,0.15)",
-                      color: isMtn ? "#B8860B" : "#D45800",
+                      background: isMtn ? "rgba(255,215,0,0.15)" : "rgba(255,102,0,0.15)",
+                      color: isMtn ? "#B8860B" : "#CC5200",
                     }}
                   >
                     {bundle.operatorName}

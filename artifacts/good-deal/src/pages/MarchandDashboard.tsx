@@ -65,7 +65,7 @@ function WithdrawModal({ balance, onClose, onSuccess }: { balance: number; onClo
     }
   };
 
-  const operatorColor = operator === "mtn" ? "#FFD700" : operator === "orange" ? "#FF6B00" : "#888";
+  const operatorColor = operator === "mtn" ? "#FFD700" : operator === "orange" ? "#FF6600" : "#888";
   const operatorLabel = operator === "mtn" ? "MTN MoMo" : "Orange Money";
 
   return (
@@ -96,7 +96,7 @@ function WithdrawModal({ balance, onClose, onSuccess }: { balance: number; onClo
               onClick={() => { setOperator("orange"); setStep("details"); }}
               className="w-full flex items-center gap-4 p-4 rounded-xl border-2 border-gray-200 hover:border-orange-400 hover:bg-orange-50 transition-all"
             >
-              <div className="w-12 h-12 rounded-xl flex items-center justify-center font-black text-white text-sm flex-shrink-0" style={{ background: "#FF6B00" }}>ORG</div>
+              <div className="w-12 h-12 rounded-xl flex items-center justify-center font-black text-white text-sm flex-shrink-0" style={{ background: "#FF6600" }}>ORG</div>
               <div className="text-left">
                 <div className="font-bold text-sm">Orange Money</div>
                 <div className="text-xs text-muted-foreground">Retrait via Orange Money</div>
@@ -209,7 +209,7 @@ export default function MarchandDashboard() {
   };
 
   const operatorLabel = (op: string) => op === "mtn" ? "MTN MoMo" : "Orange Money";
-  const operatorColor = (op: string) => op === "mtn" ? "#FFD700" : "#FF6B00";
+  const operatorColor = (op: string) => op === "mtn" ? "#FFD700" : "#FF6600";
 
   return (
     <div className="min-h-screen pt-20 pb-8 px-4 bg-gray-50">
@@ -225,7 +225,7 @@ export default function MarchandDashboard() {
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: "linear-gradient(135deg, #FF6B00, #FF3D00)" }}>
+            <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: "linear-gradient(135deg, #FF6600, #FF6600)" }}>
               <Store className="w-5 h-5 text-white" />
             </div>
             <div>
@@ -280,7 +280,7 @@ export default function MarchandDashboard() {
             <Button
               onClick={() => setShowWithdraw(true)}
               className="text-white font-bold gap-2"
-              style={{ background: "linear-gradient(135deg, #FF6B00, #FF3D00)" }}
+              style={{ background: "linear-gradient(135deg, #FF6600, #FF6600)" }}
               disabled={loading || (data?.balance ?? 0) < 100}
             >
               <ArrowDownCircle className="w-4 h-4" />
