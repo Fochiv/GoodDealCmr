@@ -404,134 +404,121 @@ export default function Home() {
         </div>
       )}
 
-      {/* Hero */}
-      <section className="relative pt-28 pb-20 px-4 overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-br from-orange-50 via-white to-yellow-50" />
-        <div className="relative max-w-4xl mx-auto text-center">
-          <h1 className="text-4xl md:text-6xl font-black text-foreground leading-tight mb-6">
+      {/* Hero — style orange.cm : blanc, texte noir, boutons solides plats */}
+      <section className="bg-white pt-24 pb-10 px-4 border-b border-gray-100">
+        <div className="max-w-4xl mx-auto text-center">
+          <h1 className="text-4xl md:text-5xl font-black text-gray-900 leading-tight mb-4">
             Internet mobile au<br />
-            <span className="text-primary">meilleur prix</span> au Cameroun
+            <span style={{ color: "#FF6600" }}>meilleur prix</span> au Cameroun
           </h1>
-          <p className="text-lg text-muted-foreground max-w-xl mx-auto mb-10">
+          <p className="text-base text-gray-500 max-w-xl mx-auto mb-8">
             Achetez vos forfaits internet MTN et Orange directement depuis votre téléphone. Paiement Mobile Money instantané.
           </p>
 
-          {/* Operator quick buttons */}
-          <div className="flex flex-col sm:flex-row gap-4 justify-center mb-4">
+          {/* Operator quick buttons — style orange.cm : plats, logo + texte, fond uni */}
+          <div className="flex flex-col sm:flex-row gap-3 justify-center mb-4">
             <button
               onClick={() => orangeOp ? setLocation(`/operator/${orangeOp.id}`) : setLocation("/forfaits")}
-              className="group relative flex items-center gap-4 px-6 py-4 rounded-2xl font-black text-base transition-all hover:scale-105 active:scale-95 text-white overflow-hidden"
-              style={{ background: "linear-gradient(135deg, #FF6600, #FF6600)", boxShadow: "0 8px 24px rgba(255,102,0,0.45)" }}
+              className="flex items-center gap-4 px-6 py-4 font-black text-base text-white transition-opacity hover:opacity-90 active:opacity-75"
+              style={{ background: "#FF6600", borderRadius: "6px" }}
             >
-              <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity" style={{ background: "linear-gradient(135deg, #FF8500, #FF4500)" }} />
-              <div className="relative flex items-center gap-3 flex-1">
-                <div className="w-10 h-10 rounded-xl overflow-hidden flex-shrink-0 border border-white/20">
-                  <img src="/logo-orange.jpg" alt="Orange" className="w-full h-full object-cover" />
-                </div>
-                <div className="text-left">
-                  <div className="text-xs font-bold uppercase tracking-widest text-orange-100/70 leading-none mb-0.5">Découvrir</div>
-                  <div className="text-lg font-black leading-tight">Good Deals Orange</div>
-                </div>
+              <div className="w-10 h-10 rounded overflow-hidden flex-shrink-0 bg-white/20 flex items-center justify-center">
+                <img src="/logo-orange.jpg" alt="Orange" className="w-full h-full object-cover" />
               </div>
-              <ChevronRight className="relative w-5 h-5 text-white/60 group-hover:translate-x-1 transition-transform flex-shrink-0" />
+              <div className="text-left flex-1">
+                <div className="text-xs font-bold uppercase tracking-widest text-white/70 leading-none mb-0.5">Découvrir</div>
+                <div className="text-base font-black leading-tight">Good Deals Orange</div>
+              </div>
+              <ChevronRight className="w-5 h-5 text-white/60 flex-shrink-0" />
             </button>
 
             <button
               onClick={() => mtnOp ? setLocation(`/operator/${mtnOp.id}`) : setLocation("/forfaits")}
-              className="group relative flex items-center gap-4 px-6 py-4 rounded-2xl font-black text-base transition-all hover:scale-105 active:scale-95 text-gray-900 overflow-hidden"
-              style={{ background: "linear-gradient(135deg, #FFD700, #FFA500)", boxShadow: "0 8px 24px rgba(255,193,0,0.5)" }}
+              className="flex items-center gap-4 px-6 py-4 font-black text-base text-gray-900 transition-opacity hover:opacity-90 active:opacity-75"
+              style={{ background: "#FFD700", borderRadius: "6px" }}
             >
-              <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity" style={{ background: "linear-gradient(135deg, #FFE44D, #FFB800)" }} />
-              <div className="relative flex items-center gap-3 flex-1">
-                <div className="w-10 h-10 rounded-xl overflow-hidden flex-shrink-0 border border-black/10">
-                  <img src="/logo-mtn.png" alt="MTN" className="w-full h-full object-cover" />
-                </div>
-                <div className="text-left">
-                  <div className="text-xs font-bold uppercase tracking-widest text-yellow-900/60 leading-none mb-0.5">Découvrir</div>
-                  <div className="text-lg font-black leading-tight">Good Deals MTN</div>
-                </div>
+              <div className="w-10 h-10 rounded overflow-hidden flex-shrink-0 bg-black/10 flex items-center justify-center">
+                <img src="/logo-mtn.png" alt="MTN" className="w-full h-full object-cover" />
               </div>
-              <ChevronRight className="relative w-5 h-5 text-yellow-900/50 group-hover:translate-x-1 transition-transform flex-shrink-0" />
+              <div className="text-left flex-1">
+                <div className="text-xs font-bold uppercase tracking-widest text-yellow-900/60 leading-none mb-0.5">Découvrir</div>
+                <div className="text-base font-black leading-tight">Good Deals MTN</div>
+              </div>
+              <ChevronRight className="w-5 h-5 text-yellow-900/50 flex-shrink-0" />
             </button>
           </div>
 
-          {/* Secondary buttons */}
-          <div className="flex flex-col sm:flex-row gap-3 justify-center">
-            <button
-              onClick={() => setLocation("/forfaits")}
-              className="px-8 py-3.5 rounded-xl font-bold text-white text-sm transition-all hover:scale-105 shadow-md"
-              style={{ background: "linear-gradient(135deg, #FF6600, #FFD700)" }}
-            >
-              Voir tous les forfaits
-            </button>
-            <button
-              onClick={() => setLocation("/commandes")}
-              className="px-8 py-3.5 rounded-xl font-bold text-sm transition-all hover:scale-105 shadow-md border-2 border-gray-200 bg-white text-foreground hover:bg-gray-50"
-            >
-              Suivre mes commandes
-            </button>
-          </div>
+          {/* Voir tous — bouton noir plat style orange.cm */}
+          <button
+            onClick={() => setLocation("/forfaits")}
+            className="w-full max-w-sm py-3.5 font-bold text-white text-sm transition-opacity hover:opacity-90 mx-auto block"
+            style={{ background: "#1a1a1a", borderRadius: "6px" }}
+          >
+            Voir tous les forfaits
+          </button>
         </div>
       </section>
 
       {/* Operator Cards */}
-      <section className="px-4 pb-16 max-w-5xl mx-auto">
-        <h2 className="text-2xl font-black text-center text-foreground mb-8">Choisissez votre opérateur</h2>
+      <section className="px-4 py-12 max-w-5xl mx-auto">
+        <h2 className="text-xl font-black text-gray-900 mb-6">Choisissez votre opérateur</h2>
         {opsLoading ? (
-          <div className="grid md:grid-cols-2 gap-6">
-            {[1, 2].map(i => <div key={i} className="h-64 rounded-2xl bg-gray-100 animate-pulse" />)}
+          <div className="grid md:grid-cols-2 gap-4">
+            {[1, 2].map(i => <div key={i} className="h-52 bg-gray-100 animate-pulse" style={{ borderRadius: "6px" }} />)}
           </div>
         ) : (
-          <div className="grid md:grid-cols-2 gap-6">
+          <div className="grid md:grid-cols-2 gap-4">
             {/* Orange Card */}
             <button
               onClick={() => orangeOp ? setLocation(`/operator/${orangeOp.id}`) : setLocation("/forfaits")}
-              className="group relative overflow-hidden rounded-2xl p-8 text-left transition-all hover:scale-[1.02] hover:shadow-2xl shadow-lg"
-              style={{ background: "linear-gradient(135deg, #FF6600 0%, #FF8000 50%, #FFA040 100%)" }}
+              className="group border border-gray-200 bg-white p-6 text-left transition-shadow hover:shadow-md overflow-hidden"
+              style={{ borderLeft: "4px solid #FF6600", borderRadius: "6px" }}
             >
-              <div className="absolute inset-0 bg-black/0 group-hover:bg-black/5 transition-colors" />
-              <div className="relative">
-                <div className="flex items-center justify-between mb-6">
-                  <div className="bg-white/30 rounded-2xl p-2 w-20 h-14 flex items-center justify-center overflow-hidden">
-                    <img src="/logo-orange.jpg" alt="Orange" className="w-full h-full object-contain" />
-                  </div>
-                  <ChevronRight className="w-6 h-6 text-white group-hover:translate-x-1 transition-transform" />
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-12 h-12 rounded overflow-hidden border border-gray-100 flex-shrink-0">
+                  <img src="/logo-orange.jpg" alt="Orange" className="w-full h-full object-cover" />
                 </div>
-                <h3 className="text-2xl font-black text-white mb-2">Orange Cameroun</h3>
-                <p className="text-orange-100 font-medium mb-4">{allOrangeBundles.length} forfaits disponibles</p>
-                <div className="flex gap-2 flex-wrap">
-                  {orangeBundles.map(b => (
-                    <span key={b.id} className="bg-white/30 text-white text-xs font-bold px-3 py-1 rounded-full">
-                      {b.dataSize} — {formatFCFA(b.price)}
-                    </span>
-                  ))}
+                <div>
+                  <div className="font-black text-gray-900 text-lg">Orange Cameroun</div>
+                  <div className="text-sm text-gray-500">{allOrangeBundles.length} forfaits disponibles</div>
                 </div>
+              </div>
+              <div className="flex gap-2 flex-wrap mb-4">
+                {orangeBundles.map(b => (
+                  <span key={b.id} className="text-xs font-bold px-2 py-1" style={{ background: "rgba(255,102,0,0.1)", color: "#FF6600", borderRadius: "3px" }}>
+                    {b.dataSize} — {formatFCFA(b.price)}
+                  </span>
+                ))}
+              </div>
+              <div className="w-full py-2.5 text-center text-white font-bold text-sm transition-opacity group-hover:opacity-90" style={{ background: "#FF6600", borderRadius: "4px" }}>
+                Voir les forfaits Orange
               </div>
             </button>
 
             {/* MTN Card */}
             <button
               onClick={() => mtnOp ? setLocation(`/operator/${mtnOp.id}`) : setLocation("/forfaits")}
-              className="group relative overflow-hidden rounded-2xl p-8 text-left transition-all hover:scale-[1.02] hover:shadow-2xl shadow-lg"
-              style={{ background: "linear-gradient(135deg, #FFD700 0%, #FFA500 50%, #FF8000 100%)" }}
+              className="group border border-gray-200 bg-white p-6 text-left transition-shadow hover:shadow-md overflow-hidden"
+              style={{ borderLeft: "4px solid #FFD700", borderRadius: "6px" }}
             >
-              <div className="absolute inset-0 bg-black/0 group-hover:bg-black/5 transition-colors" />
-              <div className="relative">
-                <div className="flex items-center justify-between mb-6">
-                  <div className="bg-white/30 rounded-2xl p-2 w-20 h-14 flex items-center justify-center overflow-hidden">
-                    <img src="/logo-mtn.png" alt="MTN" className="w-full h-full object-contain" />
-                  </div>
-                  <ChevronRight className="w-6 h-6 text-gray-800 group-hover:translate-x-1 transition-transform" />
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-12 h-12 rounded overflow-hidden border border-gray-100 flex-shrink-0">
+                  <img src="/logo-mtn.png" alt="MTN" className="w-full h-full object-cover" />
                 </div>
-                <h3 className="text-2xl font-black text-gray-900 mb-2">MTN Cameroon</h3>
-                <p className="text-gray-800 font-medium mb-4">{allMtnBundles.length} forfaits disponibles</p>
-                <div className="flex gap-2 flex-wrap">
-                  {mtnBundles.map(b => (
-                    <span key={b.id} className="bg-white/40 text-gray-900 text-xs font-bold px-3 py-1 rounded-full">
-                      {b.dataSize} — {formatFCFA(b.price)}
-                    </span>
-                  ))}
+                <div>
+                  <div className="font-black text-gray-900 text-lg">MTN Cameroon</div>
+                  <div className="text-sm text-gray-500">{allMtnBundles.length} forfaits disponibles</div>
                 </div>
+              </div>
+              <div className="flex gap-2 flex-wrap mb-4">
+                {mtnBundles.map(b => (
+                  <span key={b.id} className="text-xs font-bold px-2 py-1" style={{ background: "rgba(255,215,0,0.2)", color: "#B8860B", borderRadius: "3px" }}>
+                    {b.dataSize} — {formatFCFA(b.price)}
+                  </span>
+                ))}
+              </div>
+              <div className="w-full py-2.5 text-center text-gray-900 font-bold text-sm transition-opacity group-hover:opacity-90" style={{ background: "#FFD700", borderRadius: "4px" }}>
+                Voir les forfaits MTN
               </div>
             </button>
           </div>
