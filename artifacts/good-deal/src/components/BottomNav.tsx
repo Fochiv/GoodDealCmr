@@ -7,7 +7,7 @@ export function BottomNav() {
   const items = [
     { href: "/", icon: Home, label: "Accueil" },
     { href: "/forfaits", icon: Wifi, label: "Forfaits" },
-    { href: "/commandes", icon: ClipboardList, label: "Commandes" },
+    { href: "/commandes", icon: ClipboardList, label: "Mes commandes" },
   ];
 
   const isActive = (href: string) => {

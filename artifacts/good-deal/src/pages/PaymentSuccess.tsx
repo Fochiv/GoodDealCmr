@@ -119,7 +119,7 @@ function WhatsAppFab() {
               </svg>
             </div>
             <div>
-              <div className="text-sm font-bold text-foreground">Contacter l'admin</div>
+              <div className="text-sm font-bold text-foreground">Service client</div>
               <div className="text-xs text-muted-foreground">WhatsApp · Réponse rapide</div>
             </div>
           </a>

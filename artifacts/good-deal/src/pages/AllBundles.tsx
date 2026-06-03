@@ -182,7 +182,7 @@ export default function AllBundles() {
                         <div className="text-2xl font-black" style={{ color: isMtn ? "#B8860B" : "#D45800" }}>
                           {formatFCFA(bundle.price)}
                         </div>
-                        <div className="text-xs text-muted-foreground">valable {bundle.validity}j</div>
+                        <div className="text-xs text-muted-foreground">Valide {bundle.validity} jours</div>
                       </div>
                       <button
                         onClick={() => setLocation(`/checkout?bundleId=${bundle.id}`)}

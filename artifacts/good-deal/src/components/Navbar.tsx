@@ -174,7 +174,7 @@ export function Navbar() {
       {mobileOpen && (
         <div className="md:hidden bg-white border-b border-gray-100 px-4 pb-4 flex flex-col gap-1">
           <Link href="/" className="py-2.5 px-3 rounded-lg text-sm font-medium text-muted-foreground hover:bg-gray-50">Accueil</Link>
-          <Link href="/forfaits" className="py-2.5 px-3 rounded-lg text-sm font-medium text-muted-foreground hover:bg-gray-50">Tous les forfaits</Link>
+          <Link href="/forfaits" className="py-2.5 px-3 rounded-lg text-sm font-medium text-muted-foreground hover:bg-gray-50">Forfaits</Link>
           <Link href="/commandes" className="py-2.5 px-3 rounded-lg text-sm font-medium text-muted-foreground hover:bg-gray-50">Mes commandes</Link>
         </div>
       )}
