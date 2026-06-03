@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { Link, useLocation } from "wouter";
-import { Search, ShoppingBag, Menu, X, Zap, Clock, Star, MessageSquarePlus } from "lucide-react";
+import { useTheme } from "next-themes";
+import { Search, ShoppingBag, Menu, X, Zap, Clock, Star, MessageSquarePlus, Sun, Moon } from "lucide-react";
 
 function scrollToAvis() {
   const el = document.getElementById("avis");
@@ -99,31 +100,55 @@ function Digit({ value }: { value: string }) {
 export function Navbar() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [location] = useLocation();
+  const { theme, setTheme, resolvedTheme } = useTheme();
+  const isDark = resolvedTheme === "dark";
 
   useEffect(() => { setMobileOpen(false); }, [location]);
 
+  const navBg    = isDark ? "#0d0d0d" : "#ffffff";
+  const navBorder= isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.08)";
+  const textColor= isDark ? "#ffffff" : "#111111";
+  const mutedColor = isDark ? "#9ca3af" : "#6b7280";
+  const hoverBg  = isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)";
+  const mobileBg = isDark ? "#111111" : "#f9f9f9";
+
   return (
-    <nav className="fixed top-0 left-0 right-0 z-50 border-b" style={{ background: "#0d0d0d", borderBottomColor: "rgba(255,255,255,0.08)" }}>
+    <nav className="fixed top-0 left-0 right-0 z-50 border-b" style={{ background: navBg, borderBottomColor: navBorder }}>
       <PromoBanner />
 
       <div className="max-w-6xl mx-auto px-4 h-14 flex items-center justify-between gap-4">
-        <Link href="/" className="flex items-center gap-2.5 font-black text-lg text-white flex-shrink-0">
-          <div
-            className="flex items-center justify-center rounded-sm font-black text-white leading-none px-2 h-9 sm:w-9 sm:px-0"
-            style={{ background: "#FF6600", fontSize: "clamp(7px, 1.8vw, 11px)" }}
-          >
-            <span className="sm:hidden tracking-tight">GOODDEALS</span>
-            <span className="hidden sm:inline text-base">G</span>
-          </div>
-          <span className="hidden sm:inline">Good Deal</span>
-        </Link>
+        <div className="flex items-center gap-2 flex-shrink-0">
+          <Link href="/" className="flex items-center gap-2.5 font-black text-lg flex-shrink-0" style={{ color: textColor }}>
+            <div
+              className="flex items-center justify-center rounded-sm font-black text-white leading-none px-2 h-9 sm:w-9 sm:px-0"
+              style={{ background: "#FF6600", fontSize: "clamp(7px, 1.8vw, 11px)" }}
+            >
+              <span className="sm:hidden tracking-tight">GOODDEALS</span>
+              <span className="hidden sm:inline text-base">G</span>
+            </div>
+            <span className="hidden sm:inline">Good Deal</span>
+          </Link>
 
-        <div className="flex-1 max-w-md hidden md:flex items-center border overflow-hidden" style={{ borderColor: "rgba(255,255,255,0.15)", borderRadius: "4px" }}>
+          {/* Theme toggle */}
+          <button
+            onClick={() => setTheme(isDark ? "light" : "dark")}
+            className="p-1.5 rounded-lg transition-all hover:scale-110 active:scale-95"
+            style={{ background: hoverBg, color: isDark ? "#FFD700" : "#FF6600" }}
+            title={isDark ? "Mode clair" : "Mode sombre"}
+          >
+            {isDark
+              ? <Sun className="w-4 h-4" />
+              : <Moon className="w-4 h-4" />
+            }
+          </button>
+        </div>
+
+        <div className="flex-1 max-w-md hidden md:flex items-center border overflow-hidden" style={{ borderColor: isDark ? "rgba(255,255,255,0.15)" : "rgba(0,0,0,0.15)", borderRadius: "4px" }}>
           <input
             type="text"
             placeholder="Rechercher un forfait, un opérateur..."
-            className="flex-1 px-3 py-2 text-sm outline-none text-white placeholder-gray-500"
-            style={{ background: "transparent" }}
+            className="flex-1 px-3 py-2 text-sm outline-none placeholder-gray-500"
+            style={{ background: "transparent", color: textColor }}
             readOnly
           />
           <button
@@ -135,15 +160,16 @@ export function Navbar() {
         </div>
 
         <div className="flex items-center gap-2">
-          <Link href="/forfaits" className="hidden md:flex items-center gap-1.5 text-sm font-semibold text-gray-300 hover:text-white transition-colors">
+          <Link href="/forfaits" className="hidden md:flex items-center gap-1.5 text-sm font-semibold transition-colors" style={{ color: mutedColor }}>
             Forfaits
           </Link>
-          <Link href="/commandes" className="hidden md:flex items-center gap-1.5 text-sm font-semibold text-gray-300 hover:text-white transition-colors">
+          <Link href="/commandes" className="hidden md:flex items-center gap-1.5 text-sm font-semibold transition-colors" style={{ color: mutedColor }}>
             Mes commandes
           </Link>
           <button
             onClick={scrollToAvis}
-            className="hidden md:flex items-center gap-1.5 text-sm font-semibold text-gray-300 hover:text-white transition-colors"
+            className="hidden md:flex items-center gap-1.5 text-sm font-semibold transition-colors"
+            style={{ color: mutedColor }}
           >
             <Star className="w-4 h-4" />
             Avis
@@ -156,26 +182,28 @@ export function Navbar() {
             <MessageSquarePlus className="w-4 h-4" />
             Poster un avis
           </button>
-          <Link href="/commandes" className="p-2 rounded hover:bg-white/10 transition-colors relative">
-            <ShoppingBag className="w-5 h-5 text-gray-300" />
+          <Link href="/commandes" className="p-2 rounded transition-colors" style={{ color: mutedColor }}>
+            <ShoppingBag className="w-5 h-5" />
           </Link>
           <button
-            className="md:hidden p-2 rounded hover:bg-white/10 transition-colors"
+            className="md:hidden p-2 rounded transition-colors"
+            style={{ color: textColor }}
             onClick={() => setMobileOpen(!mobileOpen)}
           >
-            {mobileOpen ? <X className="w-5 h-5 text-white" /> : <Menu className="w-5 h-5 text-white" />}
+            {mobileOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
           </button>
         </div>
       </div>
 
       {mobileOpen && (
-        <div className="md:hidden border-t px-4 pb-4 flex flex-col gap-1" style={{ background: "#111111", borderColor: "rgba(255,255,255,0.08)" }}>
-          <Link href="/" className="py-2.5 px-3 rounded text-sm font-semibold text-gray-300 hover:text-white hover:bg-white/5">Accueil</Link>
-          <Link href="/forfaits" className="py-2.5 px-3 rounded text-sm font-semibold text-gray-300 hover:text-white hover:bg-white/5">Forfaits</Link>
-          <Link href="/commandes" className="py-2.5 px-3 rounded text-sm font-semibold text-gray-300 hover:text-white hover:bg-white/5">Mes commandes</Link>
+        <div className="md:hidden border-t px-4 pb-4 flex flex-col gap-1" style={{ background: mobileBg, borderColor: navBorder }}>
+          <Link href="/" className="py-2.5 px-3 rounded text-sm font-semibold transition-colors" style={{ color: mutedColor }}>Accueil</Link>
+          <Link href="/forfaits" className="py-2.5 px-3 rounded text-sm font-semibold transition-colors" style={{ color: mutedColor }}>Forfaits</Link>
+          <Link href="/commandes" className="py-2.5 px-3 rounded text-sm font-semibold transition-colors" style={{ color: mutedColor }}>Mes commandes</Link>
           <button
             onClick={() => { setMobileOpen(false); scrollToAvis(); }}
-            className="py-2.5 px-3 rounded text-sm font-semibold text-gray-300 hover:text-white hover:bg-white/5 flex items-center gap-2 text-left"
+            className="py-2.5 px-3 rounded text-sm font-semibold flex items-center gap-2 text-left transition-colors"
+            style={{ color: mutedColor }}
           >
             <Star className="w-4 h-4 text-yellow-500" />
             Avis
