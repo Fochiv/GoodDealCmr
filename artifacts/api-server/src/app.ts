@@ -41,8 +41,26 @@ if (process.env.NODE_ENV === "production") {
   const staticDir = process.env.STATIC_DIR
     ? path.resolve(process.cwd(), process.env.STATIC_DIR)
     : path.resolve(process.cwd(), "dist/public");
-  app.use(express.static(staticDir));
+
+  // Hashed assets (JS/CSS) → cache 1 an ; index.html → jamais de cache
+  app.use(
+    express.static(staticDir, {
+      setHeaders(res, filePath) {
+        if (filePath.endsWith("index.html")) {
+          res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+          res.setHeader("Pragma", "no-cache");
+          res.setHeader("Expires", "0");
+        } else {
+          res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+        }
+      },
+    }),
+  );
+
   app.get("/{*path}", (_req, res) => {
+    res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+    res.setHeader("Pragma", "no-cache");
+    res.setHeader("Expires", "0");
     res.sendFile(path.join(staticDir, "index.html"));
   });
 } else {
