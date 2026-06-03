@@ -602,6 +602,68 @@ export default function Home() {
         </div>
       </section>
 
+      {/* Footer */}
+      <footer style={{ background: "#111111", borderTop: "1px solid rgba(255,255,255,0.08)" }}>
+        <div className="max-w-5xl mx-auto px-4 py-10">
+
+          {/* Logo + description */}
+          <div className="flex items-center gap-3 mb-8">
+            <div className="w-10 h-10 rounded flex items-center justify-center font-black text-white text-base flex-shrink-0" style={{ background: "#FF6600" }}>
+              G
+            </div>
+            <div>
+              <div className="font-black text-white text-base">Good Deal</div>
+              <div className="text-xs text-gray-500">Forfaits internet MTN & Orange au Cameroun</div>
+            </div>
+          </div>
+
+          {/* Liens rapides */}
+          <div className="mb-8">
+            <div className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-4">Navigation</div>
+            <div className="flex flex-col gap-3">
+              {[
+                { label: "Forfaits Orange", href: orangeOp ? `/operator/${orangeOp.id}` : "/forfaits" },
+                { label: "Forfaits MTN",    href: mtnOp    ? `/operator/${mtnOp.id}`    : "/forfaits" },
+                { label: "Tous les forfaits", href: "/forfaits" },
+                { label: "Mes commandes",   href: "/commandes" },
+              ].map(link => (
+                <a
+                  key={link.label}
+                  href={link.href}
+                  className="text-sm font-bold transition-opacity hover:opacity-70"
+                  style={{ color: "#FF6600" }}
+                >
+                  {link.label}
+                </a>
+              ))}
+            </div>
+          </div>
+
+          <div className="border-t mb-8" style={{ borderColor: "rgba(255,255,255,0.08)" }} />
+
+          {/* Liens légaux */}
+          <div className="flex flex-col gap-3 mb-8">
+            {[
+              "Politique de confidentialité",
+              "Conditions générales d'utilisation",
+              "Assistance client",
+              "ANTIC — Cybersécurité",
+            ].map(link => (
+              <a key={link} href="#" className="text-sm text-gray-400 hover:text-white transition-colors">
+                {link}
+              </a>
+            ))}
+          </div>
+
+          <div className="border-t mb-6" style={{ borderColor: "rgba(255,255,255,0.08)" }} />
+
+          <p className="text-xs text-gray-600">© 2025 GOOD DEAL, ALL RIGHTS RESERVED.</p>
+          <p className="text-xs text-gray-700 mt-1">
+            Forfaits distribués par <span style={{ color: "#FF6600" }}>Good Deal Cameroun</span>
+          </p>
+        </div>
+      </footer>
+
       <div className="h-16 md:hidden" />
 
       {/* Floating Actions */}
