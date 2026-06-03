@@ -86,7 +86,7 @@ function TestimonialCard({ t }: { t: DisplayTestimonial }) {
   const isMtn = t.bundle ? t.bundle.includes("MTN") : Math.random() > 0.5;
   const initial = t.phone.charAt(0).toUpperCase();
   return (
-    <div className="flex-shrink-0 w-72 bg-white rounded-2xl border border-gray-100 shadow-sm p-4 mx-2">
+    <div className="flex-shrink-0 w-72 rounded-2xl p-4 mx-2" style={{ background: "#1a1a1a", border: "1px solid rgba(255,255,255,0.08)" }}>
       <div className="flex items-start justify-between mb-2">
         <div className="flex items-center gap-2">
           {t.bundle ? (
@@ -106,9 +106,9 @@ function TestimonialCard({ t }: { t: DisplayTestimonial }) {
             </div>
           )}
           <div>
-            <div className="font-bold text-sm text-foreground">{t.phone}</div>
+            <div className="font-bold text-sm text-white">{t.phone}</div>
             {t.bundle && t.amount && (
-              <div className="text-xs text-muted-foreground">{t.bundle} · {t.amount}</div>
+              <div className="text-xs text-gray-400">{t.bundle} · {t.amount}</div>
             )}
           </div>
         </div>
@@ -122,7 +122,7 @@ function TestimonialCard({ t }: { t: DisplayTestimonial }) {
           <Star key={i} className="w-3 h-3 text-gray-200" />
         ))}
       </div>
-      <p className="text-sm text-gray-700 leading-snug">{t.msg}</p>
+      <p className="text-sm text-gray-300 leading-snug">{t.msg}</p>
     </div>
   );
 }
@@ -372,38 +372,40 @@ export default function Home() {
   }
 
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen" style={{ background: "#0d0d0d", color: "#ffffff" }}>
       {/* ── Access modal (admin or merchant) ─────────────────────────────── */}
       {showAccessModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center px-4 bg-black/40 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl p-6 w-full max-w-xs shadow-xl">
+        <div className="fixed inset-0 z-50 flex items-center justify-center px-4 bg-black/60 backdrop-blur-sm">
+          <div className="rounded-2xl p-6 w-full max-w-xs shadow-xl border border-white/10" style={{ background: "#1a1a1a" }}>
             <div className="flex items-center justify-between mb-5">
-              <h2 className="font-black text-base text-foreground">Accès restreint</h2>
-              <button onClick={() => setShowAccessModal(false)} className="text-muted-foreground hover:text-foreground text-xl leading-none">×</button>
+              <h2 className="font-black text-base text-white">Accès restreint</h2>
+              <button onClick={() => setShowAccessModal(false)} className="text-gray-400 hover:text-white text-xl leading-none">×</button>
             </div>
             <div className="flex flex-col gap-3">
               <button
                 onClick={() => { setShowAccessModal(false); setLocation("/ashtech"); }}
-                className="flex items-center gap-4 p-4 rounded-xl border border-gray-200 hover:bg-gray-50 transition-colors text-left"
+                className="flex items-center gap-4 p-4 rounded-xl border hover:bg-white/5 transition-colors text-left"
+                style={{ borderColor: "rgba(255,255,255,0.1)" }}
               >
-                <div className="w-10 h-10 rounded-xl bg-gray-900 flex items-center justify-center flex-shrink-0">
+                <div className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center flex-shrink-0">
                   <Shield className="w-5 h-5 text-white" />
                 </div>
                 <div>
-                  <div className="font-bold text-sm text-foreground">Administrateur</div>
-                  <div className="text-xs text-muted-foreground">Accès au panneau admin</div>
+                  <div className="font-bold text-sm text-white">Administrateur</div>
+                  <div className="text-xs text-gray-400">Accès au panneau admin</div>
                 </div>
               </button>
               <button
                 onClick={() => { setShowAccessModal(false); setLocation("/marchand"); }}
-                className="flex items-center gap-4 p-4 rounded-xl border border-orange-200 hover:bg-orange-50 transition-colors text-left"
+                className="flex items-center gap-4 p-4 rounded-xl border hover:bg-white/5 transition-colors text-left"
+                style={{ borderColor: "rgba(255,102,0,0.3)" }}
               >
-                <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: "linear-gradient(135deg, #FF6600, #FF6600)" }}>
+                <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: "#FF6600" }}>
                   <Store className="w-5 h-5 text-white" />
                 </div>
                 <div>
-                  <div className="font-bold text-sm text-foreground">Espace marchand</div>
-                  <div className="text-xs text-muted-foreground">Gérer mon compte marchand</div>
+                  <div className="font-bold text-sm text-white">Espace marchand</div>
+                  <div className="text-xs text-gray-400">Gérer mon compte marchand</div>
                 </div>
               </button>
             </div>
@@ -411,18 +413,17 @@ export default function Home() {
         </div>
       )}
 
-      {/* Hero — style orange.cm : blanc, texte noir, boutons solides plats */}
-      <section className="bg-white pt-24 pb-10 px-4 border-b border-gray-100">
+      {/* Hero */}
+      <section className="pt-24 pb-10 px-4 border-b" style={{ background: "linear-gradient(180deg, #1a0800 0%, #0d0d0d 100%)", borderBottomColor: "rgba(255,255,255,0.06)" }}>
         <div className="max-w-4xl mx-auto text-center">
-          <h1 className="text-4xl md:text-5xl font-black text-gray-900 leading-tight mb-4">
+          <h1 className="text-4xl md:text-5xl font-black text-white leading-tight mb-4">
             Internet mobile au<br />
             <span style={{ color: "#FF6600" }}>meilleur prix</span> au Cameroun
           </h1>
-          <p className="text-base text-gray-500 max-w-xl mx-auto mb-8">
+          <p className="text-base text-gray-400 max-w-xl mx-auto mb-8">
             Achetez vos forfaits internet MTN et Orange directement depuis votre téléphone. Paiement Mobile Money instantané.
           </p>
 
-          {/* Operator quick buttons — style orange.cm : plats, logo + texte, fond uni */}
           <div className="flex flex-col sm:flex-row gap-3 justify-center mb-4">
             <button
               onClick={() => orangeOp ? setLocation(`/operator/${orangeOp.id}`) : setLocation("/forfaits")}
@@ -455,11 +456,10 @@ export default function Home() {
             </button>
           </div>
 
-          {/* Voir tous — bouton noir plat style orange.cm */}
           <button
             onClick={() => setLocation("/forfaits")}
-            className="w-full max-w-sm py-3.5 font-bold text-white text-sm transition-opacity hover:opacity-90 mx-auto block"
-            style={{ background: "#1a1a1a", borderRadius: "6px" }}
+            className="w-full max-w-sm py-3.5 font-bold text-white text-sm transition-opacity hover:opacity-80 mx-auto block border border-white/20"
+            style={{ background: "transparent", borderRadius: "6px" }}
           >
             Voir tous les forfaits
           </button>
@@ -468,31 +468,31 @@ export default function Home() {
 
       {/* Operator Cards */}
       <section className="px-4 py-12 max-w-5xl mx-auto">
-        <h2 className="text-xl font-black text-gray-900 mb-6">Choisissez votre opérateur</h2>
+        <h2 className="text-xl font-black text-white mb-6">Choisissez votre opérateur</h2>
         {opsLoading ? (
           <div className="grid md:grid-cols-2 gap-4">
-            {[1, 2].map(i => <div key={i} className="h-52 bg-gray-100 animate-pulse" style={{ borderRadius: "6px" }} />)}
+            {[1, 2].map(i => <div key={i} className="h-52 animate-pulse" style={{ background: "#1a1a1a", borderRadius: "6px" }} />)}
           </div>
         ) : (
           <div className="grid md:grid-cols-2 gap-4">
             {/* Orange Card */}
             <button
               onClick={() => orangeOp ? setLocation(`/operator/${orangeOp.id}`) : setLocation("/forfaits")}
-              className="group border border-gray-200 bg-white p-6 text-left transition-shadow hover:shadow-md overflow-hidden"
-              style={{ borderLeft: "4px solid #FF6600", borderRadius: "6px" }}
+              className="group p-6 text-left transition-all hover:scale-[1.01] overflow-hidden"
+              style={{ background: "#1a1a1a", border: "1px solid rgba(255,102,0,0.3)", borderLeft: "4px solid #FF6600", borderRadius: "6px" }}
             >
               <div className="flex items-center gap-3 mb-4">
-                <div className="w-12 h-12 rounded overflow-hidden border border-gray-100 flex-shrink-0">
+                <div className="w-12 h-12 rounded overflow-hidden flex-shrink-0" style={{ background: "#FF6600" }}>
                   <img src="/logo-orange.jpg" alt="Orange" className="w-full h-full object-cover" />
                 </div>
                 <div>
-                  <div className="font-black text-gray-900 text-lg">Orange Cameroun</div>
-                  <div className="text-sm text-gray-500">{allOrangeBundles.length} forfaits disponibles</div>
+                  <div className="font-black text-white text-lg">Orange Cameroun</div>
+                  <div className="text-sm text-gray-400">{allOrangeBundles.length} forfaits disponibles</div>
                 </div>
               </div>
               <div className="flex gap-2 flex-wrap mb-4">
                 {orangeBundles.map(b => (
-                  <span key={b.id} className="text-xs font-bold px-2 py-1" style={{ background: "rgba(255,102,0,0.1)", color: "#FF6600", borderRadius: "3px" }}>
+                  <span key={b.id} className="text-xs font-bold px-2 py-1" style={{ background: "rgba(255,102,0,0.15)", color: "#FF6600", borderRadius: "3px" }}>
                     {b.dataSize} — {formatFCFA(b.price)}
                   </span>
                 ))}
@@ -505,21 +505,21 @@ export default function Home() {
             {/* MTN Card */}
             <button
               onClick={() => mtnOp ? setLocation(`/operator/${mtnOp.id}`) : setLocation("/forfaits")}
-              className="group border border-gray-200 bg-white p-6 text-left transition-shadow hover:shadow-md overflow-hidden"
-              style={{ borderLeft: "4px solid #FFD700", borderRadius: "6px" }}
+              className="group p-6 text-left transition-all hover:scale-[1.01] overflow-hidden"
+              style={{ background: "#1a1a1a", border: "1px solid rgba(255,215,0,0.3)", borderLeft: "4px solid #FFD700", borderRadius: "6px" }}
             >
               <div className="flex items-center gap-3 mb-4">
-                <div className="w-12 h-12 rounded overflow-hidden border border-gray-100 flex-shrink-0">
+                <div className="w-12 h-12 rounded overflow-hidden flex-shrink-0" style={{ background: "#FFD700" }}>
                   <img src="/logo-mtn.png" alt="MTN" className="w-full h-full object-cover" />
                 </div>
                 <div>
-                  <div className="font-black text-gray-900 text-lg">MTN Cameroon</div>
-                  <div className="text-sm text-gray-500">{allMtnBundles.length} forfaits disponibles</div>
+                  <div className="font-black text-white text-lg">MTN Cameroon</div>
+                  <div className="text-sm text-gray-400">{allMtnBundles.length} forfaits disponibles</div>
                 </div>
               </div>
               <div className="flex gap-2 flex-wrap mb-4">
                 {mtnBundles.map(b => (
-                  <span key={b.id} className="text-xs font-bold px-2 py-1" style={{ background: "rgba(255,215,0,0.2)", color: "#B8860B", borderRadius: "3px" }}>
+                  <span key={b.id} className="text-xs font-bold px-2 py-1" style={{ background: "rgba(255,215,0,0.15)", color: "#FFD700", borderRadius: "3px" }}>
                     {b.dataSize} — {formatFCFA(b.price)}
                   </span>
                 ))}
@@ -533,14 +533,14 @@ export default function Home() {
       </section>
 
       {/* ===== TESTIMONIALS ===== */}
-      <section id="avis" className="pb-16 bg-gray-50 pt-12 overflow-hidden">
+      <section id="avis" className="pb-16 pt-12 overflow-hidden" style={{ background: "#111111" }}>
         <div className="max-w-4xl mx-auto px-4 text-center mb-8">
-          <div className="inline-flex items-center gap-2 bg-green-100 text-green-700 px-4 py-1.5 rounded-full text-sm font-bold mb-4">
+          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-sm font-bold mb-4" style={{ background: "rgba(34,197,94,0.15)", color: "#4ade80" }}>
             <CheckCircle className="w-4 h-4" />
             Clients satisfaits
           </div>
-          <h2 className="text-2xl font-black text-foreground mb-2">Ce que disent nos clients</h2>
-          <p className="text-muted-foreground text-sm mb-6">Plus de <strong>10 000 forfaits</strong> vendus — ils témoignent</p>
+          <h2 className="text-2xl font-black text-white mb-2">Ce que disent nos clients</h2>
+          <p className="text-gray-400 text-sm mb-6">Plus de <strong className="text-white">10 000 forfaits</strong> vendus — ils témoignent</p>
         </div>
 
         <div className="space-y-3">
@@ -551,14 +551,14 @@ export default function Home() {
       </section>
 
       {/* How it works */}
-      <section className="px-4 pb-16 bg-white">
+      <section className="px-4 pb-16" style={{ background: "#0d0d0d" }}>
         <div className="max-w-4xl mx-auto py-16">
-          <h2 className="text-2xl font-black text-center text-foreground mb-12">Comment ça marche ?</h2>
+          <h2 className="text-2xl font-black text-center text-white mb-12">Comment ça marche ?</h2>
           <div className="grid md:grid-cols-3 gap-8">
             {[
-              { icon: Wifi,  step: "1", title: "Choisissez un forfait", desc: "Parcourez nos offres MTN et Orange, comparez les prix et la data." },
-              { icon: Phone, step: "2", title: "Entrez votre numéro",   desc: "Renseignez le numéro à recharger et choisissez votre moyen de paiement." },
-              { icon: Zap,   step: "3", title: "Payez en 1 clic",       desc: "Paiement MTN MoMo ou Orange Money. Votre forfait est activé instantanément." },
+              { icon: Wifi,  step: "1", title: "Choisissez un forfait", desc: "Parcourez nos offres MTN et Orange, comparez les prix et la data.", color: "#FF6600" },
+              { icon: Phone, step: "2", title: "Entrez votre numéro",   desc: "Renseignez le numéro à recharger et choisissez votre moyen de paiement.", color: "#FFD700" },
+              { icon: Zap,   step: "3", title: "Payez en 1 clic",       desc: "Paiement MTN MoMo ou Orange Money. Votre forfait est activé instantanément.", color: "#FF6600" },
             ].map((item) => (
               <div
                 key={item.step}
@@ -566,12 +566,12 @@ export default function Home() {
                 onClick={item.step === "3" ? handleStep3Click : undefined}
                 style={item.step === "3" ? { cursor: "default", userSelect: "none" } : undefined}
               >
-                <div className="w-16 h-16 rounded-2xl bg-primary/10 text-primary flex items-center justify-center mx-auto mb-4">
-                  <item.icon className="w-7 h-7" />
+                <div className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4" style={{ background: `${item.color}20` }}>
+                  <item.icon className="w-7 h-7" style={{ color: item.color }} />
                 </div>
-                <div className="text-xs font-bold text-primary uppercase tracking-widest mb-2">Étape {item.step}</div>
-                <h3 className="text-lg font-bold text-foreground mb-2">{item.title}</h3>
-                <p className="text-muted-foreground text-sm leading-relaxed">{item.desc}</p>
+                <div className="text-xs font-bold uppercase tracking-widest mb-2" style={{ color: item.color }}>Étape {item.step}</div>
+                <h3 className="text-lg font-bold text-white mb-2">{item.title}</h3>
+                <p className="text-gray-400 text-sm leading-relaxed">{item.desc}</p>
               </div>
             ))}
           </div>
@@ -580,8 +580,8 @@ export default function Home() {
 
       {/* Features */}
       <section className="px-4 pb-20 max-w-4xl mx-auto pt-4">
-        <div className="bg-gray-50 border border-gray-100 rounded-2xl p-8">
-          <h2 className="text-xl font-black text-foreground mb-6">Pourquoi Good Deal ?</h2>
+        <div className="border rounded-2xl p-8" style={{ background: "#1a1a1a", borderColor: "rgba(255,255,255,0.08)" }}>
+          <h2 className="text-xl font-black text-white mb-6">Pourquoi Good Deal ?</h2>
           <div className="grid sm:grid-cols-2 gap-4">
             {[
               "Paiement 100% sécurisé Mobile Money",
@@ -592,10 +592,10 @@ export default function Home() {
               "Pas de frais cachés",
             ].map((feat) => (
               <div key={feat} className="flex items-center gap-3">
-                <div className="w-5 h-5 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0">
-                  <Check className="w-3 h-3 text-green-600" />
+                <div className="w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: "rgba(34,197,94,0.2)" }}>
+                  <Check className="w-3 h-3" style={{ color: "#4ade80" }} />
                 </div>
-                <span className="text-sm text-foreground">{feat}</span>
+                <span className="text-sm text-gray-300">{feat}</span>
               </div>
             ))}
           </div>

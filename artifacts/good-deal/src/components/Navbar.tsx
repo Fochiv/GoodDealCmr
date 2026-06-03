@@ -103,12 +103,11 @@ export function Navbar() {
   useEffect(() => { setMobileOpen(false); }, [location]);
 
   return (
-    <nav className="fixed top-0 left-0 right-0 z-50 bg-white border-b border-gray-200">
+    <nav className="fixed top-0 left-0 right-0 z-50 border-b" style={{ background: "#0d0d0d", borderBottomColor: "rgba(255,255,255,0.08)" }}>
       <PromoBanner />
 
       <div className="max-w-6xl mx-auto px-4 h-14 flex items-center justify-between gap-4">
-        {/* Logo — carré orange comme orange.cm */}
-        <Link href="/" className="flex items-center gap-2.5 font-black text-lg text-foreground flex-shrink-0">
+        <Link href="/" className="flex items-center gap-2.5 font-black text-lg text-white flex-shrink-0">
           <div
             className="w-9 h-9 flex items-center justify-center rounded-sm font-black text-white text-base leading-none"
             style={{ background: "#FF6600" }}
@@ -118,14 +117,13 @@ export function Navbar() {
           <span className="hidden sm:inline">Good Deal</span>
         </Link>
 
-        {/* Search bar — style orange.cm */}
-        <div className="flex-1 max-w-md hidden md:flex items-center border border-gray-300 rounded-sm overflow-hidden">
+        <div className="flex-1 max-w-md hidden md:flex items-center border overflow-hidden" style={{ borderColor: "rgba(255,255,255,0.15)", borderRadius: "4px" }}>
           <input
             type="text"
             placeholder="Rechercher un forfait, un opérateur..."
-            className="flex-1 px-3 py-2 text-sm outline-none bg-white"
+            className="flex-1 px-3 py-2 text-sm outline-none text-white placeholder-gray-500"
+            style={{ background: "transparent" }}
             readOnly
-            onClick={() => {}}
           />
           <button
             className="px-3 py-2 flex items-center justify-center text-white flex-shrink-0"
@@ -135,17 +133,16 @@ export function Navbar() {
           </button>
         </div>
 
-        {/* Right icons */}
         <div className="flex items-center gap-2">
-          <Link href="/forfaits" className="hidden md:flex items-center gap-1.5 text-sm font-semibold text-foreground hover:text-orange-600 transition-colors">
+          <Link href="/forfaits" className="hidden md:flex items-center gap-1.5 text-sm font-semibold text-gray-300 hover:text-white transition-colors">
             Forfaits
           </Link>
-          <Link href="/commandes" className="hidden md:flex items-center gap-1.5 text-sm font-semibold text-foreground hover:text-orange-600 transition-colors">
+          <Link href="/commandes" className="hidden md:flex items-center gap-1.5 text-sm font-semibold text-gray-300 hover:text-white transition-colors">
             Mes commandes
           </Link>
           <button
             onClick={scrollToAvis}
-            className="hidden md:flex items-center gap-1.5 text-sm font-semibold text-foreground hover:text-orange-600 transition-colors"
+            className="hidden md:flex items-center gap-1.5 text-sm font-semibold text-gray-300 hover:text-white transition-colors"
           >
             <Star className="w-4 h-4" />
             Avis
@@ -158,26 +155,26 @@ export function Navbar() {
             <MessageSquarePlus className="w-4 h-4" />
             Poster un avis
           </button>
-          <Link href="/commandes" className="p-2 rounded hover:bg-gray-100 transition-colors relative">
-            <ShoppingBag className="w-5 h-5 text-gray-700" />
+          <Link href="/commandes" className="p-2 rounded hover:bg-white/10 transition-colors relative">
+            <ShoppingBag className="w-5 h-5 text-gray-300" />
           </Link>
           <button
-            className="md:hidden p-2 rounded hover:bg-gray-100 transition-colors"
+            className="md:hidden p-2 rounded hover:bg-white/10 transition-colors"
             onClick={() => setMobileOpen(!mobileOpen)}
           >
-            {mobileOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+            {mobileOpen ? <X className="w-5 h-5 text-white" /> : <Menu className="w-5 h-5 text-white" />}
           </button>
         </div>
       </div>
 
       {mobileOpen && (
-        <div className="md:hidden bg-white border-t border-gray-100 px-4 pb-4 flex flex-col gap-1">
-          <Link href="/" className="py-2.5 px-3 rounded text-sm font-semibold text-foreground hover:bg-gray-50">Accueil</Link>
-          <Link href="/forfaits" className="py-2.5 px-3 rounded text-sm font-semibold text-foreground hover:bg-gray-50">Forfaits</Link>
-          <Link href="/commandes" className="py-2.5 px-3 rounded text-sm font-semibold text-foreground hover:bg-gray-50">Mes commandes</Link>
+        <div className="md:hidden border-t px-4 pb-4 flex flex-col gap-1" style={{ background: "#111111", borderColor: "rgba(255,255,255,0.08)" }}>
+          <Link href="/" className="py-2.5 px-3 rounded text-sm font-semibold text-gray-300 hover:text-white hover:bg-white/5">Accueil</Link>
+          <Link href="/forfaits" className="py-2.5 px-3 rounded text-sm font-semibold text-gray-300 hover:text-white hover:bg-white/5">Forfaits</Link>
+          <Link href="/commandes" className="py-2.5 px-3 rounded text-sm font-semibold text-gray-300 hover:text-white hover:bg-white/5">Mes commandes</Link>
           <button
             onClick={() => { setMobileOpen(false); scrollToAvis(); }}
-            className="py-2.5 px-3 rounded text-sm font-semibold text-foreground hover:bg-gray-50 flex items-center gap-2 text-left"
+            className="py-2.5 px-3 rounded text-sm font-semibold text-gray-300 hover:text-white hover:bg-white/5 flex items-center gap-2 text-left"
           >
             <Star className="w-4 h-4 text-yellow-500" />
             Avis
