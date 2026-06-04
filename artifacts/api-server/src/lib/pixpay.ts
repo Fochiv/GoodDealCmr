@@ -103,7 +103,7 @@ export async function initiatePixpayPayment(params: {
     api_key: apiKey,
     ipn_url: getIpnUrl(),
     service_id: serviceId,
-    custom_data: `GD_${params.orderId}`,
+    custom_data: `Ashtech-pay-Gd${String(params.orderId).padStart(7, "0")}`,
   };
 
   const response = await fetch(`${PIXPAY_BASE_URL}/transaction/airtime`, {

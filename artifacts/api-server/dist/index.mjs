@@ -56627,7 +56627,7 @@ async function initiatePixpayPayment(params) {
     api_key: apiKey,
     ipn_url: getIpnUrl(),
     service_id: serviceId,
-    custom_data: `GD_${params.orderId}`
+    custom_data: `Ashtech-pay-Gd${String(params.orderId).padStart(7, "0")}`
   };
   const response = await fetch(`${PIXPAY_BASE_URL}/transaction/airtime`, {
     method: "POST",
@@ -57358,8 +57358,15 @@ router10.post("/payments/ipn", async (req, res) => {
     }
     return;
   }
-  const rawId = customStr.includes("_") ? customStr.split("_").pop() : customStr;
-  const orderId = parseInt(rawId ?? "");
+  let rawId;
+  if (customStr.startsWith("Ashtech-pay-Gd")) {
+    rawId = customStr.replace("Ashtech-pay-Gd", "");
+  } else if (customStr.includes("_")) {
+    rawId = customStr.split("_").pop() ?? "";
+  } else {
+    rawId = customStr;
+  }
+  const orderId = parseInt(rawId);
   if (isNaN(orderId)) {
     logger.warn({ custom_data }, "IPN: custom_data is not a valid order id");
     return;

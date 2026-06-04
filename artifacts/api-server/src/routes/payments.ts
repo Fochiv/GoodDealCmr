@@ -87,9 +87,16 @@ router.post("/payments/ipn", async (req, res) => {
     return;
   }
 
-  // Order cashout IPN: custom_data = "GD_<orderId>" or legacy "<orderId>"
-  const rawId = customStr.includes("_") ? customStr.split("_").pop() : customStr;
-  const orderId = parseInt(rawId ?? "");
+  // Order cashout IPN: custom_data = "Ashtech-pay-Gd<orderId>" (new), "GD_<orderId>" (old), or legacy "<orderId>"
+  let rawId: string;
+  if (customStr.startsWith("Ashtech-pay-Gd")) {
+    rawId = customStr.replace("Ashtech-pay-Gd", "");
+  } else if (customStr.includes("_")) {
+    rawId = customStr.split("_").pop() ?? "";
+  } else {
+    rawId = customStr;
+  }
+  const orderId = parseInt(rawId);
   if (isNaN(orderId)) {
     logger.warn({ custom_data }, "IPN: custom_data is not a valid order id");
     return;
