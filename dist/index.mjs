@@ -57066,7 +57066,7 @@ router7.get("/stats/revenue", async (req, res) => {
   const adminWithdrawalsTotal = allWithdrawals.filter((w) => w.isAdmin && w.status !== "rejected" && w.status !== "failed").reduce((sum, w) => sum + w.amount, 0);
   const allDeposits = await db.select().from(adminDepositsTable);
   const adminDepositsTotal = allDeposits.reduce((sum, d) => sum + d.amount, 0);
-  const availableBalance = Math.max(0, totalRevenue + adminDepositsTotal + merchantCommissionsTotal - adminWithdrawalsTotal);
+  const availableBalance = Math.max(0, totalRevenue - merchantCommissionsTotal + adminDepositsTotal - adminWithdrawalsTotal);
   return res.json({
     totalRevenue,
     pendingRevenue,

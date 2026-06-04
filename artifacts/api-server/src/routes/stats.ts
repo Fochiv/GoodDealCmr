@@ -73,8 +73,8 @@ router.get("/stats/revenue", async (req, res) => {
   const allDeposits = await db.select().from(adminDepositsTable);
   const adminDepositsTotal = allDeposits.reduce((sum, d) => sum + d.amount, 0);
 
-  // Solde disponible = revenus + dépôts externes + commissions marchands − retraits admin
-  const availableBalance = Math.max(0, totalRevenue + adminDepositsTotal + merchantCommissionsTotal - adminWithdrawalsTotal);
+  // Solde disponible = revenus bruts − commissions marchands + dépôts externes − retraits admin
+  const availableBalance = Math.max(0, totalRevenue - merchantCommissionsTotal + adminDepositsTotal - adminWithdrawalsTotal);
 
   return res.json({
     totalRevenue,
