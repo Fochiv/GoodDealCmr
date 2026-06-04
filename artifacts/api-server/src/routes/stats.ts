@@ -66,7 +66,7 @@ router.get("/stats/revenue", async (req, res) => {
   // Retraits admin (pending + paid, pas les refusés ni les failed)
   const allWithdrawals = await db.select().from(withdrawalsTable);
   const adminWithdrawalsTotal = allWithdrawals
-    .filter(w => w.isAdmin && w.status !== "rejected" && w.status !== "failed")
+    .filter(w => w.isAdmin && w.status === "paid")
     .reduce((sum, w) => sum + w.amount, 0);
 
   // Dépôts admin manuels (crédits externes)
