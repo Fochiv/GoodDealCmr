@@ -5,7 +5,7 @@ export function getAuthHeaders(): Record<string, string> {
 }
 
 export function formatRef(orderId: number): string {
-  return `GD${String(orderId).padStart(10, "0")}`;
+  return `Ashtech-pay-Gd${String(orderId).padStart(7, "0")}`;
 }
 
 export function formatFCFA(amount: number): string {
