@@ -610,11 +610,24 @@ export default function Admin() {
           <Skeleton className="h-24 rounded-2xl mb-4" />
         ) : (
           <div className="rounded-2xl p-5 mb-4 shadow-sm border border-white/20"
-            style={{ background: "linear-gradient(135deg, #16a34a, #15803d)" }}>
+            style={{
+              background: revenue && revenue.availableBalance < 0
+                ? "linear-gradient(135deg, #dc2626, #b91c1c)"
+                : "linear-gradient(135deg, #16a34a, #15803d)"
+            }}>
             <div className="flex items-start justify-between gap-3 mb-3">
-              <div>
-                <div className="text-xs font-bold text-white/70 uppercase tracking-wide mb-1">Solde disponible</div>
-                <div className="text-3xl font-black text-white">{revenue ? formatFCFA(revenue.availableBalance) : "—"}</div>
+              <div className="flex-1">
+                <div className="text-xs font-bold text-white/70 uppercase tracking-wide mb-1">
+                  {revenue && revenue.availableBalance < 0 ? "⚠️ Déficit — Solde négatif" : "Solde disponible"}
+                </div>
+                <div className="text-3xl font-black text-white">
+                  {revenue ? formatFCFA(Math.max(0, revenue.availableBalance)) : "—"}
+                </div>
+                {revenue && revenue.availableBalance < 0 && (
+                  <div className="text-xs text-white/90 mt-1 font-semibold">
+                    Déficit réel : {formatFCFA(revenue.availableBalance)} — Ajoutez {formatFCFA(-revenue.availableBalance)} pour remettre à zéro
+                  </div>
+                )}
               </div>
             </div>
             <div className="flex gap-2">
@@ -628,6 +641,7 @@ export default function Admin() {
               <Button
                 onClick={() => setShowAdminManualWithdraw(true)}
                 className="flex-1 font-bold gap-2"
+                disabled={!revenue || revenue.availableBalance <= 0}
                 style={{ background: "rgba(255,255,255,0.15)", color: "#fff", border: "1px solid rgba(255,255,255,0.3)" }}
               >
                 <ArrowDownCircle className="w-4 h-4" /> Retirer

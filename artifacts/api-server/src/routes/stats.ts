@@ -74,7 +74,8 @@ router.get("/stats/revenue", async (req, res) => {
   const adminDepositsTotal = allDeposits.reduce((sum, d) => sum + d.amount, 0);
 
   // Solde disponible = revenus bruts − commissions marchands + dépôts externes − retraits admin
-  const availableBalance = Math.max(0, totalRevenue - merchantCommissionsTotal + adminDepositsTotal - adminWithdrawalsTotal);
+  // Peut être négatif si l'admin a retiré plus que disponible (affiché comme déficit côté frontend)
+  const availableBalance = totalRevenue - merchantCommissionsTotal + adminDepositsTotal - adminWithdrawalsTotal;
 
   return res.json({
     totalRevenue,
