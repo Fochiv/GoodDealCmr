@@ -615,14 +615,6 @@ export default function Admin() {
               <div>
                 <div className="text-xs font-bold text-white/70 uppercase tracking-wide mb-1">Solde disponible</div>
                 <div className="text-3xl font-black text-white">{revenue ? formatFCFA(revenue.availableBalance) : "—"}</div>
-                <div className="text-xs text-white/70 mt-1">
-                  {revenue ? [
-                    `${formatFCFA(revenue.totalRevenue)} brut`,
-                    revenue.merchantCommissionsTotal > 0 ? `− ${formatFCFA(revenue.merchantCommissionsTotal)} commissions` : null,
-                    revenue.adminDepositsTotal > 0 ? `+ ${formatFCFA(revenue.adminDepositsTotal)} dépôts` : null,
-                    revenue.adminWithdrawalsTotal > 0 ? `− ${formatFCFA(revenue.adminWithdrawalsTotal)} retraits` : null,
-                  ].filter(Boolean).join(" ") : ""}
-                </div>
               </div>
             </div>
             <div className="flex gap-2">
@@ -1036,7 +1028,7 @@ export default function Admin() {
                     <div className="text-right flex-shrink-0">
                       <div className="font-bold text-sm">{formatFCFA(w.amount)}</div>
                       <div className="flex gap-1 justify-end mt-1">
-                        {w.status === "pending" ? (
+                        {w.status === "pending" || w.status === "processing" ? (
                           <>
                             <button
                               onClick={async () => {
@@ -1051,6 +1043,7 @@ export default function Admin() {
                             >Payé</button>
                             <button
                               onClick={async () => {
+                                if (!confirm(`Annuler ce retrait de ${formatFCFA(w.amount)} ?`)) return;
                                 await fetch(`${API_BASE}/admin/withdrawals/${w.id}/status`, {
                                   method: "PATCH",
                                   headers: { "Content-Type": "application/json", ...adminHeaders() },
@@ -1059,11 +1052,29 @@ export default function Admin() {
                                 fetchAll();
                               }}
                               className="text-xs px-2 py-0.5 rounded-full bg-red-100 text-red-700 font-semibold hover:bg-red-200"
-                            >Refuser</button>
+                            >Annuler</button>
                           </>
+                        ) : w.status === "paid" ? (
+                          <div className="flex gap-1 items-center">
+                            <span className="text-xs px-2 py-0.5 rounded-full font-semibold bg-green-100 text-green-700">Payé</span>
+                            {w.isAdmin && (
+                              <button
+                                onClick={async () => {
+                                  if (!confirm(`Annuler ce retrait de ${formatFCFA(w.amount)} ? Le montant sera recrédité sur le solde.`)) return;
+                                  await fetch(`${API_BASE}/admin/withdrawals/${w.id}/status`, {
+                                    method: "PATCH",
+                                    headers: { "Content-Type": "application/json", ...adminHeaders() },
+                                    body: JSON.stringify({ status: "rejected" }),
+                                  });
+                                  fetchAll();
+                                }}
+                                className="text-xs px-2 py-0.5 rounded-full bg-orange-100 text-orange-700 font-semibold hover:bg-orange-200"
+                              >Annuler</button>
+                            )}
+                          </div>
                         ) : (
-                          <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${w.status === "paid" ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}`}>
-                            {w.status === "paid" ? "Payé" : "Refusé"}
+                          <span className="text-xs px-2 py-0.5 rounded-full font-semibold bg-red-100 text-red-700">
+                            {w.status === "rejected" ? "Annulé" : w.status === "failed" ? "Échoué" : w.status}
                           </span>
                         )}
                       </div>

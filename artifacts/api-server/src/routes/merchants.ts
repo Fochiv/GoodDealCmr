@@ -303,14 +303,16 @@ router.patch("/admin/withdrawals/:id/status", async (req, res) => {
   const id = parseInt(req.params.id);
   if (isNaN(id)) return res.status(400).json({ error: "ID invalide" });
 
-  const schema = z.object({ status: z.enum(["pending", "paid", "rejected"]) });
+  const schema = z.object({ status: z.enum(["pending", "paid", "rejected", "failed"]) });
   const parsed = schema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: "Statut invalide" });
 
   const [withdrawal] = await db.select().from(withdrawalsTable).where(eq(withdrawalsTable.id, id)).limit(1);
   if (!withdrawal) return res.status(404).json({ error: "Retrait introuvable" });
 
-  if (parsed.data.status === "rejected" && withdrawal.status === "pending" && withdrawal.merchantId) {
+  // Si on annule (rejected/failed) un retrait marchand → rembourser le solde marchand
+  const isCancelling = parsed.data.status === "rejected" || parsed.data.status === "failed";
+  if (isCancelling && !withdrawal.isAdmin && withdrawal.merchantId) {
     const [merchant] = await db.select().from(merchantsTable).where(eq(merchantsTable.id, withdrawal.merchantId)).limit(1);
     if (merchant) {
       await db.update(merchantsTable)

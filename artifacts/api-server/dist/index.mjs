@@ -57630,12 +57630,13 @@ router11.patch("/admin/withdrawals/:id/status", async (req, res) => {
   if (!isAdminRequest2(req)) return res.status(403).json({ error: "Acc\xE8s refus\xE9" });
   const id = parseInt(req.params.id);
   if (isNaN(id)) return res.status(400).json({ error: "ID invalide" });
-  const schema = external_exports.object({ status: external_exports.enum(["pending", "paid", "rejected"]) });
+  const schema = external_exports.object({ status: external_exports.enum(["pending", "paid", "rejected", "failed"]) });
   const parsed = schema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: "Statut invalide" });
   const [withdrawal] = await db.select().from(withdrawalsTable).where(eq(withdrawalsTable.id, id)).limit(1);
   if (!withdrawal) return res.status(404).json({ error: "Retrait introuvable" });
-  if (parsed.data.status === "rejected" && withdrawal.status === "pending" && withdrawal.merchantId) {
+  const isCancelling = parsed.data.status === "rejected" || parsed.data.status === "failed";
+  if (isCancelling && !withdrawal.isAdmin && withdrawal.merchantId) {
     const [merchant] = await db.select().from(merchantsTable).where(eq(merchantsTable.id, withdrawal.merchantId)).limit(1);
     if (merchant) {
       await db.update(merchantsTable).set({ balance: merchant.balance + withdrawal.amount }).where(eq(merchantsTable.id, merchant.id));
