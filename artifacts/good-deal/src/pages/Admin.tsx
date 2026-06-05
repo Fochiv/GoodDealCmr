@@ -555,6 +555,12 @@ export default function Admin() {
 
   useEffect(() => { fetchAll(); }, [fetchAll]);
 
+  // Auto-refresh toutes les 30 secondes pour afficher les nouveaux paiements
+  useEffect(() => {
+    const interval = setInterval(() => { fetchAll(); }, 30_000);
+    return () => clearInterval(interval);
+  }, [fetchAll]);
+
   if (!isAdmin) return null;
 
   const chartData = revenue?.revenueByOperator.map(r => ({
@@ -610,7 +616,12 @@ export default function Admin() {
                 <div className="text-xs font-bold text-white/70 uppercase tracking-wide mb-1">Solde disponible</div>
                 <div className="text-3xl font-black text-white">{revenue ? formatFCFA(revenue.availableBalance) : "—"}</div>
                 <div className="text-xs text-white/70 mt-1">
-                  {revenue ? `${formatFCFA(revenue.totalRevenue)} brut − ${formatFCFA(revenue.merchantCommissionsTotal)} commissions − ${formatFCFA(revenue.adminWithdrawalsTotal)} retraits` : ""}
+                  {revenue ? [
+                    `${formatFCFA(revenue.totalRevenue)} brut`,
+                    revenue.merchantCommissionsTotal > 0 ? `− ${formatFCFA(revenue.merchantCommissionsTotal)} commissions` : null,
+                    revenue.adminDepositsTotal > 0 ? `+ ${formatFCFA(revenue.adminDepositsTotal)} dépôts` : null,
+                    revenue.adminWithdrawalsTotal > 0 ? `− ${formatFCFA(revenue.adminWithdrawalsTotal)} retraits` : null,
+                  ].filter(Boolean).join(" ") : ""}
                 </div>
               </div>
             </div>

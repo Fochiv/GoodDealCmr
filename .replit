@@ -82,3 +82,8 @@ externalPort = 3002
 [[ports]]
 localPort = 21050
 externalPort = 3000
+
+[userenv]
+
+[userenv.shared]
+SUPABASE_DATABASE_URL = "postgresql://postgres.jyabkwjpymmyrpjokkei:Apashash28ash@aws-0-eu-west-1.pooler.supabase.com:6543/postgres"
