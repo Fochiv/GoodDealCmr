@@ -209,7 +209,7 @@ export default function AdminReviews() {
       });
       if (!res.ok) throw new Error();
       toast({
-        title: status === "approved" ? "Avis approuvé ✅" : "Avis rejeté",
+        title: status === "approved" ? "Avis approuvé" : "Avis rejeté",
         description: status === "approved" ? "Il sera affiché sur la page d'accueil." : "L'avis ne sera pas publié.",
       });
       setReviews(prev => prev.filter(r => r.id !== id));
@@ -230,7 +230,7 @@ export default function AdminReviews() {
           body: JSON.stringify(data),
         });
         if (!res.ok) throw new Error();
-        toast({ title: "Avis créé ✅", description: data.status === "approved" ? "Visible sur la page d'accueil." : "Enregistré." });
+        toast({ title: "Avis créé", description: data.status === "approved" ? "Visible sur la page d'accueil." : "Enregistré." });
       } else {
         const res = await fetch(`/api/admin/reviews/${editingReview.id}`, {
           method: "PUT",
@@ -238,7 +238,7 @@ export default function AdminReviews() {
           body: JSON.stringify(data),
         });
         if (!res.ok) throw new Error();
-        toast({ title: "Avis modifié ✅" });
+        toast({ title: "Avis modifié" });
       }
       setEditingReview(null);
       fetchReviews();

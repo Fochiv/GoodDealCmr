@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { useLocation } from "wouter";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
-import { TrendingUp, ShoppingBag, Package, ArrowRight, LogOut, RefreshCw, Trophy, Search, ChevronLeft, ChevronRight, Store, Plus, ArrowDownCircle, Wallet, X, Shield, PlusCircle, MinusCircle, Eye } from "lucide-react";
+import { TrendingUp, ShoppingBag, Package, ArrowRight, LogOut, RefreshCw, Trophy, Search, ChevronLeft, ChevronRight, Store, Plus, ArrowDownCircle, Wallet, X, Shield, PlusCircle, MinusCircle, Eye, Users, Star, Settings, Phone, AlertTriangle } from "lucide-react";
 import { formatFCFA, getStatusColor, getStatusLabel, formatDate } from "@/lib/api";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
@@ -594,11 +594,11 @@ export default function Admin() {
           </div>
           {/* Nav grid — 2×2 on mobile, single row on desktop */}
           <div className="grid grid-cols-2 sm:flex gap-2">
-            <Button variant="outline" size="sm" onClick={() => setLocation("/ashtech/bundles")} className="justify-start sm:justify-center">📦 Forfaits</Button>
-            <Button variant="outline" size="sm" onClick={() => setLocation("/ashtech/orders")} className="justify-start sm:justify-center">🧾 Commandes</Button>
-            <Button variant="outline" size="sm" onClick={() => setLocation("/ashtech/users")} className="justify-start sm:justify-center">👥 Utilisateurs</Button>
-            <Button variant="outline" size="sm" onClick={() => setLocation("/ashtech/reviews")} className="justify-start sm:justify-center">⭐ Avis</Button>
-            <Button variant="outline" size="sm" onClick={() => setLocation("/ashtech/settings")} className="justify-start sm:justify-center">⚙️ Paramètres</Button>
+            <Button variant="outline" size="sm" onClick={() => setLocation("/ashtech/bundles")} className="gap-1.5 justify-start sm:justify-center"><Package className="w-4 h-4" aria-hidden="true" /> Forfaits</Button>
+            <Button variant="outline" size="sm" onClick={() => setLocation("/ashtech/orders")} className="gap-1.5 justify-start sm:justify-center"><ShoppingBag className="w-4 h-4" aria-hidden="true" /> Commandes</Button>
+            <Button variant="outline" size="sm" onClick={() => setLocation("/ashtech/users")} className="gap-1.5 justify-start sm:justify-center"><Users className="w-4 h-4" aria-hidden="true" /> Utilisateurs</Button>
+            <Button variant="outline" size="sm" onClick={() => setLocation("/ashtech/reviews")} className="gap-1.5 justify-start sm:justify-center"><Star className="w-4 h-4" aria-hidden="true" /> Avis</Button>
+            <Button variant="outline" size="sm" onClick={() => setLocation("/ashtech/settings")} className="gap-1.5 justify-start sm:justify-center"><Settings className="w-4 h-4" aria-hidden="true" /> Paramètres</Button>
             <Button variant="outline" size="sm" disabled title="Les retraits Mobile Money sont temporairement suspendus" className="justify-start sm:justify-center">
               <ArrowDownCircle className="w-4 h-4 mr-1" /> Retraits suspendus
             </Button>
@@ -620,8 +620,9 @@ export default function Admin() {
             }}>
             <div className="flex items-start justify-between gap-3 mb-3">
               <div className="flex-1">
-                <div className="text-xs font-bold text-white/70 uppercase tracking-wide mb-1">
-                  {revenue && revenue.availableBalance < 0 ? "⚠️ Déficit — Solde négatif" : "Solde disponible"}
+                <div className="flex items-center gap-1.5 text-xs font-bold text-white/80 uppercase tracking-wide mb-1">
+                  {revenue && revenue.availableBalance < 0 && <AlertTriangle className="w-3.5 h-3.5" aria-hidden="true" />}
+                  {revenue && revenue.availableBalance < 0 ? "Déficit — Solde négatif" : "Solde disponible"}
                 </div>
                 <div className="text-3xl font-black text-white">
                   {revenue ? formatFCFA(Math.max(0, revenue.availableBalance)) : "—"}
@@ -756,12 +757,14 @@ export default function Admin() {
             {revLoading ? <Skeleton className="h-48" /> : (
               <ResponsiveContainer width="100%" height={200}>
                 <BarChart data={chartData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                  <XAxis dataKey="name" tick={{ fontSize: 12, fill: "#888" }} />
-                  <YAxis tick={{ fontSize: 11, fill: "#888" }} />
+                   <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                   <XAxis dataKey="name" tick={{ fontSize: 12, fill: "hsl(var(--muted-foreground))" }} />
+                   <YAxis tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} />
                   <Tooltip
                     formatter={(v: number) => [formatFCFA(v), "Revenus"]}
-                    contentStyle={{ background: "#fff", border: "1px solid #e5e7eb", borderRadius: "8px" }}
+                     contentStyle={{ background: "hsl(var(--popover))", border: "1px solid hsl(var(--border))", borderRadius: "8px", color: "hsl(var(--popover-foreground))" }}
+                     labelStyle={{ color: "hsl(var(--popover-foreground))" }}
+                     itemStyle={{ color: "hsl(var(--popover-foreground))" }}
                   />
                   <Bar dataKey="revenue" fill="hsl(var(--primary))" radius={[6, 6, 0, 0]} />
                 </BarChart>
@@ -879,7 +882,7 @@ export default function Admin() {
                             {order.bundle?.dataSize ?? "—"} — {order.bundle?.operatorName ?? "—"}
                           </div>
                           <div className="text-xs text-muted-foreground">
-                            📱 {order.phoneNumber}
+                            <Phone className="mr-1 inline-block h-3 w-3" aria-hidden="true" />{order.phoneNumber}
                             {order.payerName ? ` · ${order.payerName}` : ""}
                             {" · "}{formatDate(order.createdAt)}
                           </div>
@@ -975,7 +978,7 @@ export default function Admin() {
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="font-semibold text-sm">{m.name}</div>
-                    <div className="text-xs text-muted-foreground">📱 {m.phone} · Code: <span className="font-mono font-bold text-orange-600">{m.referralCode}</span></div>
+                    <div className="text-xs text-muted-foreground"><Phone className="mr-1 inline-block h-3 w-3" aria-hidden="true" />{m.phone} · Code: <span className="font-mono font-bold text-orange-600">{m.referralCode}</span></div>
                   </div>
                   <div className="flex items-center gap-2 flex-shrink-0">
                     <div className="text-right">
@@ -1039,7 +1042,7 @@ export default function Admin() {
                         )}
                       </div>
                       <div className="text-xs text-muted-foreground">
-                        {opLabel} · 📱 {w.withdrawalPhone} · {formatDate(w.createdAt)}
+                        {opLabel} · <Phone className="mx-1 inline-block h-3 w-3" aria-hidden="true" />{w.withdrawalPhone} · {formatDate(w.createdAt)}
                       </div>
                     </div>
                     <div className="text-right flex-shrink-0">

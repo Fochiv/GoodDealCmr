@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback } from "react";
 import { useLocation, useParams } from "wouter";
 import {
   ArrowLeft, Store, RefreshCw, TrendingUp, ShoppingBag,
-  ArrowDownCircle, Wallet, Wifi, ChevronLeft, ChevronRight, Package
+  ArrowDownCircle, Wallet, Wifi, ChevronLeft, ChevronRight, Package, Phone
 } from "lucide-react";
 import { formatFCFA, formatDate, getStatusColor, getStatusLabel, formatRef } from "@/lib/api";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -157,7 +157,7 @@ export default function AdminMerchantDetail() {
               <>
                 <h1 className="text-xl font-black text-foreground truncate">{merchant?.name}</h1>
                 <p className="text-xs text-muted-foreground">
-                  📱 {merchant?.phone} · Code : <span className="font-mono font-bold text-orange-600">{merchant?.referralCode}</span>
+                  <Phone className="mr-1 inline-block h-3 w-3" aria-hidden="true" />{merchant?.phone} · Code : <span className="font-mono font-bold text-orange-600">{merchant?.referralCode}</span>
                 </p>
               </>
             )}
@@ -260,7 +260,7 @@ export default function AdminMerchantDetail() {
                         </span>
                       </div>
                       <div className="text-xs text-muted-foreground mt-0.5">
-                        📱 {order.phoneNumber}
+                        <Phone className="mr-1 inline-block h-3 w-3" aria-hidden="true" />{order.phoneNumber}
                         {order.payerName ? ` · ${order.payerName}` : ""}
                         {" · "}{formatDate(order.createdAt)}
                       </div>
@@ -323,7 +323,7 @@ export default function AdminMerchantDetail() {
                       <div className="flex-1 min-w-0">
                         <div className="font-semibold text-sm">{opLabel}</div>
                         <div className="text-xs text-muted-foreground">
-                          📱 {w.withdrawalPhone} · {formatDate(w.createdAt)}
+                          <Phone className="mr-1 inline-block h-3 w-3" aria-hidden="true" />{w.withdrawalPhone} · {formatDate(w.createdAt)}
                         </div>
                         {w.transactionId && (
                           <div className="font-mono text-xs text-muted-foreground/60">TXN: {w.transactionId}</div>

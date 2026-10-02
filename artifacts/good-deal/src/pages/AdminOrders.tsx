@@ -3,7 +3,7 @@ import { useLocation } from "wouter";
 import {
   ArrowLeft, Check, X, RefreshCw, Wifi,
   TrendingUp, Clock, CheckCircle, XCircle, Search, Package, Pause,
-  ChevronLeft, ChevronRight, Loader2
+  ChevronLeft, ChevronRight, Loader2, Phone, User, CreditCard
 } from "lucide-react";
 import { formatFCFA, formatDate, getStatusColor, getStatusLabel, formatRef } from "@/lib/api";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -99,10 +99,10 @@ export default function AdminOrders() {
       setOrders(prev => prev.map(o => o.id === id ? { ...o, ...updated } : o));
       toast({
         title: status === "paid"
-          ? "✅ Paiement validé"
+          ? "Paiement validé"
           : status === "cancelled"
-          ? "🚫 Commande annulée"
-          : "❌ Commande rejetée",
+          ? "Commande annulée"
+          : "Commande rejetée",
         description: status === "paid"
           ? `${updated.bundle?.dataSize} activé pour ${updated.phoneNumber}`
           : status === "cancelled"
@@ -307,12 +307,12 @@ export default function AdminOrders() {
                           </span>
                         </div>
                         <div className="text-xs text-muted-foreground space-y-0.5">
-                          <div>📱 <span className="font-semibold text-foreground">{order.phoneNumber}</span></div>
+                          <div className="flex items-center gap-1"><Phone className="h-3 w-3" aria-hidden="true" /><span className="font-semibold text-foreground">{order.phoneNumber}</span></div>
                           {order.payerName && (
-                            <div>👤 {order.payerName}{order.payerPhone ? ` · ${order.payerPhone}` : ""}</div>
+                            <div className="flex items-center gap-1"><User className="h-3 w-3" aria-hidden="true" />{order.payerName}{order.payerPhone ? ` · ${order.payerPhone}` : ""}</div>
                           )}
-                          <div>💳 {order.paymentMethod === "mtn_momo" ? "MTN MoMo" : "Orange Money"}</div>
-                          <div>🕐 {formatDate(order.createdAt)}</div>
+                          <div className="flex items-center gap-1"><CreditCard className="h-3 w-3" aria-hidden="true" />{order.paymentMethod === "mtn_momo" ? "MTN MoMo" : "Orange Money"}</div>
+                          <div className="flex items-center gap-1"><Clock className="h-3 w-3" aria-hidden="true" />{formatDate(order.createdAt)}</div>
                           {order.transactionId && (
                             <div className="font-mono text-xs text-muted-foreground/70">TXN: {order.transactionId}</div>
                           )}

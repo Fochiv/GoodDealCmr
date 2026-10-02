@@ -1,0 +1,1 @@
+- [TypeScript reference builds](typescript-reference-builds.md) — TS6305 errors can indicate missing declaration outputs, not source regressions; rebuild the affected reference before judging a package typecheck.

@@ -261,3 +261,217 @@
     inset: -1px;
   }
 }
+
+/* Keep hard-coded utility colors readable when the global dark theme is active. */
+.dark {
+  color-scheme: dark;
+}
+
+.dark .bg-white {
+  background-color: hsl(var(--card));
+}
+
+.dark .bg-gray-50 {
+  background-color: hsl(var(--background));
+}
+
+.dark .bg-gray-100,
+.dark .bg-gray-200,
+.dark .bg-gray-300,
+.dark .bg-gray-400 {
+  background-color: hsl(var(--muted));
+}
+
+.dark .bg-gray-800,
+.dark .bg-gray-900 {
+  background-color: hsl(222 20% 19%);
+}
+
+.dark .bg-slate-100 {
+  background-color: hsl(var(--muted));
+}
+
+.dark .bg-blue-50,
+.dark .bg-blue-100,
+.dark .bg-blue-200 {
+  background-color: rgb(30 64 175 / 28%);
+}
+
+.dark .bg-green-50,
+.dark .bg-green-100,
+.dark .bg-green-200 {
+  background-color: rgb(20 83 45 / 34%);
+}
+
+.dark .bg-orange-50,
+.dark .bg-orange-100,
+.dark .bg-orange-200 {
+  background-color: rgb(124 45 18 / 34%);
+}
+
+.dark .bg-red-50,
+.dark .bg-red-100,
+.dark .bg-red-200 {
+  background-color: rgb(127 29 29 / 34%);
+}
+
+.dark .bg-yellow-50,
+.dark .bg-yellow-100,
+.dark .bg-yellow-200 {
+  background-color: rgb(113 63 18 / 38%);
+}
+
+.dark .bg-purple-50,
+.dark .bg-purple-100 {
+  background-color: rgb(88 28 135 / 34%);
+}
+
+.dark .text-gray-700,
+.dark .text-gray-800,
+.dark .text-gray-900 {
+  color: hsl(var(--foreground));
+}
+
+.dark .text-gray-200,
+.dark .text-gray-300,
+.dark .text-gray-400,
+.dark .text-gray-500,
+.dark .text-gray-600,
+.dark .text-slate-600 {
+  color: hsl(var(--muted-foreground));
+}
+
+.dark .text-blue-500,
+.dark .text-blue-600,
+.dark .text-blue-700,
+.dark .text-blue-800,
+.dark .text-blue-900 {
+  color: #93c5fd;
+}
+
+.dark .text-green-400,
+.dark .text-green-500,
+.dark .text-green-600,
+.dark .text-green-700,
+.dark .text-green-800 {
+  color: #86efac;
+}
+
+.dark .text-orange-500,
+.dark .text-orange-600,
+.dark .text-orange-700,
+.dark .text-orange-800 {
+  color: #fdba74;
+}
+
+.dark .text-purple-600,
+.dark .text-purple-700 {
+  color: #d8b4fe;
+}
+
+.dark .text-red-300,
+.dark .text-red-500,
+.dark .text-red-600,
+.dark .text-red-700 {
+  color: #fca5a5;
+}
+
+.dark .text-yellow-200,
+.dark .text-yellow-300,
+.dark .text-yellow-400,
+.dark .text-yellow-500,
+.dark .text-yellow-600,
+.dark .text-yellow-700,
+.dark .text-yellow-800,
+.dark .text-yellow-900 {
+  color: #fde68a;
+}
+
+.dark .border-gray-50,
+.dark .border-gray-100,
+.dark .border-gray-200,
+.dark .border-gray-300,
+.dark .border-gray-900 {
+  border-color: hsl(var(--border));
+}
+
+.dark .border-blue-100,
+.dark .border-blue-200,
+.dark .border-blue-300 {
+  border-color: rgb(96 165 250 / 42%);
+}
+
+.dark .border-green-100,
+.dark .border-green-200,
+.dark .border-green-300,
+.dark .border-green-400,
+.dark .border-green-500 {
+  border-color: rgb(74 222 128 / 38%);
+}
+
+.dark .border-orange-100,
+.dark .border-orange-200,
+.dark .border-orange-300,
+.dark .border-orange-400,
+.dark .border-orange-500 {
+  border-color: rgb(251 146 60 / 42%);
+}
+
+.dark .border-purple-50,
+.dark .border-purple-100,
+.dark .border-purple-200,
+.dark .border-purple-300 {
+  border-color: rgb(192 132 252 / 35%);
+}
+
+.dark .border-red-100,
+.dark .border-red-200,
+.dark .border-red-300,
+.dark .border-red-400,
+.dark .border-red-500 {
+  border-color: rgb(248 113 113 / 40%);
+}
+
+.dark .border-yellow-100,
+.dark .border-yellow-200,
+.dark .border-yellow-300,
+.dark .border-yellow-400 {
+  border-color: rgb(250 204 21 / 40%);
+}
+
+.dark .border-slate-300 {
+  border-color: hsl(var(--border));
+}
+
+.dark .divide-gray-100 > :not(:last-child) {
+  border-color: hsl(var(--border));
+}
+
+.dark .divide-purple-50 > :not(:last-child) {
+  border-color: rgb(192 132 252 / 25%);
+}
+
+.dark input,
+.dark textarea,
+.dark select {
+  color: hsl(var(--foreground));
+  caret-color: hsl(var(--foreground));
+}
+
+.dark input::placeholder,
+.dark textarea::placeholder {
+  color: hsl(var(--muted-foreground));
+  opacity: 1;
+}
+
+.dark .theme-filter-tous {
+  background-color: hsl(var(--primary)) !important;
+  border-color: hsl(var(--primary)) !important;
+  color: hsl(var(--primary-foreground)) !important;
+}
+
+.dark .theme-filter-orange {
+  background-color: #c2410c !important;
+  border-color: #c2410c !important;
+  color: #fff !important;
+}

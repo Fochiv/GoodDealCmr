@@ -91,10 +91,10 @@ export default function AllBundles() {
                 <button
                   key={f}
                   onClick={() => setFilter(f)}
-                  className="px-4 py-2 text-sm font-bold transition-all border-r border-gray-200 last:border-r-0"
+                  className={`px-4 py-2 text-sm font-bold transition-all border-r border-gray-200 last:border-r-0 ${isActive ? `theme-filter-active theme-filter-${f}` : "bg-white text-gray-600"}`}
                   style={isActive
                     ? { background: activeBg[f], color: activeText[f] }
-                    : { background: "white", color: "#555" }
+                    : undefined
                   }
                 >
                   {labels[f]}

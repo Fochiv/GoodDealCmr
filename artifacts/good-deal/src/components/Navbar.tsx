@@ -135,6 +135,8 @@ export function Navbar() {
             className="p-1.5 rounded-lg transition-all hover:scale-110 active:scale-95"
             style={{ background: hoverBg, color: isDark ? "#FFD700" : "#FF6600" }}
             title={isDark ? "Mode clair" : "Mode sombre"}
+            aria-label={isDark ? "Activer le thème clair" : "Activer le thème sombre"}
+            aria-pressed={isDark}
           >
             {isDark
               ? <Sun className="w-4 h-4" />
