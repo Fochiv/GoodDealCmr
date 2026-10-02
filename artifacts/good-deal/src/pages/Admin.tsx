@@ -17,6 +17,16 @@ function adminHeaders(): Record<string, string> {
   return { "X-Admin-Key": localStorage.getItem("gd_admin_pass") ?? "" };
 }
 
+async function fetchAdminJson(url: string, headers: Record<string, string>): Promise<any> {
+  const response = await fetch(url, { headers, cache: "no-store" });
+  if (!response.ok) {
+    const data = await response.json().catch(() => null);
+    const message = typeof data?.error === "string" ? data.error : "Erreur serveur";
+    throw new Error(`${message} (HTTP ${response.status})`);
+  }
+  return response.json();
+}
+
 function AdjustBalanceModal({ merchant, onClose, onDone }: { merchant: any; onClose: () => void; onDone: () => void }) {
   const { toast } = useToast();
   const [type, setType] = useState<"add" | "subtract">("add");
@@ -516,6 +526,7 @@ export default function Admin() {
   const [merchantsLoading, setMerchantsLoading] = useState(true);
   const [withdrawals, setWithdrawals] = useState<any[]>([]);
   const [withdrawalsLoading, setWithdrawalsLoading] = useState(true);
+  const [refreshError, setRefreshError] = useState<string | null>(null);
   const [showCreateMerchant, setShowCreateMerchant] = useState(false);
   const [showAdminWithdraw, setShowAdminWithdraw] = useState(false);
   const [showAdminDeposit, setShowAdminDeposit] = useState(false);
@@ -531,26 +542,64 @@ export default function Admin() {
     setRevLoading(true); setOrdersLoading(true); setPopLoading(true); setHistLoading(true);
     setMerchantsLoading(true); setWithdrawalsLoading(true);
     const h = adminHeaders();
-    const [revRes, ordRes, popRes, histRes, merchantsRes, withdrawalsRes] = await Promise.all([
-      fetch("/api/stats/revenue", { headers: h }),
-      fetch("/api/stats/orders", { headers: h }),
-      fetch("/api/stats/popular-bundles", { headers: h }),
-      fetch("/api/orders", { headers: h }),
-      fetch("/api/admin/merchants", { headers: h }),
-      fetch("/api/admin/withdrawals", { headers: h }),
-    ]);
-    if (revRes.ok)  { setRevenue(await revRes.json()); }
-    setRevLoading(false);
-    if (ordRes.ok)  { setOrderStats(await ordRes.json()); }
-    setOrdersLoading(false);
-    if (popRes.ok)  { setPopular(await popRes.json()); }
-    setPopLoading(false);
-    if (histRes.ok) { setHistOrders(await histRes.json()); }
-    setHistLoading(false);
-    if (merchantsRes.ok) { setMerchants(await merchantsRes.json()); }
-    setMerchantsLoading(false);
-    if (withdrawalsRes.ok) { setWithdrawals(await withdrawalsRes.json()); }
-    setWithdrawalsLoading(false);
+    const requestLabels = [
+      "revenus",
+      "statistiques des commandes",
+      "forfaits populaires",
+      "historique des commandes",
+      "marchands",
+      "retraits",
+    ] as const;
+
+    try {
+      const results = await Promise.allSettled([
+        fetchAdminJson("/api/stats/revenue", h),
+        fetchAdminJson("/api/stats/orders", h),
+        fetchAdminJson("/api/stats/popular-bundles", h),
+        fetchAdminJson("/api/orders", h),
+        fetchAdminJson("/api/admin/merchants", h),
+        fetchAdminJson("/api/admin/withdrawals", h),
+      ]);
+      const [revRes, ordRes, popRes, histRes, merchantsRes, withdrawalsRes] = results;
+
+      if (revRes.status === "fulfilled") setRevenue(revRes.value);
+      if (ordRes.status === "fulfilled") setOrderStats(ordRes.value);
+      if (popRes.status === "fulfilled") setPopular(popRes.value);
+      if (histRes.status === "fulfilled") setHistOrders(histRes.value);
+      if (merchantsRes.status === "fulfilled") setMerchants(merchantsRes.value);
+      if (withdrawalsRes.status === "fulfilled") setWithdrawals(withdrawalsRes.value);
+
+      const failures = results.flatMap((result, index) =>
+        result.status === "rejected"
+          ? [{
+              label: requestLabels[index] ?? "données",
+              reason: result.reason instanceof Error ? result.reason.message : String(result.reason),
+            }]
+          : [],
+      );
+
+      if (failures.length > 0) {
+        console.warn("Échec de l’actualisation du tableau de bord admin :", failures);
+        const accessDenied = failures.some(({ reason }) => reason.includes("HTTP 403"));
+        setRefreshError(
+          accessDenied
+            ? "L’API refuse l’accès administrateur (403). Vérifiez votre connexion admin puis réessayez."
+            : `Certaines données (${failures.map(({ label }) => label).join(", ")}) n’ont pas pu être actualisées. Les données déjà chargées sont conservées; une nouvelle tentative aura lieu automatiquement dans 30 secondes.`,
+        );
+      } else {
+        setRefreshError(null);
+      }
+    } catch (error) {
+      console.error("Échec de l’actualisation du tableau de bord admin :", error);
+      setRefreshError("Le serveur n’a pas pu actualiser les données. Réessayez dans quelques instants.");
+    } finally {
+      setRevLoading(false);
+      setOrdersLoading(false);
+      setPopLoading(false);
+      setHistLoading(false);
+      setMerchantsLoading(false);
+      setWithdrawalsLoading(false);
+    }
   }, [isAdmin]);
 
   useEffect(() => { fetchAll(); }, [fetchAll]);
@@ -576,6 +625,12 @@ export default function Admin() {
   return (
     <div className="min-h-screen pt-20 pb-8 px-4 bg-gray-50">
       <div className="max-w-6xl mx-auto">
+        {refreshError && (
+          <div role="alert" className="mb-4 flex items-start gap-2 rounded-xl border border-orange-200 bg-orange-50 p-3 text-sm text-orange-700">
+            <AlertTriangle className="mt-0.5 h-4 w-4 flex-shrink-0" aria-hidden="true" />
+            <span>{refreshError}</span>
+          </div>
+        )}
         <div className="mb-6">
           {/* Title row */}
           <div className="flex items-center justify-between mb-4">

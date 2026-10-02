@@ -1,1 +1,2 @@
 - [TypeScript reference builds](typescript-reference-builds.md) — TS6305 errors can indicate missing declaration outputs, not source regressions; rebuild the affected reference before judging a package typecheck.
+- [AshTech payment confirmation](ashtech-payment-confirmation.md) — a mobile payment notification is not proof of settlement; wait for server-verified transaction status.

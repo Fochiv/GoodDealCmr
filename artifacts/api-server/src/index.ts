@@ -17,5 +17,9 @@ app.listen(port, (err) => {
   }
 
   logger.info({ port }, "Server listening");
-  startProcessingPoller();
+  if (process.env["DISABLE_PROCESSING_POLLER"] === "true") {
+    logger.info("Processing poller disabled for this API instance");
+  } else {
+    startProcessingPoller();
+  }
 });
