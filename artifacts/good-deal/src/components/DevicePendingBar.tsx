@@ -75,7 +75,7 @@ export function DevicePendingBar() {
   if (hasActiveCheckout()) return null;
   if (onOrdersPage) return null;
 
-  // Separate delivering (confirmed) from processing (awaiting Pixpay)
+  // Separate delivering (confirmed) from processing (awaiting Mobile Money confirmation)
   const delivering  = orders.filter(o => o.status === "confirmed");
   const processing  = orders.filter(o => o.status !== "confirmed");
   const count       = orders.length;

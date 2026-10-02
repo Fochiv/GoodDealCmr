@@ -7,10 +7,13 @@ Good Deal is a telecom internet bundle marketplace for Cameroon. Users can brows
 - `pnpm --filter @workspace/api-server run dev` — run the API server (port 5000 / 8080 in dev)
 - `pnpm --filter @workspace/good-deal run dev` — run the frontend (auto-assigned port)
 - `pnpm run typecheck` — full typecheck across all packages
-- `pnpm run build` — typecheck + build all packages
+- `pnpm run build` — build the tracked Plesk deployment files in `dist/`
+- `pnpm run typecheck` — typecheck workspace packages
 - `pnpm --filter @workspace/api-spec run codegen` — regenerate API hooks and Zod schemas from the OpenAPI spec
 - `pnpm --filter @workspace/db run push` — push DB schema changes (dev only)
-- Required env: `DATABASE_URL` — Postgres connection string, `SESSION_SECRET` — for auth token hashing
+- Required env: `DATABASE_URL`, `SESSION_SECRET`, `ASHTECH_API_KEY` (AshTech Direct API `ak_...`), `ASHTECH_WEBHOOK_SECRET` (`whsec_...`), and public HTTPS `BASE_URL` for payment notifications.
+- Payments use AshTech Pay Direct API at `https://www.ashtechpay.com/v1`, restricted to the active Cameroon catalogue and XAF. Confirmations are signed webhooks plus server-side status checks.
+- Outgoing Mobile Money withdrawals are suspended until AshTech documents a payout endpoint; the API rejects merchant/admin automatic withdrawal requests without creating records or changing balances.
 
 ## Stack
 

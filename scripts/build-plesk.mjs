@@ -82,6 +82,9 @@ async function buildPlesk() {
 ║    NODE_ENV=production                       ║
 ║    DATABASE_URL=...                          ║
 ║    SESSION_SECRET=...                        ║
+║    ASHTECH_API_KEY=ak_...                    ║
+║    ASHTECH_WEBHOOK_SECRET=whsec_...          ║
+║    BASE_URL=https://votre-domaine-public     ║
 ╚══════════════════════════════════════════════╝
 `);
 }

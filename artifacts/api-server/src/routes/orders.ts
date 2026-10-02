@@ -3,7 +3,12 @@ import { db, ordersTable, bundlesTable, operatorsTable, usersTable, merchantsTab
 import { eq, desc, inArray, or, and } from "drizzle-orm";
 import { z } from "zod";
 import { getUserIdFromToken } from "./auth";
-import { initiatePixpayPayment } from "../lib/pixpay";
+import {
+  initiateAshtechPayment,
+  isAshtechTransactionId,
+  normalizeCameroonPhone,
+  toStoredAshtechTransactionId,
+} from "../lib/ashtech";
 import { subscribeToOrder, unsubscribeFromOrder, emitOrderStatus } from "../lib/order-events";
 
 const router = Router();
@@ -143,6 +148,12 @@ router.post("/orders", async (req, res) => {
   const parsed = schema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: "Données invalides" });
 
+  try {
+    normalizeCameroonPhone(parsed.data.phoneNumber);
+  } catch (err: any) {
+    return res.status(400).json({ error: err.message });
+  }
+
   const bundle = await getBundleWithOperator(parsed.data.bundleId);
   if (!bundle) return res.status(404).json({ error: "Forfait introuvable" });
   if (!bundle.active) return res.status(400).json({ error: "Ce forfait n'est pas disponible" });
@@ -227,6 +238,7 @@ router.get("/orders/:id/events", async (req, res) => {
     clearInterval(ping);
     unsubscribeFromOrder(id, res);
   });
+  return;
 });
 
 router.post("/orders/:id/pay", async (req, res) => {
@@ -246,34 +258,49 @@ router.post("/orders/:id/pay", async (req, res) => {
   if (!order) return res.status(404).json({ error: "Commande introuvable" });
   if (order.status === "paid") return res.status(400).json({ error: "Commande déjà payée" });
   if (order.status === "processing") return res.status(400).json({ error: "Paiement déjà en cours de traitement" });
+  if (order.transactionId && !isAshtechTransactionId(order.transactionId)) {
+    return res.status(409).json({
+      error: "Cette commande utilise une ancienne transaction. Vérifiez son statut avant de créer un nouveau paiement.",
+    });
+  }
 
   try {
-    const pixpay = await initiatePixpayPayment({
+    const payerPhone = normalizeCameroonPhone(parsed.data.payerPhone);
+    const ashtech = await initiateAshtechPayment({
       amount: order.totalAmount,
-      destination: parsed.data.payerPhone,
+      destination: payerPhone,
       paymentMethod: parsed.data.paymentMethod,
       orderId: id,
     });
 
-    const [updated] = await db
+    const [updatedOrder] = await db
       .update(ordersTable)
       .set({
         status: "processing",
-        transactionId: pixpay.data.transaction_id,
+        transactionId: toStoredAshtechTransactionId(ashtech.transaction_id),
         paymentMethod: parsed.data.paymentMethod,
-        payerPhone: parsed.data.payerPhone,
+        payerPhone,
         payerName: parsed.data.payerName ?? null,
       })
-      .where(eq(ordersTable.id, id))
+      .where(and(eq(ordersTable.id, id), eq(ordersTable.status, "pending")))
       .returning();
+
+    let updated = updatedOrder;
+    if (!updated) {
+      const [current] = await db.select().from(ordersTable).where(eq(ordersTable.id, id)).limit(1);
+      if (!current || !["processing", "confirmed", "paid"].includes(current.status)) {
+        return res.status(409).json({ error: "La commande a changé d'état pendant l'initiation du paiement" });
+      }
+      updated = current;
+    }
 
     const bundle = await getBundleWithOperator(updated.bundleId);
 
     return res.json({
       success: true,
-      transactionId: pixpay.data.transaction_id,
-      state: pixpay.data.state,
-      message: pixpay.message,
+      transactionId: ashtech.transaction_id,
+      state: updated.status === "confirmed" || updated.status === "paid" ? "success" : ashtech.status,
+      message: ashtech.message ?? "Confirmez le paiement sur votre téléphone.",
       order: { ...updated, bundle },
     });
   } catch (err: any) {
@@ -374,7 +401,7 @@ router.patch("/admin/orders/:id/status", async (req, res) => {
     .returning();
 
   // Credit 50% commission to merchant if order is paid and has a referral
-  // Ne pas créditer si déjà crédité lors du passage à "confirmed" (paiement Pixpay confirmé)
+  // Ne pas créditer si déjà crédité lors du passage à "confirmed" (paiement confirmé)
   if (parsed.data.status === "paid" && order.status !== "paid" && order.status !== "confirmed" && order.merchantId) {
     const commission = Math.floor(order.totalAmount * 0.5);
     const [merchant] = await db.select().from(merchantsTable).where(eq(merchantsTable.id, order.merchantId)).limit(1);

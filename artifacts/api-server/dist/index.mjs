@@ -56577,103 +56577,142 @@ var bundles_default = router4;
 // src/routes/orders.ts
 var import_express5 = __toESM(require_express2(), 1);
 
-// src/lib/pixpay.ts
-var PIXPAY_BASE_URL = "https://proxy-coreapi.pixelinnov.net/api_v1";
-var SERVICE_IDS = {
-  mtn_momo: 339,
-  orange_money: 337
+// src/lib/ashtech.ts
+var ASHTECH_BASE_URL = "https://www.ashtechpay.com/v1";
+var ASHTECH_TRANSACTION_PREFIX = "ashtech:";
+var ASHTECH_REQUEST_TIMEOUT_MS = 2e4;
+var OPERATOR_MATCHERS = {
+  mtn_momo: /\bmtn\b/i,
+  orange_money: /\borange\b/i
 };
-var CASHIN_SERVICE_IDS = {
-  mtn: 338,
-  orange: 336
-};
-function getIpnUrl() {
-  const base = process.env.BASE_URL || (process.env.REPLIT_DEV_DOMAIN ? `https://${process.env.REPLIT_DEV_DOMAIN}` : "");
-  const url2 = `${base}/api/payments/ipn`;
-  if (!base || !url2.startsWith("http")) {
-    console.error(
-      "[PixPay] AVERTISSEMENT : BASE_URL n'est pas configur\xE9. PixPay ne pourra pas notifier le serveur (IPN). Configurez BASE_URL=https://good-deals-cm.top dans les variables d'environnement Plesk."
-    );
+var cameroonCatalogueCache;
+function getApiKey() {
+  const key = (process.env.ASHTECH_API_KEY ?? "").trim();
+  if (!key) throw new Error("La cl\xE9 Direct API ASHTECH_API_KEY n'est pas configur\xE9e");
+  return key;
+}
+function getNotifyUrl() {
+  const configuredBase = (process.env.BASE_URL ?? "").trim().replace(/\/+$/, "");
+  const replDomain = (process.env.REPLIT_DEV_DOMAIN ?? "").trim();
+  const base = configuredBase || (replDomain ? `https://${replDomain}` : "");
+  if (!base || !base.startsWith("https://")) {
+    throw new Error("Configurez BASE_URL avec l'URL HTTPS publique du serveur pour recevoir les notifications AshTech");
   }
-  return url2;
+  return `${base}/api/payments/ipn`;
 }
-function formatPhone(phone) {
-  return phone.replace(/\D/g, "");
+async function readJson(response) {
+  let payload;
+  try {
+    payload = await response.json();
+  } catch {
+    throw new Error("AshTech Pay a renvoy\xE9 une r\xE9ponse JSON invalide");
+  }
+  if (!response.ok) {
+    const body = payload && typeof payload === "object" && !Array.isArray(payload) ? payload : {};
+    const message = typeof body.message === "string" ? body.message : "La requ\xEAte AshTech Pay a \xE9chou\xE9";
+    throw new Error(`${message} (HTTP ${response.status})`);
+  }
+  return payload;
 }
-async function checkPixpayStatus(transactionId) {
-  const apiKey = (process.env.PIXPAY_API_KEY ?? "").trim();
-  if (!apiKey) throw new Error("PIXPAY_API_KEY non configur\xE9e");
-  const response = await fetch(
-    `${PIXPAY_BASE_URL}/transaction/${transactionId}?api_key=${encodeURIComponent(apiKey)}`,
-    { method: "GET", headers: { "Content-Type": "application/json" } }
+async function ashtechFetch(path2, init = {}) {
+  const response = await fetch(`${ASHTECH_BASE_URL}${path2}`, {
+    ...init,
+    signal: init.signal ?? AbortSignal.timeout(ASHTECH_REQUEST_TIMEOUT_MS),
+    headers: {
+      Authorization: `Bearer ${getApiKey()}`,
+      ...init.body ? { "Content-Type": "application/json" } : {},
+      ...init.headers
+    }
+  });
+  const payload = await readJson(response);
+  if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
+    throw new Error("AshTech Pay a renvoy\xE9 une r\xE9ponse inattendue");
+  }
+  return payload;
+}
+async function getCameroonCatalogue() {
+  if (cameroonCatalogueCache && cameroonCatalogueCache.expiresAt > Date.now()) {
+    return cameroonCatalogueCache.country;
+  }
+  const response = await fetch(`${ASHTECH_BASE_URL}/countries`, {
+    headers: { Authorization: `Bearer ${getApiKey()}` },
+    signal: AbortSignal.timeout(ASHTECH_REQUEST_TIMEOUT_MS)
+  });
+  const payload = await readJson(response);
+  if (!Array.isArray(payload)) {
+    throw new Error("Le catalogue AshTech Pay n'a pas le format attendu");
+  }
+  const country = payload.find(
+    (item) => !!item && typeof item === "object" && item.code === "CM" && item.currency === "XAF" && Array.isArray(item.operators)
   );
-  let data;
-  try {
-    data = await response.json();
-  } catch {
-    throw new Error("R\xE9ponse invalide de Pixpay");
+  if (!country) {
+    throw new Error("Le Cameroun n'est pas disponible dans le catalogue Mobile Money AshTech");
   }
-  return data;
+  cameroonCatalogueCache = { country, expiresAt: Date.now() + 5 * 60 * 1e3 };
+  return country;
 }
-async function initiatePixpayPayment(params) {
-  const apiKey = (process.env.PIXPAY_API_KEY ?? "").trim();
-  if (!apiKey) throw new Error("PIXPAY_API_KEY non configur\xE9e");
-  const serviceId = SERVICE_IDS[params.paymentMethod];
-  if (!serviceId)
-    throw new Error(`M\xE9thode de paiement inconnue: ${params.paymentMethod}`);
-  const body = {
-    amount: params.amount,
-    destination: formatPhone(params.destination),
-    api_key: apiKey,
-    ipn_url: getIpnUrl(),
-    service_id: serviceId,
-    custom_data: `Ashtech-pay-Gd${String(params.orderId).padStart(7, "0")}`
-  };
-  const response = await fetch(`${PIXPAY_BASE_URL}/transaction/airtime`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body)
-  });
-  let data;
-  try {
-    data = await response.json();
-  } catch {
-    throw new Error("R\xE9ponse invalide de Pixpay");
+function normalizeCameroonPhone(phone) {
+  const digits = phone.replace(/\D/g, "");
+  const nationalNumber = digits.startsWith("237") ? digits.slice(3) : digits;
+  if (!/^6\d{8}$/.test(nationalNumber)) {
+    throw new Error("Utilisez un num\xE9ro Mobile Money du Cameroun au format 6XX XXX XXX ou +237 6XX XXX XXX");
   }
-  if (!response.ok || data.statut_code !== 200) {
-    throw new Error(data.message || "\xC9chec de l'initiation du paiement Pixpay");
-  }
-  return data;
+  return `237${nationalNumber}`;
 }
-async function initiatePixpayCashin(params) {
-  const apiKey = (process.env.PIXPAY_API_KEY ?? "").trim();
-  if (!apiKey) throw new Error("PIXPAY_API_KEY non configur\xE9e");
-  const serviceId = CASHIN_SERVICE_IDS[params.operator];
-  if (!serviceId)
-    throw new Error(`Op\xE9rateur inconnu pour cashin: ${params.operator}`);
-  const body = {
-    amount: params.amount,
-    destination: formatPhone(params.destination),
-    api_key: apiKey,
-    ipn_url: getIpnUrl(),
-    service_id: serviceId,
-    custom_data: `withdrawal_${params.withdrawalId}`
-  };
-  const response = await fetch(`${PIXPAY_BASE_URL}/transaction/airtime`, {
+async function getCameroonOperator(paymentMethod) {
+  const matcher = OPERATOR_MATCHERS[paymentMethod];
+  if (!matcher) throw new Error(`M\xE9thode de paiement inconnue: ${paymentMethod}`);
+  const country = await getCameroonCatalogue();
+  const operator = country.operators.find((name) => matcher.test(name));
+  if (!operator) {
+    const label = paymentMethod === "mtn_momo" ? "MTN Money" : "Orange Money";
+    throw new Error(`${label} n'est pas actif dans le catalogue AshTech Pay au Cameroun`);
+  }
+  return operator;
+}
+function toStoredAshtechTransactionId(transactionId) {
+  return `${ASHTECH_TRANSACTION_PREFIX}${transactionId}`;
+}
+function isAshtechTransactionId(transactionId) {
+  return !!transactionId?.startsWith(ASHTECH_TRANSACTION_PREFIX);
+}
+function getAshtechTransactionId(storedId) {
+  return isAshtechTransactionId(storedId) ? storedId.slice(ASHTECH_TRANSACTION_PREFIX.length) : null;
+}
+async function initiateAshtechPayment(params) {
+  if (!Number.isInteger(params.amount) || params.amount <= 0) {
+    throw new Error("Le montant du paiement doit \xEAtre un entier positif");
+  }
+  const [phone, operator] = await Promise.all([
+    Promise.resolve(normalizeCameroonPhone(params.destination)),
+    getCameroonOperator(params.paymentMethod)
+  ]);
+  const payload = await ashtechFetch("/collect", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body)
+    body: JSON.stringify({
+      amount: params.amount,
+      currency: "XAF",
+      country_code: "CM",
+      operator,
+      phone,
+      reference: `gooddeal-order-${params.orderId}`,
+      notify_url: getNotifyUrl()
+    })
   });
-  let data;
-  try {
-    data = await response.json();
-  } catch {
-    throw new Error("R\xE9ponse invalide de Pixpay");
+  if (typeof payload.transaction_id !== "string" || !payload.transaction_id.trim()) {
+    throw new Error("AshTech Pay n'a pas renvoy\xE9 d'identifiant de transaction");
   }
-  if (!response.ok || data.statut_code !== 200) {
-    throw new Error(data.message || "\xC9chec de l'initiation du cashin Pixpay");
+  if (typeof payload.status !== "string" || !payload.status.trim()) {
+    throw new Error("AshTech Pay n'a pas renvoy\xE9 le statut de la transaction");
   }
-  return data;
+  return payload;
+}
+async function checkAshtechStatus(transactionId) {
+  const payload = await ashtechFetch(`/transaction/${encodeURIComponent(transactionId)}`);
+  if (typeof payload.status !== "string") {
+    throw new Error("AshTech Pay n'a pas renvoy\xE9 le statut de la transaction");
+  }
+  return payload.status.toLowerCase();
 }
 
 // src/lib/order-events.ts
@@ -56796,6 +56835,11 @@ router5.post("/orders", async (req, res) => {
   });
   const parsed = schema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: "Donn\xE9es invalides" });
+  try {
+    normalizeCameroonPhone(parsed.data.phoneNumber);
+  } catch (err) {
+    return res.status(400).json({ error: err.message });
+  }
   const bundle = await getBundleWithOperator(parsed.data.bundleId);
   if (!bundle) return res.status(404).json({ error: "Forfait introuvable" });
   if (!bundle.active) return res.status(400).json({ error: "Ce forfait n'est pas disponible" });
@@ -56859,6 +56903,7 @@ router5.get("/orders/:id/events", async (req, res) => {
     clearInterval(ping);
     unsubscribeFromOrder(id, res);
   });
+  return;
 });
 router5.post("/orders/:id/pay", async (req, res) => {
   const id = parseInt(req.params.id);
@@ -56874,26 +56919,40 @@ router5.post("/orders/:id/pay", async (req, res) => {
   if (!order) return res.status(404).json({ error: "Commande introuvable" });
   if (order.status === "paid") return res.status(400).json({ error: "Commande d\xE9j\xE0 pay\xE9e" });
   if (order.status === "processing") return res.status(400).json({ error: "Paiement d\xE9j\xE0 en cours de traitement" });
+  if (order.transactionId && !isAshtechTransactionId(order.transactionId)) {
+    return res.status(409).json({
+      error: "Cette commande utilise une ancienne transaction. V\xE9rifiez son statut avant de cr\xE9er un nouveau paiement."
+    });
+  }
   try {
-    const pixpay = await initiatePixpayPayment({
+    const payerPhone = normalizeCameroonPhone(parsed.data.payerPhone);
+    const ashtech = await initiateAshtechPayment({
       amount: order.totalAmount,
-      destination: parsed.data.payerPhone,
+      destination: payerPhone,
       paymentMethod: parsed.data.paymentMethod,
       orderId: id
     });
-    const [updated] = await db.update(ordersTable).set({
+    const [updatedOrder] = await db.update(ordersTable).set({
       status: "processing",
-      transactionId: pixpay.data.transaction_id,
+      transactionId: toStoredAshtechTransactionId(ashtech.transaction_id),
       paymentMethod: parsed.data.paymentMethod,
-      payerPhone: parsed.data.payerPhone,
+      payerPhone,
       payerName: parsed.data.payerName ?? null
-    }).where(eq(ordersTable.id, id)).returning();
+    }).where(and(eq(ordersTable.id, id), eq(ordersTable.status, "pending"))).returning();
+    let updated = updatedOrder;
+    if (!updated) {
+      const [current] = await db.select().from(ordersTable).where(eq(ordersTable.id, id)).limit(1);
+      if (!current || !["processing", "confirmed", "paid"].includes(current.status)) {
+        return res.status(409).json({ error: "La commande a chang\xE9 d'\xE9tat pendant l'initiation du paiement" });
+      }
+      updated = current;
+    }
     const bundle = await getBundleWithOperator(updated.bundleId);
     return res.json({
       success: true,
-      transactionId: pixpay.data.transaction_id,
-      state: pixpay.data.state,
-      message: pixpay.message,
+      transactionId: ashtech.transaction_id,
+      state: updated.status === "confirmed" || updated.status === "paid" ? "success" : ashtech.status,
+      message: ashtech.message ?? "Confirmez le paiement sur votre t\xE9l\xE9phone.",
       order: { ...updated, bundle }
     });
   } catch (err) {
@@ -57289,6 +57348,7 @@ var settings_default = router9;
 
 // src/routes/payments.ts
 var import_express10 = __toESM(require_express2(), 1);
+import { createHmac, timingSafeEqual as timingSafeEqual2 } from "crypto";
 
 // src/lib/logger.ts
 var import_pino = __toESM(require_pino(), 1);
@@ -57310,100 +57370,99 @@ var logger = (0, import_pino.default)({
 
 // src/routes/payments.ts
 var router10 = (0, import_express10.Router)();
-function isSuccessState(state) {
-  const s = state.toUpperCase().trim();
-  return ["SUCCESS", "SUCCESSFULL", "SUCCESSFUL", "COMPLETED", "COMPLETE", "PAID", "DONE", "APPROVED"].includes(s);
-}
-function isFailedState(state) {
-  const s = state.toUpperCase().trim();
-  return ["FAILED", "REJECTED", "CANCELLED", "FAILURE", "TIMEOUT", "EXPIRED", "ERROR", "DECLINED"].includes(s);
-}
 router10.post("/payments/ipn", async (req, res) => {
-  res.status(200).json({ received: true });
-  const { transaction_id, state, custom_data } = req.body ?? {};
-  const customStr = String(custom_data ?? "");
-  logger.info({ transaction_id, state, custom_data }, "Pixpay IPN received");
-  if (customStr.startsWith("withdrawal_")) {
-    const withdrawalId = parseInt(customStr.replace("withdrawal_", ""));
-    if (isNaN(withdrawalId)) {
-      logger.warn({ custom_data }, "IPN: invalid withdrawal id in custom_data");
-      return;
+  if (!Buffer.isBuffer(req.body)) {
+    return res.status(400).json({ error: "Corps brut du webhook requis" });
+  }
+  const webhookSecret = (process.env.ASHTECH_WEBHOOK_SECRET ?? "").trim();
+  if (!webhookSecret) {
+    logger.error("ASHTECH_WEBHOOK_SECRET is not configured");
+    return res.status(503).json({ error: "Le secret webhook AshTech n'est pas configur\xE9" });
+  }
+  const rawBody = req.body.toString("utf8");
+  const timestamp2 = req.header("X-Ashtech-Timestamp") ?? "";
+  const signature = req.header("X-Ashtech-Signature") ?? "";
+  const timestampSeconds = Number(timestamp2);
+  if (!Number.isInteger(timestampSeconds) || Math.abs(Date.now() / 1e3 - timestampSeconds) > 300) {
+    return res.status(401).json({ error: "Horodatage webhook invalide ou expir\xE9" });
+  }
+  const signatureMatch = /^sha256=([a-f0-9]{64})$/i.exec(signature);
+  if (!signatureMatch) return res.status(401).json({ error: "Signature webhook invalide" });
+  const expectedSignature = createHmac("sha256", webhookSecret).update(`${timestamp2}.${rawBody}`).digest();
+  const receivedSignature = Buffer.from(signatureMatch[1], "hex");
+  if (!timingSafeEqual2(expectedSignature, receivedSignature)) {
+    return res.status(401).json({ error: "Signature webhook invalide" });
+  }
+  let event;
+  try {
+    event = JSON.parse(rawBody);
+  } catch {
+    return res.status(400).json({ error: "JSON webhook invalide" });
+  }
+  const transactionId = typeof event.transaction_id === "string" ? event.transaction_id.trim() : "";
+  const reference = typeof event.reference === "string" ? event.reference.trim() : "";
+  const eventStatus = typeof event.status === "string" ? event.status.toLowerCase() : "";
+  if (!transactionId || !reference) {
+    return res.status(400).json({ error: "R\xE9f\xE9rence ou identifiant de transaction manquant" });
+  }
+  let orderId = null;
+  try {
+    const storedTransactionId = toStoredAshtechTransactionId(transactionId);
+    const orderIdMatch = /^gooddeal-order-(\d+)$/.exec(reference);
+    orderId = orderIdMatch ? Number(orderIdMatch[1]) : null;
+    if (orderId !== null && (!Number.isSafeInteger(orderId) || orderId <= 0)) {
+      return res.status(400).json({ error: "R\xE9f\xE9rence de commande invalide" });
     }
-    try {
-      const [withdrawal] = await db.select().from(withdrawalsTable).where(eq(withdrawalsTable.id, withdrawalId)).limit(1);
-      if (!withdrawal) {
-        logger.warn({ withdrawalId }, "IPN: withdrawal not found");
-        return;
-      }
-      if (isSuccessState(state)) {
-        await db.update(withdrawalsTable).set({ status: "paid", transactionId: transaction_id ?? null }).where(eq(withdrawalsTable.id, withdrawalId));
-        logger.info({ withdrawalId, transaction_id }, "IPN: withdrawal marked paid");
-      } else if (isFailedState(state)) {
-        if (withdrawal.status === "paid") {
-          logger.warn({ withdrawalId, state }, "IPN: received failed state but withdrawal already paid \u2014 ignoring");
-          return;
-        }
-        await db.update(withdrawalsTable).set({ status: "failed", transactionId: transaction_id ?? null }).where(eq(withdrawalsTable.id, withdrawalId));
-        if (!withdrawal.isAdmin && withdrawal.merchantId) {
-          const [merchant] = await db.select().from(merchantsTable).where(eq(merchantsTable.id, withdrawal.merchantId)).limit(1);
+    if (orderId === null) {
+      const [matchedOrder] = await db.select({ id: ordersTable.id }).from(ordersTable).where(eq(ordersTable.transactionId, storedTransactionId)).limit(1);
+      orderId = matchedOrder?.id ?? null;
+    }
+    if (orderId === null) {
+      logger.info({ reference, transactionId }, "AshTech webhook ignored: no matching Good Deal order");
+      return res.status(200).json({ received: true, ignored: true });
+    }
+    const [currentOrder] = await db.select().from(ordersTable).where(eq(ordersTable.id, orderId)).limit(1);
+    if (!currentOrder) return res.status(200).json({ received: true, ignored: true });
+    if (currentOrder.transactionId && currentOrder.transactionId !== storedTransactionId) {
+      logger.warn({ orderId, transactionId }, "AshTech webhook ignored: transaction does not match order");
+      return res.status(200).json({ received: true, ignored: true });
+    }
+    const verifiedStatus = await checkAshtechStatus(transactionId);
+    if (eventStatus === "completed" && (verifiedStatus === "success" || verifiedStatus === "completed")) {
+      const [updated] = await db.update(ordersTable).set({ status: "confirmed", transactionId: storedTransactionId }).where(
+        and(
+          eq(ordersTable.id, orderId),
+          or(eq(ordersTable.status, "processing"), eq(ordersTable.status, "pending"))
+        )
+      ).returning();
+      if (updated) {
+        if (updated.merchantId) {
+          const commission = Math.floor(updated.totalAmount * 0.5);
+          const [merchant] = await db.select().from(merchantsTable).where(eq(merchantsTable.id, updated.merchantId)).limit(1);
           if (merchant) {
-            await db.update(merchantsTable).set({ balance: merchant.balance + withdrawal.amount }).where(eq(merchantsTable.id, merchant.id));
-            logger.info({ merchantId: merchant.id, amount: withdrawal.amount }, "IPN: merchant balance refunded after failed cashin");
+            await db.update(merchantsTable).set({ balance: merchant.balance + commission }).where(eq(merchantsTable.id, merchant.id));
           }
         }
-        logger.info({ withdrawalId, state }, "IPN: withdrawal failed");
+        logger.info({ orderId, transactionId }, "AshTech order confirmed");
+        emitOrderStatus(orderId, "confirmed", transactionId);
       }
-    } catch (err) {
-      logger.error({ err, withdrawalId }, "IPN: error processing withdrawal callback");
-    }
-    return;
-  }
-  let rawId;
-  if (customStr.startsWith("Ashtech-pay-Gd")) {
-    rawId = customStr.replace("Ashtech-pay-Gd", "");
-  } else if (customStr.includes("_")) {
-    rawId = customStr.split("_").pop() ?? "";
-  } else {
-    rawId = customStr;
-  }
-  const orderId = parseInt(rawId);
-  if (isNaN(orderId)) {
-    logger.warn({ custom_data }, "IPN: custom_data is not a valid order id");
-    return;
-  }
-  try {
-    if (isSuccessState(state)) {
-      const updated = await db.update(ordersTable).set({ status: "confirmed", transactionId: transaction_id ?? null }).where(and(eq(ordersTable.id, orderId), eq(ordersTable.status, "processing"))).returning();
-      if (updated.length === 0) {
-        logger.info({ orderId }, "IPN: order already confirmed or not in processing state \u2014 skipping");
-        emitOrderStatus(orderId, "confirmed", transaction_id);
-        return;
-      }
-      const order = updated[0];
-      logger.info({ orderId, transaction_id }, "IPN: order confirmed (awaiting admin delivery)");
-      if (order.merchantId) {
-        const commission = Math.floor(order.totalAmount * 0.5);
-        const [merchant] = await db.select().from(merchantsTable).where(eq(merchantsTable.id, order.merchantId)).limit(1);
-        if (merchant) {
-          await db.update(merchantsTable).set({ balance: merchant.balance + commission }).where(eq(merchantsTable.id, merchant.id));
-          logger.info({ merchantId: merchant.id, commission }, "IPN: merchant commission credited on confirmation");
-        }
-      }
-      emitOrderStatus(orderId, "confirmed", transaction_id);
-    } else if (isFailedState(state)) {
-      const [current] = await db.select({ status: ordersTable.status }).from(ordersTable).where(eq(ordersTable.id, orderId)).limit(1);
-      if (current?.status === "confirmed" || current?.status === "paid") {
-        logger.warn({ orderId, state }, "IPN: received failed state but order already confirmed/paid \u2014 ignoring");
-      } else {
-        await db.update(ordersTable).set({ status: "failed", transactionId: transaction_id ?? null }).where(eq(ordersTable.id, orderId));
-        logger.info({ orderId, state }, "IPN: order marked failed");
-        emitOrderStatus(orderId, "failed", transaction_id);
-      }
+    } else if (eventStatus === "failed" && verifiedStatus === "failed") {
+      const [updated] = await db.update(ordersTable).set({ status: "failed", transactionId: storedTransactionId }).where(
+        and(
+          eq(ordersTable.id, orderId),
+          or(eq(ordersTable.status, "processing"), eq(ordersTable.status, "pending"))
+        )
+      ).returning();
+      if (updated) emitOrderStatus(orderId, "failed", transactionId);
+    } else if (verifiedStatus === "pending") {
+      logger.info({ orderId, transactionId, eventStatus }, "AshTech payment is still pending");
     } else {
-      logger.info({ orderId, state }, "IPN: unhandled state, no update");
+      logger.warn({ orderId, transactionId, eventStatus, verifiedStatus }, "AshTech webhook status mismatch");
     }
+    return res.status(200).json({ received: true });
   } catch (err) {
-    logger.error({ err, orderId }, "IPN: error updating order status");
+    logger.error({ err: err?.message, orderId, transactionId }, "AshTech webhook processing failed");
+    return res.status(503).json({ error: "La v\xE9rification AshTech a \xE9chou\xE9; notification \xE0 r\xE9essayer" });
   }
 });
 var payments_default = router10;
@@ -57479,46 +57538,9 @@ router11.get("/merchant/me", async (req, res) => {
 router11.post("/merchant/withdraw", async (req, res) => {
   const merchantId = getMerchantIdFromHeader(req);
   if (!merchantId) return res.status(401).json({ error: "Non autoris\xE9" });
-  const schema = external_exports.object({
-    amount: external_exports.number().int().positive(),
-    operator: external_exports.enum(["mtn", "orange"]),
-    withdrawalPhone: external_exports.string().min(1)
+  return res.status(503).json({
+    error: "Les retraits Mobile Money sont temporairement suspendus : l'API AshTech de virement sortant n'est pas document\xE9e."
   });
-  const parsed = schema.safeParse(req.body);
-  if (!parsed.success) return res.status(400).json({ error: "Donn\xE9es invalides" });
-  const [merchant] = await db.select().from(merchantsTable).where(eq(merchantsTable.id, merchantId)).limit(1);
-  if (!merchant) return res.status(404).json({ error: "Marchand introuvable" });
-  if (parsed.data.amount > merchant.balance) {
-    return res.status(400).json({ error: "Solde insuffisant" });
-  }
-  if (parsed.data.amount < 100) {
-    return res.status(400).json({ error: "Montant minimum de retrait: 100 FCFA" });
-  }
-  await db.update(merchantsTable).set({ balance: merchant.balance - parsed.data.amount }).where(eq(merchantsTable.id, merchantId));
-  const [withdrawal] = await db.insert(withdrawalsTable).values({
-    merchantId,
-    isAdmin: false,
-    operator: parsed.data.operator,
-    amount: parsed.data.amount,
-    withdrawalPhone: parsed.data.withdrawalPhone,
-    status: "pending"
-  }).returning();
-  try {
-    const pixpay = await initiatePixpayCashin({
-      amount: parsed.data.amount,
-      destination: parsed.data.withdrawalPhone,
-      operator: parsed.data.operator,
-      withdrawalId: withdrawal.id
-    });
-    await db.update(withdrawalsTable).set({ status: "processing", transactionId: pixpay.data.transaction_id }).where(eq(withdrawalsTable.id, withdrawal.id));
-    logger.info({ withdrawalId: withdrawal.id, transactionId: pixpay.data.transaction_id }, "Merchant cashin initiated");
-    return res.status(201).json({ ...withdrawal, status: "processing", transactionId: pixpay.data.transaction_id });
-  } catch (err) {
-    await db.update(merchantsTable).set({ balance: merchant.balance }).where(eq(merchantsTable.id, merchantId));
-    await db.update(withdrawalsTable).set({ status: "failed" }).where(eq(withdrawalsTable.id, withdrawal.id));
-    logger.error({ withdrawalId: withdrawal.id, err: err?.message }, "Merchant cashin failed, balance refunded");
-    return res.status(502).json({ error: `Erreur lors du virement : ${err.message}` });
-  }
 });
 router11.patch("/admin/merchants/:id/balance", async (req, res) => {
   if (!isAdminRequest2(req)) return res.status(403).json({ error: "Acc\xE8s refus\xE9" });
@@ -57647,54 +57669,9 @@ router11.patch("/admin/withdrawals/:id/status", async (req, res) => {
 });
 router11.post("/admin/withdraw", async (req, res) => {
   if (!isAdminRequest2(req)) return res.status(403).json({ error: "Acc\xE8s refus\xE9" });
-  const schema = external_exports.object({
-    amount: external_exports.number().int().positive(),
-    operator: external_exports.enum(["mtn", "orange"]),
-    withdrawalPhone: external_exports.string().min(1)
+  return res.status(503).json({
+    error: "Les retraits Mobile Money sont temporairement suspendus : l'API AshTech de virement sortant n'est pas document\xE9e."
   });
-  const parsed = schema.safeParse(req.body);
-  if (!parsed.success) return res.status(400).json({ error: "Donn\xE9es invalides" });
-  if (parsed.data.amount < 100) {
-    return res.status(400).json({ error: "Montant minimum de retrait: 100 FCFA" });
-  }
-  const allOrders = await db.select().from(ordersTable);
-  const paidOrders = allOrders.filter((o) => o.status === "paid" || o.status === "confirmed");
-  const totalRevenue = paidOrders.reduce((sum, o) => sum + o.totalAmount, 0);
-  const merchantCommissionsTotal = paidOrders.filter((o) => o.merchantId !== null).reduce((sum, o) => sum + Math.floor(o.totalAmount * 0.5), 0);
-  const allWithdrawals = await db.select().from(withdrawalsTable);
-  const adminWithdrawalsTotal = allWithdrawals.filter((w) => w.isAdmin && w.status === "paid").reduce((sum, w) => sum + w.amount, 0);
-  const allDeposits = await db.select().from(adminDepositsTable);
-  const adminDepositsTotal = allDeposits.reduce((sum, d) => sum + d.amount, 0);
-  const availableBalance = Math.max(0, totalRevenue - merchantCommissionsTotal + adminDepositsTotal - adminWithdrawalsTotal);
-  if (parsed.data.amount > availableBalance) {
-    return res.status(400).json({
-      error: `Solde insuffisant. Solde disponible : ${availableBalance} FCFA`,
-      availableBalance
-    });
-  }
-  const [withdrawal] = await db.insert(withdrawalsTable).values({
-    merchantId: null,
-    isAdmin: true,
-    operator: parsed.data.operator,
-    amount: parsed.data.amount,
-    withdrawalPhone: parsed.data.withdrawalPhone,
-    status: "pending"
-  }).returning();
-  try {
-    const pixpay = await initiatePixpayCashin({
-      amount: parsed.data.amount,
-      destination: parsed.data.withdrawalPhone,
-      operator: parsed.data.operator,
-      withdrawalId: withdrawal.id
-    });
-    await db.update(withdrawalsTable).set({ status: "processing", transactionId: pixpay.data.transaction_id }).where(eq(withdrawalsTable.id, withdrawal.id));
-    logger.info({ withdrawalId: withdrawal.id, transactionId: pixpay.data.transaction_id }, "Admin cashin initiated");
-    return res.status(201).json({ ...withdrawal, status: "processing", transactionId: pixpay.data.transaction_id });
-  } catch (err) {
-    await db.update(withdrawalsTable).set({ status: "failed" }).where(eq(withdrawalsTable.id, withdrawal.id));
-    logger.error({ withdrawalId: withdrawal.id, err: err?.message }, "Admin cashin failed");
-    return res.status(502).json({ error: `Erreur lors du virement : ${err.message}` });
-  }
 });
 router11.post("/admin/manual-withdraw", async (req, res) => {
   if (!isAdminRequest2(req)) return res.status(403).json({ error: "Acc\xE8s refus\xE9" });
@@ -57794,6 +57771,7 @@ app.use(
   })
 );
 app.use((0, import_cors.default)());
+app.use("/api/payments/ipn", import_express13.default.raw({ type: "application/json" }));
 app.use(import_express13.default.json());
 app.use(import_express13.default.urlencoded({ extended: true }));
 app.use("/api", routes_default);
@@ -57844,19 +57822,14 @@ if (process.env.NODE_ENV === "production") {
 var app_default = app;
 
 // src/lib/processing-poller.ts
-var POLL_INTERVAL_MS = 2e3;
+var POLL_INTERVAL_MS = 3e4;
 var UNPAID_EXPIRY_MS = 5 * 60 * 1e3;
 var STUCK_PROCESSING_EXPIRY_MS = 60 * 60 * 1e3;
-var MIN_AGE_BEFORE_FAIL_COUNT_MS = 4 * 60 * 1e3;
-var MAX_FAIL_COUNT = 60;
-var failedCounts = /* @__PURE__ */ new Map();
-function isSuccessState2(state) {
-  const s = state.toUpperCase().trim();
-  return ["SUCCESS", "SUCCESSFULL", "SUCCESSFUL", "COMPLETED", "COMPLETE", "PAID", "DONE", "APPROVED"].includes(s);
+function isSuccessState(state) {
+  return state === "success" || state === "completed";
 }
-function isFailedState2(state) {
-  const s = state.toUpperCase().trim();
-  return ["FAILED", "REJECTED", "CANCELLED", "FAILURE", "TIMEOUT", "EXPIRED", "ERROR", "DECLINED"].includes(s);
+function isFailedState(state) {
+  return state === "failed";
 }
 async function creditMerchantCommission(order) {
   if (!order.merchantId) return;
@@ -57890,39 +57863,6 @@ async function cancelOldUnpaidOrders() {
     logger.warn({ err: err?.message }, "Poller: error in cancelOldUnpaidOrders");
   }
 }
-async function failStuckProcessingOrders() {
-  const cutoff = new Date(Date.now() - STUCK_PROCESSING_EXPIRY_MS);
-  try {
-    const rows = await db.select().from(ordersTable).where(and(eq(ordersTable.status, "processing"), lt(ordersTable.createdAt, cutoff)));
-    for (const order of rows) {
-      let finalState = "TIMEOUT";
-      if (order.transactionId) {
-        try {
-          const result = await checkPixpayStatus(order.transactionId);
-          finalState = result?.data?.state ?? "TIMEOUT";
-        } catch {
-        }
-      }
-      if (isSuccessState2(finalState)) {
-        const updated = await db.update(ordersTable).set({ status: "confirmed" }).where(and(eq(ordersTable.id, order.id), eq(ordersTable.status, "processing"))).returning();
-        if (updated.length === 0) {
-          emitOrderStatus(order.id, "confirmed", order.transactionId);
-          continue;
-        }
-        await creditMerchantCommission(order);
-        emitOrderStatus(order.id, "confirmed", order.transactionId);
-        logger.info({ orderId: order.id }, "Poller(stuck): order confirmed");
-      } else {
-        if (order.transactionId) failedCounts.delete(order.transactionId);
-        await db.update(ordersTable).set({ status: "failed" }).where(eq(ordersTable.id, order.id));
-        emitOrderStatus(order.id, "failed", order.transactionId);
-        logger.warn({ orderId: order.id, finalState }, "Poller: stuck order auto-failed after 60 min");
-      }
-    }
-  } catch (err) {
-    logger.warn({ err: err?.message }, "Poller: error in failStuckProcessingOrders");
-  }
-}
 async function checkProcessingOrders() {
   let rows = [];
   try {
@@ -57931,143 +57871,49 @@ async function checkProcessingOrders() {
     return;
   }
   for (const order of rows) {
-    if (!order.transactionId) continue;
+    const transactionId = order.transactionId ? getAshtechTransactionId(order.transactionId) : null;
+    if (!transactionId) continue;
     const ageMs = Date.now() - new Date(order.createdAt).getTime();
-    if (ageMs >= STUCK_PROCESSING_EXPIRY_MS) continue;
     try {
-      const result = await checkPixpayStatus(order.transactionId);
-      const state = result?.data?.state ?? "";
-      logger.debug({ orderId: order.id, transactionId: order.transactionId, state }, "Poller: Pixpay status");
-      if (isSuccessState2(state)) {
-        failedCounts.delete(order.transactionId);
+      const state = await checkAshtechStatus(transactionId);
+      logger.debug({ orderId: order.id, transactionId, state }, "AshTech payment status checked");
+      if (isSuccessState(state)) {
         const updated = await db.update(ordersTable).set({ status: "confirmed" }).where(and(eq(ordersTable.id, order.id), eq(ordersTable.status, "processing"))).returning();
         if (updated.length === 0) {
-          emitOrderStatus(order.id, "confirmed", order.transactionId);
           continue;
         }
         await creditMerchantCommission(order);
         emitOrderStatus(order.id, "confirmed", order.transactionId);
-        logger.info({ orderId: order.id, state }, "Poller: order confirmed");
-      } else if (isFailedState2(state)) {
-        if (ageMs < MIN_AGE_BEFORE_FAIL_COUNT_MS) {
-          logger.info(
-            { orderId: order.id, state, ageMs },
-            "Poller: FAILED state but order too young \u2014 ignoring (user may still be confirming)"
-          );
-          failedCounts.delete(order.transactionId);
-          continue;
-        }
-        const count = (failedCounts.get(order.transactionId) ?? 0) + 1;
-        failedCounts.set(order.transactionId, count);
-        logger.info(
-          { orderId: order.id, state, failCount: count, maxFailCount: MAX_FAIL_COUNT },
-          "Poller: FAILED state received \u2014 waiting for confirmation"
-        );
-        if (count >= MAX_FAIL_COUNT) {
-          failedCounts.delete(order.transactionId);
-          await db.update(ordersTable).set({ status: "failed" }).where(eq(ordersTable.id, order.id));
+        logger.info({ orderId: order.id, state }, "AshTech order confirmed");
+      } else if (isFailedState(state)) {
+        const [updated] = await db.update(ordersTable).set({ status: "failed" }).where(and(eq(ordersTable.id, order.id), eq(ordersTable.status, "processing"))).returning();
+        if (updated) {
           emitOrderStatus(order.id, "failed", order.transactionId);
-          logger.info({ orderId: order.id, state }, "Poller: order marked failed after consecutive checks");
+          logger.info({ orderId: order.id }, "AshTech order marked failed");
         }
-      } else {
-        failedCounts.delete(order.transactionId);
+      } else if (ageMs >= STUCK_PROCESSING_EXPIRY_MS) {
+        logger.warn(
+          { orderId: order.id, state, ageMs },
+          "AshTech order is still unresolved after 60 minutes; left processing for manual review"
+        );
       }
     } catch (err) {
-      logger.warn({ orderId: order.id, err: err?.message }, "Poller: error checking Pixpay status");
+      logger.warn({ orderId: order.id, err: err?.message }, "AshTech status check failed");
     }
   }
 }
 async function runCycle() {
   await cancelOldUnpaidOrders();
-  await failStuckProcessingOrders();
   await checkProcessingOrders();
 }
 function startProcessingPoller() {
-  logger.info("Starting Pixpay processing-order poller (every 2s)");
+  logger.info("Starting AshTech processing-order poller (every 30s)");
   runCycle().catch(() => {
   });
   setInterval(() => {
     runCycle().catch(() => {
     });
   }, POLL_INTERVAL_MS);
-}
-
-// src/lib/withdrawal-poller.ts
-var POLL_INTERVAL_MS2 = 2e3;
-var STUCK_EXPIRY_MS = 60 * 60 * 1e3;
-function isSuccessState3(state) {
-  const s = state.toUpperCase().trim();
-  return ["SUCCESS", "SUCCESSFULL", "SUCCESSFUL", "COMPLETED", "COMPLETE", "PAID", "DONE", "APPROVED"].includes(s);
-}
-function isFailedState3(state) {
-  const s = state.toUpperCase().trim();
-  return ["FAILED", "REJECTED", "CANCELLED", "FAILURE", "TIMEOUT", "EXPIRED", "ERROR", "DECLINED"].includes(s);
-}
-async function checkProcessingWithdrawals() {
-  let rows = [];
-  try {
-    rows = await db.select().from(withdrawalsTable).where(eq(withdrawalsTable.status, "processing"));
-  } catch {
-    return;
-  }
-  for (const withdrawal of rows) {
-    if (!withdrawal.transactionId) continue;
-    const ageMs = Date.now() - new Date(withdrawal.createdAt).getTime();
-    if (ageMs >= STUCK_EXPIRY_MS) {
-      try {
-        const result = await checkPixpayStatus(withdrawal.transactionId);
-        const finalState = result?.data?.state ?? "";
-        if (isSuccessState3(finalState)) {
-          await db.update(withdrawalsTable).set({ status: "paid" }).where(eq(withdrawalsTable.id, withdrawal.id));
-          logger.info({ withdrawalId: withdrawal.id, finalState }, "Withdrawal poller(stuck): withdrawal confirmed paid after 60 min");
-        } else {
-          logger.error(
-            { withdrawalId: withdrawal.id, finalState, ageMs },
-            "Withdrawal poller: withdrawal stuck 60+ min with unresolved state \u2014 ADMIN REVIEW REQUIRED. NOT auto-failing to avoid incorrect balance refund. Check PixPay dashboard manually."
-          );
-        }
-      } catch (err) {
-        logger.error(
-          { withdrawalId: withdrawal.id, err: err?.message },
-          "Withdrawal poller: stuck withdrawal \u2014 could not reach PixPay. ADMIN REVIEW REQUIRED."
-        );
-      }
-      continue;
-    }
-    try {
-      const result = await checkPixpayStatus(withdrawal.transactionId);
-      const state = result?.data?.state ?? "";
-      logger.debug(
-        { withdrawalId: withdrawal.id, transactionId: withdrawal.transactionId, state },
-        "Withdrawal poller: Pixpay status"
-      );
-      if (isSuccessState3(state)) {
-        await db.update(withdrawalsTable).set({ status: "paid" }).where(eq(withdrawalsTable.id, withdrawal.id));
-        logger.info({ withdrawalId: withdrawal.id, state }, "Withdrawal poller: withdrawal marked paid");
-      } else if (isFailedState3(state)) {
-        logger.warn(
-          { withdrawalId: withdrawal.id, state, ageMs },
-          "Withdrawal poller: PixPay returned FAILED state \u2014 awaiting IPN confirmation before acting. If BASE_URL is not set in production, configure it to receive IPN notifications."
-        );
-      } else {
-        logger.debug({ withdrawalId: withdrawal.id, state }, "Withdrawal poller: in-flight, waiting");
-      }
-    } catch (err) {
-      logger.warn({ withdrawalId: withdrawal.id, err: err?.message }, "Withdrawal poller: error checking Pixpay status");
-    }
-  }
-}
-async function runCycle2() {
-  await checkProcessingWithdrawals();
-}
-function startWithdrawalPoller() {
-  logger.info("Starting withdrawal cashin poller (every 2s)");
-  runCycle2().catch(() => {
-  });
-  setInterval(() => {
-    runCycle2().catch(() => {
-    });
-  }, POLL_INTERVAL_MS2);
 }
 
 // src/index.ts
@@ -58083,7 +57929,6 @@ app_default.listen(port, (err) => {
   }
   logger.info({ port }, "Server listening");
   startProcessingPoller();
-  startWithdrawalPoller();
 });
 /*! Bundled license information:
 

@@ -563,7 +563,7 @@ export default function Admin() {
 
   if (!isAdmin) return null;
 
-  const chartData = revenue?.revenueByOperator.map(r => ({
+  const chartData = revenue?.revenueByOperator.map((r: { operatorName: string; revenue: number }) => ({
     name: r.operatorName,
     revenue: r.revenue,
   })) ?? [];
@@ -599,10 +599,13 @@ export default function Admin() {
             <Button variant="outline" size="sm" onClick={() => setLocation("/ashtech/users")} className="justify-start sm:justify-center">👥 Utilisateurs</Button>
             <Button variant="outline" size="sm" onClick={() => setLocation("/ashtech/reviews")} className="justify-start sm:justify-center">⭐ Avis</Button>
             <Button variant="outline" size="sm" onClick={() => setLocation("/ashtech/settings")} className="justify-start sm:justify-center">⚙️ Paramètres</Button>
-            <Button variant="outline" size="sm" onClick={() => setShowAdminWithdraw(true)} className="justify-start sm:justify-center text-orange-600 border-orange-200 hover:bg-orange-50">
-              <ArrowDownCircle className="w-4 h-4 mr-1" /> Retrait
+            <Button variant="outline" size="sm" disabled title="Les retraits Mobile Money sont temporairement suspendus" className="justify-start sm:justify-center">
+              <ArrowDownCircle className="w-4 h-4 mr-1" /> Retraits suspendus
             </Button>
           </div>
+          <p className="text-xs text-muted-foreground mt-2">
+            Les retraits Mobile Money sont suspendus jusqu’à la disponibilité d’une API de virement sortant AshTech.
+          </p>
         </div>
 
         {/* Solde disponible — carte principale */}

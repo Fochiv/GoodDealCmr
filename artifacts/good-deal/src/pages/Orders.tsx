@@ -184,7 +184,7 @@ function DeliveryProgress({ validatedAt }: { validatedAt: string }) {
 // ─── Pending Progress (waiting) ───────────────────────────────────────────────
 function PendingProgress() {
   const [pulse, setPulse] = useState(0);
-  const ref = useRef<ReturnType<typeof setInterval>>();
+  const ref = useRef<ReturnType<typeof setInterval> | undefined>(undefined);
 
   useEffect(() => {
     ref.current = setInterval(() => setPulse(p => (p + 1) % 100), 30);
@@ -236,9 +236,9 @@ function OrderCard({ order }: { order: Order }) {
   const opText = isMtn ? "#1a1a1a" : "white";
 
   const isPaid = order.status === "paid";
-  // "confirmed" = Pixpay confirmed payment, admin validating delivery
+  // "confirmed" = AshTech confirmed payment, admin validating delivery
   const isDelivering = order.status === "confirmed";
-  // "processing" = USSD sent to Pixpay, waiting for payment confirmation
+  // "processing" = USSD request sent, waiting for payment confirmation
   const isProcessing = order.status === "processing" || (order.status === "pending" && !!order.transactionId);
   // "notStarted" = order created but never paid (no USSD sent)
   const isNotStarted = order.status === "pending" && !order.transactionId;

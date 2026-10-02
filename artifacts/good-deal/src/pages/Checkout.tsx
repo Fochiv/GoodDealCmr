@@ -43,8 +43,6 @@ export default function Checkout() {
   const [processing, setProcessing] = useState(false);
   const [orderId, setOrderId] = useState<number | null>(null);
   const [orderStatus, setOrderStatus] = useState<OrderStatus>("processing");
-  const [pixpayState, setPixpayState] = useState<string>("");
-
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const { token } = useAuth();
@@ -190,7 +188,6 @@ export default function Checkout() {
       const payData = await payRes.json();
       setOrderId(id);
       setOrderStatus("processing");
-      setPixpayState(payData.state ?? "PENDING");
       setStep(3);
       // Save to localStorage so the global floating bar can show it
       savePendingPayment({
@@ -220,7 +217,6 @@ export default function Checkout() {
     if (pollRef.current) clearInterval(pollRef.current);
     setOrderId(null);
     setOrderStatus("processing");
-    setPixpayState("");
     setStep(2);
   };
 

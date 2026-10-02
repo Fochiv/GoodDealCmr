@@ -3,7 +3,6 @@ import { db, merchantsTable, withdrawalsTable, ordersTable, adminDepositsTable }
 import { eq, desc, isNull } from "drizzle-orm";
 import { z } from "zod";
 import { createHash } from "crypto";
-import { initiatePixpayCashin } from "../lib/pixpay";
 import { logger } from "../lib/logger";
 
 const router = Router();
@@ -96,61 +95,9 @@ router.post("/merchant/withdraw", async (req, res) => {
   const merchantId = getMerchantIdFromHeader(req);
   if (!merchantId) return res.status(401).json({ error: "Non autorisé" });
 
-  const schema = z.object({
-    amount: z.number().int().positive(),
-    operator: z.enum(["mtn", "orange"]),
-    withdrawalPhone: z.string().min(1),
+  return res.status(503).json({
+    error: "Les retraits Mobile Money sont temporairement suspendus : l'API AshTech de virement sortant n'est pas documentée.",
   });
-  const parsed = schema.safeParse(req.body);
-  if (!parsed.success) return res.status(400).json({ error: "Données invalides" });
-
-  const [merchant] = await db.select().from(merchantsTable).where(eq(merchantsTable.id, merchantId)).limit(1);
-  if (!merchant) return res.status(404).json({ error: "Marchand introuvable" });
-
-  if (parsed.data.amount > merchant.balance) {
-    return res.status(400).json({ error: "Solde insuffisant" });
-  }
-  if (parsed.data.amount < 100) {
-    return res.status(400).json({ error: "Montant minimum de retrait: 100 FCFA" });
-  }
-
-  await db.update(merchantsTable)
-    .set({ balance: merchant.balance - parsed.data.amount })
-    .where(eq(merchantsTable.id, merchantId));
-
-  const [withdrawal] = await db.insert(withdrawalsTable).values({
-    merchantId,
-    isAdmin: false,
-    operator: parsed.data.operator,
-    amount: parsed.data.amount,
-    withdrawalPhone: parsed.data.withdrawalPhone,
-    status: "pending",
-  }).returning();
-
-  // Déclencher le cashin Pixpay automatiquement
-  try {
-    const pixpay = await initiatePixpayCashin({
-      amount: parsed.data.amount,
-      destination: parsed.data.withdrawalPhone,
-      operator: parsed.data.operator,
-      withdrawalId: withdrawal.id,
-    });
-    await db.update(withdrawalsTable)
-      .set({ status: "processing", transactionId: pixpay.data.transaction_id })
-      .where(eq(withdrawalsTable.id, withdrawal.id));
-    logger.info({ withdrawalId: withdrawal.id, transactionId: pixpay.data.transaction_id }, "Merchant cashin initiated");
-    return res.status(201).json({ ...withdrawal, status: "processing", transactionId: pixpay.data.transaction_id });
-  } catch (err: any) {
-    // Le cashin a échoué : rembourser le marchand et marquer le retrait en échec
-    await db.update(merchantsTable)
-      .set({ balance: merchant.balance })
-      .where(eq(merchantsTable.id, merchantId));
-    await db.update(withdrawalsTable)
-      .set({ status: "failed" })
-      .where(eq(withdrawalsTable.id, withdrawal.id));
-    logger.error({ withdrawalId: withdrawal.id, err: err?.message }, "Merchant cashin failed, balance refunded");
-    return res.status(502).json({ error: `Erreur lors du virement : ${err.message}` });
-  }
 });
 
 // PATCH /admin/merchants/:id/balance — add or subtract from merchant balance
@@ -329,71 +276,9 @@ router.patch("/admin/withdrawals/:id/status", async (req, res) => {
 router.post("/admin/withdraw", async (req, res) => {
   if (!isAdminRequest(req)) return res.status(403).json({ error: "Accès refusé" });
 
-  const schema = z.object({
-    amount: z.number().int().positive(),
-    operator: z.enum(["mtn", "orange"]),
-    withdrawalPhone: z.string().min(1),
+  return res.status(503).json({
+    error: "Les retraits Mobile Money sont temporairement suspendus : l'API AshTech de virement sortant n'est pas documentée.",
   });
-  const parsed = schema.safeParse(req.body);
-  if (!parsed.success) return res.status(400).json({ error: "Données invalides" });
-
-  if (parsed.data.amount < 100) {
-    return res.status(400).json({ error: "Montant minimum de retrait: 100 FCFA" });
-  }
-
-  // Calculer le solde disponible avant d'autoriser le retrait
-  // "confirmed" = paiement encaissé — inclure dans le calcul du solde
-  const allOrders = await db.select().from(ordersTable);
-  const paidOrders = allOrders.filter(o => o.status === "paid" || o.status === "confirmed");
-  const totalRevenue = paidOrders.reduce((sum, o) => sum + o.totalAmount, 0);
-  const merchantCommissionsTotal = paidOrders
-    .filter(o => o.merchantId !== null)
-    .reduce((sum, o) => sum + Math.floor(o.totalAmount * 0.5), 0);
-  const allWithdrawals = await db.select().from(withdrawalsTable);
-  const adminWithdrawalsTotal = allWithdrawals
-    .filter(w => w.isAdmin && w.status === "paid")
-    .reduce((sum, w) => sum + w.amount, 0);
-  const allDeposits = await db.select().from(adminDepositsTable);
-  const adminDepositsTotal = allDeposits.reduce((sum, d) => sum + d.amount, 0);
-  const availableBalance = Math.max(0, totalRevenue - merchantCommissionsTotal + adminDepositsTotal - adminWithdrawalsTotal);
-
-  if (parsed.data.amount > availableBalance) {
-    return res.status(400).json({
-      error: `Solde insuffisant. Solde disponible : ${availableBalance} FCFA`,
-      availableBalance,
-    });
-  }
-
-  const [withdrawal] = await db.insert(withdrawalsTable).values({
-    merchantId: null,
-    isAdmin: true,
-    operator: parsed.data.operator,
-    amount: parsed.data.amount,
-    withdrawalPhone: parsed.data.withdrawalPhone,
-    status: "pending",
-  }).returning();
-
-  // Déclencher le cashin Pixpay automatiquement
-  try {
-    const pixpay = await initiatePixpayCashin({
-      amount: parsed.data.amount,
-      destination: parsed.data.withdrawalPhone,
-      operator: parsed.data.operator,
-      withdrawalId: withdrawal.id,
-    });
-    await db.update(withdrawalsTable)
-      .set({ status: "processing", transactionId: pixpay.data.transaction_id })
-      .where(eq(withdrawalsTable.id, withdrawal.id));
-    logger.info({ withdrawalId: withdrawal.id, transactionId: pixpay.data.transaction_id }, "Admin cashin initiated");
-    return res.status(201).json({ ...withdrawal, status: "processing", transactionId: pixpay.data.transaction_id });
-  } catch (err: any) {
-    // Cashin échoué — marquer en échec (pas de solde stocké à rembourser pour l'admin)
-    await db.update(withdrawalsTable)
-      .set({ status: "failed" })
-      .where(eq(withdrawalsTable.id, withdrawal.id));
-    logger.error({ withdrawalId: withdrawal.id, err: err?.message }, "Admin cashin failed");
-    return res.status(502).json({ error: `Erreur lors du virement : ${err.message}` });
-  }
 });
 
 // POST /admin/manual-withdraw — retrait manuel admin (soustraction directe, sans Mobile Money)

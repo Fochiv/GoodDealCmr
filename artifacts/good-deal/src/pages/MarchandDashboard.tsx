@@ -278,15 +278,18 @@ export default function MarchandDashboard() {
               <p className="text-xs text-muted-foreground mt-1">Commission: 50% de chaque vente</p>
             </div>
             <Button
-              onClick={() => setShowWithdraw(true)}
               className="text-white font-bold gap-2"
               style={{ background: "linear-gradient(135deg, #FF6600, #FF6600)" }}
-              disabled={loading || (data?.balance ?? 0) < 100}
+              disabled
+              title="Les retraits Mobile Money sont temporairement suspendus"
             >
               <ArrowDownCircle className="w-4 h-4" />
-              Retrait
+              Retraits suspendus
             </Button>
           </div>
+          <p className="text-xs text-muted-foreground mt-3">
+            Les retraits Mobile Money reprendront quand AshTech proposera une API de virement sortant.
+          </p>
         </div>
 
         {/* Referral link */}
